@@ -33,10 +33,14 @@ export async function GET(request: Request): Promise<Response> {
   const mode = url.searchParams.get('hub.mode');
   const challenge = url.searchParams.get('hub.challenge');
   const verifyToken = url.searchParams.get('hub.verify_token');
-
   const settings = await getMetaSettings();
 
-  if (mode === 'subscribe' && settings && verifyToken === settings.webhookVerifyToken) {
+  if (
+    mode === 'subscribe' &&
+    settings &&
+    typeof verifyToken === 'string' &&
+    safeCompare(verifyToken, settings.webhookVerifyToken)
+  ) {
     debugLog('webhook', 'info', 'webhook_verify', 'ok', 'Meta webhook verification successful', {});
     return new Response(challenge ?? '', { status: 200 });
   }
