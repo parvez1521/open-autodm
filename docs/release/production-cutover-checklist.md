@@ -260,6 +260,8 @@ Important notes:
 
 These tests are still an outstanding release gate. They require the staging URL, an operator-controlled Meta app secret and a dedicated Meta/Instagram test account. Do not retrieve or print the app secret from application storage, and do not use a production token or a personal production Instagram account.
 
+Recent staging preflight observed signature-verified webhook deliveries during the same time window as missing/invalid-signature negative probes. These accepted deliveries were distinct from the probes (which returned 403); the source was not attributed to a dedicated test account. Follow-up checks found no DM jobs created or sent, no follow-ups/reply reservations, no active automations, and no pending work. Before any valid-signature test or OAuth round-trip, verify in the Meta developer dashboard which app and Instagram account deliver to the staging callback. If the source is not a dedicated test account or approved Meta test event, stop and isolate the callback/account first. Do not assume staging is receiving test-only traffic based only on its hostname.
+
 ### 1. Valid-signature webhook smoke test
 
 Use the exact staging origin from the deployment dashboard. In a trusted terminal, enter the staging Meta app secret at the hidden prompt; do not place it in the command text or save it in a file. This sends only an empty-entry webhook payload, which must not enqueue DMs:
