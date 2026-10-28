@@ -8,7 +8,20 @@
 -- 2026-10-30. These explicit grants also make existing migrations independent
 -- of the historical auto-expose setting.
 
-GRANT USAGE ON SCHEMA public TO service_role;
+GRANT USAGE ON SCHEMA public TO service_role, authenticated;
+
+-- Preserve the existing owner-scoped RLS access on core tables. These are
+-- intentionally targeted grants; internal queue/settings/debug tables remain
+-- service-role-only because they have no authenticated-user policies.
+GRANT SELECT, UPDATE ON TABLE public.profiles TO authenticated;
+GRANT SELECT, DELETE ON TABLE public.instagram_accounts TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.automations TO authenticated;
+GRANT SELECT ON TABLE
+  public.dm_jobs,
+  public.dm_sent_log,
+  public.automation_sessions,
+  public.dm_logs
+TO authenticated;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
   public.profiles,
