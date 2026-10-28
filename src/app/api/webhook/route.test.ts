@@ -104,6 +104,34 @@ describe('Meta webhook route signature and verification safety', () => {
     expect(mocks.processDueJobs).not.toHaveBeenCalled();
   });
 
+  it('acknowledges a valid signature without any processing when explicitly disabled', async () => {
+    vi.stubEnv('META_WEBHOOK_PROCESSING_ENABLED', 'false');
+
+    try {
+      const rawBody = JSON.stringify({
+        object: 'instagram',
+        entry: [{ id: 'test-entry', changes: [{ field: 'comments', value: {} }] }],
+      });
+      const signature = `sha256=${hmacSha256Hex(appSecret, Buffer.from(rawBody, 'utf8'))}`;
+      const request = new Request('https://staging.example.test/api/webhook', {
+        method: 'POST',
+        headers: { 'x-hub-signature-256': signature, 'content-type': 'application/json' },
+        body: rawBody,
+      });
+
+      const response = await POST(request);
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ status: 'ok' });
+      expect(mocks.after).not.toHaveBeenCalled();
+      expect(mocks.debugLog).not.toHaveBeenCalled();
+      expect(mocks.processWebhookPayload).not.toHaveBeenCalled();
+      expect(mocks.processDueJobs).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('rejects a bad HMAC signature before scheduling any processing', async () => {
     const rawBody = JSON.stringify({ object: 'instagram', entry: [] });
     const request = new Request('https://staging.example.test/api/webhook', {
