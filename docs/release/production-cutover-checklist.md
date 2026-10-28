@@ -100,14 +100,22 @@ ORDER BY table_name, grantee;
 
 -- Catch explicit table/sequence ACLs granted to PUBLIC as well.
 SELECT n.nspname AS schema_name, c.relname AS object_name,
-       CASE c.relkind WHEN 'r' THEN 'table' WHEN 'p' THEN 'partitioned_table' WHEN 'S' THEN 'sequence' ELSE c.relkind::text END AS object_type,
+       CASE c.relkind
+         WHEN 'r' THEN 'table'
+         WHEN 'p' THEN 'partitioned_table'
+         WHEN 'v' THEN 'view'
+         WHEN 'm' THEN 'materialized_view'
+         WHEN 'f' THEN 'foreign_table'
+         WHEN 'S' THEN 'sequence'
+         ELSE c.relkind::text
+       END AS object_type,
        a.privilege_type, a.is_grantable
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 CROSS JOIN LATERAL aclexplode(c.relacl) a
 WHERE n.nspname = 'public'
   AND a.grantee = 0
-  AND c.relkind IN ('r', 'p', 'S')
+  AND c.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
 ORDER BY object_type, object_name, privilege_type;
 
 -- Inspect defaults for objects created by the postgres migration owner.
@@ -122,7 +130,7 @@ WHERE d.defaclrole = (SELECT oid FROM pg_roles WHERE rolname = 'postgres')
 ORDER BY schema_name, object_type;
 ```
 
-Postflight expectations: `anon` has no direct table privileges; `authenticated` has only the deliberately retained grants for tables covered by intended owner-scoped RLS policies; the service-only tables (including `app_settings`, `debug_events`, `job_queue`, `dm_rate_events`, and `comment_traffic_events`) have no direct client grants. In the `postgres` default ACL for `public`, `anon` and `authenticated` must not appear; only the owner and intentionally granted `service_role` rights should remain. Any unexpected grant blocks cutover. In the explicit `PUBLIC` table/sequence ACL query, postflight should return zero rows. Do not treat RLS as a mitigation for broad `TRUNCATE` or `REFERENCES` rights: PostgreSQL documents that these whole-table privileges are not subject to row-security policies ([PostgreSQL 17 RLS documentation](https://www.postgresql.org/docs/17/ddl-rowsecurity.html)). Any client `TRUNCATE`/`REFERENCES` grant is a hard stop until removed or explicitly justified.
+Postflight expectations: `anon` has no direct table privileges; `authenticated` has only the deliberately retained grants for tables covered by intended owner-scoped RLS policies; the service-only tables (including `app_settings`, `debug_events`, `job_queue`, `dm_rate_events`, and `comment_traffic_events`) have no direct client grants. In the `postgres` default ACL for `public`, `anon` and `authenticated` must not appear; only the owner and intentionally granted `service_role` rights should remain. Any unexpected grant blocks cutover. In the explicit `PUBLIC` table/view/sequence ACL query, postflight should return zero rows. Do not treat RLS as a mitigation for broad `TRUNCATE` or `REFERENCES` rights: PostgreSQL documents that these whole-table privileges are not subject to row-security policies ([PostgreSQL 17 RLS documentation](https://www.postgresql.org/docs/17/ddl-rowsecurity.html)). Any client `TRUNCATE`/`REFERENCES` grant is a hard stop until removed or explicitly justified.
 
 Postflight should show an empty search path configuration (`search_path=""`). Rerun Security Advisor and retain the full output in the private operator record.
 
