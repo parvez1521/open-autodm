@@ -266,6 +266,12 @@ Read-only settings comparison found that staging and production are configured w
 
 After containment, the latest observed signed deliveries in staging were for an account ID with no connected account record; no further target-account DM event processing was observed in the short postflight window. Prior accepted deliveries did not create DM jobs/sends, follow-ups, or reply reservations. The source of the signed deliveries remains unattributed.
 
+### Code-level webhook processing opt-out (included in the release-prep branch)
+
+The webhook route now supports the explicit opt-out `META_WEBHOOK_PROCESSING_ENABLED=false`. When set, a correctly signed POST is acknowledged with HTTP 200 but exits before debug-event writes, payload parsing, queueing or `after()` background work. The GET verification challenge remains available. If the variable is unset, the existing processing behavior is preserved.
+
+Before deploying this branch to the **staging Worker**, set `META_WEBHOOK_PROCESSING_ENABLED=false` in that Worker environment. Keep it false while staging is isolated, then verify the deployed version's behavior with the empty-entry signed smoke test and postflight counts. This flag does not affect code already deployed until the version containing the guard is deployed; do not assume the current staging runtime honors it. Do not set this variable to false in production as part of release preparation. The Wrangler configuration includes `nodejs_compat_populate_process_env` so Cloudflare runtime variables are available through `process.env`.
+
 Treat this as a **release gate**: before any valid-signature test or OAuth round-trip, verify the current callback URL and subscribed Instagram account in Meta's developer dashboard, and determine whether staging is receiving live or test notifications for the shared app. The callback configuration is app-level for the normal Webhooks setup; do not assume staging is test-only based on its hostname. Keep the cloned staging account inactive until a dedicated staging app/test account or approved isolated callback/routing plan is confirmed. Do not change the Meta Dashboard, callback URL, app credentials, or production setup as part of this prep. Re-enable the staging account only as part of an approved test setup.
 
 ### 1. Valid-signature webhook smoke test
