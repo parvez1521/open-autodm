@@ -114,6 +114,7 @@ describe('Meta webhook route signature and verification safety', () => {
 
     expect(response.status).toBe(403);
     expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.debugLog).not.toHaveBeenCalled();
     expect(mocks.processWebhookPayload).not.toHaveBeenCalled();
   });
 
@@ -128,6 +129,23 @@ describe('Meta webhook route signature and verification safety', () => {
 
     expect(response.status).toBe(403);
     expect(mocks.getMetaSettings).not.toHaveBeenCalled();
+    expect(mocks.debugLog).not.toHaveBeenCalled();
     expect(mocks.after).not.toHaveBeenCalled();
+  });
+
+  it('does not write debug events when Meta settings are unavailable', async () => {
+    mocks.getMetaSettings.mockResolvedValue(null);
+    const request = new Request('https://staging.example.test/api/webhook', {
+      method: 'POST',
+      headers: { 'x-hub-signature-256': `sha256=${'0'.repeat(64)}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ object: 'instagram', entry: [] }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(403);
+    expect(mocks.debugLog).not.toHaveBeenCalled();
+    expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.processWebhookPayload).not.toHaveBeenCalled();
   });
 });
