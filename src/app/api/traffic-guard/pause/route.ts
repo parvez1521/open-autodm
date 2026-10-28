@@ -44,6 +44,19 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // Validate the incident/account pair before invoking the privileged pause RPC.
+  // The SQL function repeats this check so direct backend calls also fail closed.
+  const { data: incident, error: incidentError } = await db
+    .from('comment_traffic_incidents')
+    .select('id')
+    .eq('id', incidentId)
+    .eq('instagram_account_id', accountId)
+    .single();
+
+  if (incidentError || !incident) {
+    return Response.json({ error: 'Traffic Guard incident not found for this account' }, { status: 404 });
+  }
+
   try {
     const result = await pauseAccountAutomations(accountId, incidentId);
     return Response.json(result);
