@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   getMetaSettings: vi.fn(),
   processWebhookPayload: vi.fn(),
   processDueJobs: vi.fn(),
+  loggerInfo: vi.fn(),
   loggerWarn: vi.fn(),
   loggerError: vi.fn(),
   debugLog: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock('@/lib/automation/engine', () => ({
 
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({
+    info: mocks.loggerInfo,
     warn: mocks.loggerWarn,
     error: mocks.loggerError,
   }),
