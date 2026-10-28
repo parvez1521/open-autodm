@@ -34,8 +34,11 @@ function cronSnippet(appUrl: string): string {
   return `-- Run this ONCE in your Supabase project's SQL Editor.
 -- It makes Supabase call your deployment every minute to process
 -- queued/delayed DM jobs and auto-refresh Instagram tokens.
+-- Existing installations that already have pg_net in public need the
+-- dedicated guarded move_pg_net_to_extensions migration before this is used.
 create extension if not exists pg_cron;
-create extension if not exists pg_net;
+create schema if not exists extensions;
+create extension if not exists pg_net with schema extensions;
 
 select cron.schedule(
   'open-autodm-process-jobs',
