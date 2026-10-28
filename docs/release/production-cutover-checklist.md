@@ -19,10 +19,11 @@ JOIN pg_namespace n ON n.oid = e.extnamespace
 WHERE e.extname IN ('pg_cron', 'pg_net')
 ORDER BY e.extname;
 
--- This view should exist after the approved extension migration.
+-- Safe before and after migration: these return NULL when the relation is absent.
 SELECT to_regclass('cron.job') AS cron_job_catalog,
        to_regclass('net.http_request_queue') AS pg_net_request_queue;
 
+-- Only run the following cron.job queries if cron_job_catalog above is non-NULL.
 -- Read only the app's expected processor job; do not print unrelated job commands.
 SELECT jobid, jobname, schedule, active
 FROM cron.job
@@ -36,6 +37,7 @@ WHERE j.jobname = 'open-autodm-process-jobs'
 ORDER BY d.start_time DESC
 LIMIT 10;
 
+-- Only run this count if pg_net_request_queue above is non-NULL.
 SELECT count(*) AS queued_http_requests
 FROM net.http_request_queue;
 ```
