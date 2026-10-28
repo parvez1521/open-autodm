@@ -110,7 +110,7 @@ WHERE d.defaclrole = (SELECT oid FROM pg_roles WHERE rolname = 'postgres')
 ORDER BY schema_name, object_type;
 ```
 
-Postflight expectations: `anon` has no direct table privileges; `authenticated` has only the deliberately retained grants for tables covered by intended owner-scoped RLS policies; the service-only tables (including `app_settings`, `debug_events`, `job_queue`, `dm_rate_events`, and `comment_traffic_events`) have no direct client grants. In the `postgres` default ACL for `public`, `anon` and `authenticated` must not appear; only the owner and intentionally granted `service_role` rights should remain. Any unexpected grant blocks cutover.
+Postflight expectations: `anon` has no direct table privileges; `authenticated` has only the deliberately retained grants for tables covered by intended owner-scoped RLS policies; the service-only tables (including `app_settings`, `debug_events`, `job_queue`, `dm_rate_events`, and `comment_traffic_events`) have no direct client grants. In the `postgres` default ACL for `public`, `anon` and `authenticated` must not appear; only the owner and intentionally granted `service_role` rights should remain. Any unexpected grant blocks cutover. Do not treat RLS as a mitigation for broad `TRUNCATE` or `REFERENCES` rights: PostgreSQL documents that these whole-table privileges are not subject to row-security policies ([PostgreSQL 17 RLS documentation](https://www.postgresql.org/docs/17/ddl-rowsecurity.html)). Any client `TRUNCATE`/`REFERENCES` grant is a hard stop until removed or explicitly justified.
 
 Postflight should show an empty search path configuration (`search_path=""`). Rerun Security Advisor and retain the full output in the private operator record.
 
