@@ -6,7 +6,9 @@
  *
  * Non-negotiable contract with Meta:
  *  1. HMAC-SHA256 signature verified over the RAW body BEFORE any processing.
- *     Invalid → 403 immediately. No DB queries before this check.
+ *     Invalid → 403 immediately. Only the settings read needed to load the
+ *     signing secret may occur before verification; no DB writes/debug events
+ *     or event processing may occur until the signature is valid.
  *  2. 200 returned within 5 seconds. All real work happens in `after()` -
  *     the response is sent first, processing continues in the background of
  *     the same invocation (supported on Vercel and Cloudflare via OpenNext).
@@ -57,20 +59,19 @@ export async function POST(request: Request): Promise<Response> {
   const signature = request.headers.get('x-hub-signature-256');
   const rawBody = await request.text();
 
-  debugLog('webhook', 'info', 'webhook_received', 'processing', 'POST /api/webhook received from Meta', {
-    hasSignature: !!signature,
-    bytes: rawBody.length,
-  });
+  // This is console-only: never write an untrusted request to debug_events
+  // before its HMAC signature has been verified.
+  logger.info({ hasSignature: !!signature, bytes: rawBody.length }, 'POST /api/webhook received from Meta');
 
   if (!signature) {
-    debugLog('webhook', 'error', 'signature_check', 'error', 'Missing x-hub-signature-256 header', {});
+    logger.warn({}, 'Webhook missing x-hub-signature-256 header - rejecting');
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const settings = await getMetaSettings();
   if (!settings) {
     // Setup wizard not completed - we cannot verify anything. Reject.
-    debugLog('webhook', 'error', 'signature_check', 'error', 'Meta credentials not configured - complete the Setup Wizard first', {});
+    logger.warn({}, 'Meta credentials not configured - rejecting webhook request');
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -85,11 +86,9 @@ export async function POST(request: Request): Promise<Response> {
     safeCompare(signature, `sha256=${hmacSha256Hex(secret, bodyBuffer)}`)
   );
   if (!signatureValid) {
-    logger.warn({}, 'Webhook signature verification FAILED - rejecting');
-    debugLog('webhook', 'error', 'signature_check', 'error',
-      'HMAC-SHA256 signature mismatch - request rejected', {
-        hint: 'If this keeps happening on real events, add your Facebook App Secret in the Setup Wizard - some Meta apps sign webhooks with it instead of the Instagram app secret.',
-      });
+    logger.warn({
+      hint: 'If valid Meta events fail verification, confirm whether this app uses the Instagram App Secret or Facebook App Secret for webhook signing.',
+    }, 'Webhook HMAC-SHA256 signature verification failed - rejecting');
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
