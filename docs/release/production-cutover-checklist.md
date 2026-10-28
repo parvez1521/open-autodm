@@ -251,28 +251,30 @@ Use the exact staging origin from the deployment dashboard. In a trusted termina
 
 ```bash
 set -eu
-read -r -s -p "Staging Meta App Secret: " META_APP_SECRET
-printf '\n'
+read -r -s -p "Staging Meta App Secret (or matching Facebook App Secret for FB Login): " META_APP_SECRET
+printf '\\n'
 export META_APP_SECRET
-STAGING_APP_URL="https://<confirmed-staging-origin>"
+STAGING_APP_URL="https://open-autodm-staging.parvez-autodm-staging.workers.dev"
 RAW_BODY='{"object":"instagram","entry":[]}'
+RESPONSE_FILE="$(mktemp)"
+cleanup() {
+  unset META_APP_SECRET SIGNATURE RAW_BODY
+  rm -f "$RESPONSE_FILE"
+}
+trap cleanup EXIT
 
 SIGNATURE="$(printf '%s' "$RAW_BODY" | node -e 'const c=require("node:crypto");let b="";process.stdin.on("data",d=>b+=d);process.stdin.on("end",()=>process.stdout.write(c.createHmac("sha256",process.env.META_APP_SECRET).update(b).digest("hex")))')"
 
-curl --fail-with-body --silent --show-error \
-  -o /tmp/open-autodm-valid-webhook-response.json \
-  -w 'HTTP %{http_code}\n' \
-  -X POST "${STAGING_APP_URL}/api/webhook" \
-  -H "Content-Type: application/json" \
-  -H "x-hub-signature-256: ${SIGNATURE}" \
-  --data-binary "$RAW_BODY"
-
-cat /tmp/open-autodm-valid-webhook-response.json
-unset META_APP_SECRET SIGNATURE RAW_BODY
-rm -f /tmp/open-autodm-valid-webhook-response.json
-```
-
-Expected: HTTP 200 and `{"status":"ok"}`. The empty `entry` array must not create outbound work. Immediately verify that the processor queue, DM jobs and webhook processing counters have not increased. A successful HTTP response alone is insufficient; keep the result only after workload/debug-event checks pass. If the endpoint hostname is not resolvable or the signature is rejected, stop and investigate config; do not retry with real events or expose the secret.
+HTTP_STATUS="$(curl --silent --show-error --max-time 15 \\
+  -o "$RESPONSE_FILE" -w '%{http_code}' \\
+  -X POST "${STAGING_APP_URL}/api/webhook" \\
+  -H "Content-Type: application/json" \\
+  -H "x-hub-signature-256: ${SIGNATURE}" \\
+  --data-binary "$RAW_BODY")"
+printf 'HTTP %s\\n' "$HTTP_STATUS"
+cat "$RESPONSE_FILE"
+test "$HTTP_STATUS" = "200"
+grep -Fq '{"status":"ok"}' "$RESPONSE_FILE"
 
 ### 2. Real Meta OAuth consent/callback round-trip
 
