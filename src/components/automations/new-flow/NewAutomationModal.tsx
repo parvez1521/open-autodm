@@ -226,6 +226,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
     const [flowData, setFlowData] = useState<AutomationFlowData>(defaultFlowData());
     const [savedSnapshot, setSavedSnapshot] = useState<string>("");
     const [showConfirm, setShowConfirm] = useState(false);
+    const [showActivationConfirm, setShowActivationConfirm] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<'save' | 'activate' | null>(null);
@@ -448,7 +449,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
         };
     };
 
-    const handleSave = (activate: boolean) => {
+    const handleSave = (activate: boolean, confirmedActivation = false) => {
         if (isPending) return;
         setSaveError(null);
         setValidationError(null);
@@ -462,6 +463,14 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                 return;
             }
         }
+
+        // Activating can send real messages. Require explicit confirmation for
+        // both new automations and edits before issuing any activation request.
+        if (activate && !confirmedActivation) {
+            setShowActivationConfirm(true);
+            return;
+        }
+        setShowActivationConfirm(false);
 
         setPendingAction(activate ? 'activate' : 'save');
 
@@ -755,6 +764,69 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                                 )}
                             </div>
                         </div>
+
+                        {/* Activation confirmation: no activation request runs until explicitly confirmed */}
+                        <AnimatePresence>
+                            {showActivationConfirm && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 z-40 flex items-center justify-center bg-background/85 backdrop-blur-sm p-4"
+                                    role="dialog"
+                                    aria-modal="true"
+                                    aria-labelledby="activation-confirm-title"
+                                >
+                                    <motion.div
+                                        initial={{ scale: 0.96, y: 8 }}
+                                        animate={{ scale: 1, y: 0 }}
+                                        exit={{ scale: 0.96, y: 8 }}
+                                        className="bg-card border border-border rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+                                                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                                            </div>
+                                            <div>
+                                                <h4 id="activation-confirm-title" className="text-sm font-bold text-foreground">
+                                                    Activate this automation?
+                                                </h4>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    {flowData.name}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <p className="text-xs text-muted-foreground leading-relaxed">
+                                            Once activated, this automation can process new Instagram events and send automated replies to real users. Confirm only when its trigger, message, and target are ready.
+                                        </p>
+
+                                        <div className="flex gap-2.5 pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowActivationConfirm(false)}
+                                                className="flex-1 h-9 rounded-xl border border-border text-xs font-semibold hover:bg-muted transition-colors"
+                                                data-testid="btn-cancel-activation"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={isPending}
+                                                onClick={() => {
+                                                    setShowActivationConfirm(false);
+                                                    handleSave(true, true);
+                                                }}
+                                                className="flex-1 h-9 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                                                data-testid="btn-confirm-activation"
+                                            >
+                                                Confirm & Activate
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         {/* Unsaved changes confirmation dialog */}
                         <AnimatePresence>
