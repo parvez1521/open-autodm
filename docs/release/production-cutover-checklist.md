@@ -149,6 +149,78 @@ Do not merge or schedule live processing until all of the following have an owne
 6. Complete the real Meta OAuth consent/callback flow and a valid signed webhook event on staging with a dedicated test Instagram account. Unit tests cover valid/invalid HMAC signatures but are not a substitute for Meta's live round-trip.
 7. Enable leaked-password protection if the target plan supports it, or record the explicit risk acceptance/upgrade decision. Then rerun the Security Advisor. Do not automatically upgrade the plan.
 
+## Backup and recovery verification procedure
+
+This is a required **pre-migration gate**, not a statement that a backup already exists. The connected project metadata and SQL tools do not expose backup inventory or prove restorability. The production organization has previously been observed on the Free plan; Supabase's current backup guide says automatic daily backups are included on Pro/Team/Enterprise and recommends manual exports for Free projects. Do not assume a platform backup or PITR is available until you verify it in the production Dashboard or through the read-only Management API.
+
+Official references:
+- https://supabase.com/docs/guides/platform/backups
+- https://supabase.com/docs/reference/api/v1-list-all-backups
+- https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore
+
+### A. Inspect available platform backups (read only)
+
+1. Open the **production** project explicitly, then open **Database → Backups** and **Point in Time** if shown. Record the most recent completed backup/recovery point and retention window. Do not click Restore.
+2. Alternatively, list backup metadata through the Management API using a token with the minimum required read scope. Do this from a trusted terminal; keep the token out of shell history, repository files, screenshots, logs, chat and CI. The endpoint is read-only:
+
+```bash
+read -r -s -p "Supabase Management API token: " SUPABASE_ACCESS_TOKEN
+printf '\n'
+export SUPABASE_ACCESS_TOKEN
+read -r -p "Confirmed production project ref: " PROJECT_REF
+export PROJECT_REF
+
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+  "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/backups" |
+  jq '{walg_enabled, pitr_enabled, physical_backup_data,
+       backups: [.backups[]? | {id, status, inserted_at, is_physical_backup}]}'
+
+unset SUPABASE_ACCESS_TOKEN PROJECT_REF
+```
+
+Confirm the project ref against the production Dashboard before the request. A successful API response with an empty backup list does **not** count as a recovery path. Save only the non-secret metadata needed for the change record.
+
+### B. If no usable platform backup exists
+
+Do not proceed with production DDL until a recovery path is approved. On a Free project, make a protected logical export as a supplement and independently verify its coverage/restoration plan. Supabase CLI dumps do not automatically constitute a complete copy of all Supabase project state; confirm how Auth users, Storage metadata/files, Vault secrets, project configuration and encryption keys will be recovered. Never upload database dumps to this repository, PR, issue, chat or CI artifacts.
+
+Use a private, encrypted destination outside the repository. In a trusted terminal, obtain the database connection string from the production Dashboard without pasting it into a command literal, then run the current Supabase CLI backup sequence:
+
+```bash
+set -eu
+umask 077
+BACKUP_DIR="$HOME/private-backups/open-autodm-production-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$BACKUP_DIR"
+chmod 700 "$BACKUP_DIR"
+
+read -r -s -p "Production database connection string: " SUPABASE_DB_URL
+printf '\n'
+export SUPABASE_DB_URL
+
+supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/roles.sql" --role-only
+supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/schema.sql"
+supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/data.sql" --use-copy --data-only
+
+unset SUPABASE_DB_URL
+chmod 600 "$BACKUP_DIR"/*.sql
+shasum -a 256 "$BACKUP_DIR"/*.sql > "$BACKUP_DIR/SHA256SUMS"
+printf 'Backup files and hashes saved under: %s\n' "$BACKUP_DIR"
+```
+
+Do not treat those logical dumps as the final go/no-go gate by themselves. Validate the files, record their secure storage location and timestamp privately, and rehearse the restore on an isolated scratch project or otherwise prove that the selected platform backup is restorable. Never test restore against production. If a complete recovery path cannot be demonstrated, stop the cutover and obtain approval for an appropriate backup-capable plan or recovery strategy; do not change the billing plan automatically.
+
+### C. Record the recovery gate
+
+Before production migration, the private operator record must contain:
+- The exact production project identity and plan checked.
+- Backup/PITR identifier and recovery point, or logical backup file hashes and protected location.
+- Which platform state/data is included and which components require separate recovery.
+- Evidence the backup is usable (preferably a successful restore rehearsal in an isolated project).
+- Recovery owner, expected downtime and an explicit go/no-go decision.
+
+Do not put database contents, credentials, secret values, user records or raw dumps in this public checklist.
+
 ## Migration order
 
 Apply these eight existing migration files in timestamp order. Do not edit or skip historical migrations just to make the ledger look aligned.
@@ -168,6 +240,49 @@ Important notes:
 - `DROP EXTENSION pg_net` recreates extension-owned queue/response tables. It is only acceptable after confirming the request queue is empty and the short-lived response diagnostics are not needed. Never run it manually outside the guarded migration.
 - The migrations revoke public/client execution of privileged functions and narrow existing grants. If the deployed app contains unreviewed direct client calls to the Data API, these grants can break them. Verify the application commit and perform a focused smoke test before proceeding.
 - Do not run `supabase db push` until the CLI is explicitly linked to the production project and the dry-run's exact migration list has been reviewed. A staging link is not a production link.
+
+## Staging Meta end-to-end verification (operator-run; no outbound messages)
+
+These tests are still an outstanding release gate. They require the staging URL, an operator-controlled Meta app secret and a dedicated Meta/Instagram test account. Do not retrieve or print the app secret from application storage, and do not use a production token or a personal production Instagram account.
+
+### 1. Valid-signature webhook smoke test
+
+Use the exact staging origin from the deployment dashboard. In a trusted terminal, enter the staging Meta app secret at the hidden prompt; do not place it in the command text or save it in a file. This sends only an empty-entry webhook payload, which must not enqueue DMs:
+
+```bash
+set -eu
+read -r -s -p "Staging Meta App Secret: " META_APP_SECRET
+printf '\n'
+export META_APP_SECRET
+STAGING_APP_URL="https://<confirmed-staging-origin>"
+RAW_BODY='{"object":"instagram","entry":[]}'
+
+SIGNATURE="sha256=$(node -e "const c=require('node:crypto');let b='';process.stdin.on('data',d=>b+=d);process.stdin.on('end',()=>process.stdout.write(c.createHmac('sha256',process.env.META_APP_SECRET).update(b).digest('hex')))" <<< "$RAW_BODY")"
+
+curl --fail-with-body --silent --show-error \
+  -o /tmp/open-autodm-valid-webhook-response.json \
+  -w 'HTTP %{http_code}\n' \
+  -X POST "${STAGING_APP_URL}/api/webhook" \
+  -H "Content-Type: application/json" \
+  -H "x-hub-signature-256: ${SIGNATURE}" \
+  --data-binary "$RAW_BODY"
+
+cat /tmp/open-autodm-valid-webhook-response.json
+unset META_APP_SECRET SIGNATURE RAW_BODY
+rm -f /tmp/open-autodm-valid-webhook-response.json
+```
+
+Expected: HTTP 200 and `{"status":"ok"}`. The empty `entry` array must not create outbound work. Immediately verify that the processor queue, DM jobs and webhook processing counters have not increased. A successful HTTP response alone is insufficient; keep the result only after workload/debug-event checks pass. If the endpoint hostname is not resolvable or the signature is rejected, stop and investigate config; do not retry with real events or expose the secret.
+
+### 2. Real Meta OAuth consent/callback round-trip
+
+1. Use a dedicated staging test user and Meta developer configuration with the exact staging callback URL and required permissions.
+2. From the staging UI, start Instagram connect, complete Meta consent in the browser and return through the real callback.
+3. Verify the app lands on the expected success state and associates only the test Instagram account. Check account ID, token presence/expiry metadata and callback error logs only; never select or print access-token or app-secret values.
+4. Confirm no production account was changed, no automation was activated, no DM/reply was sent and no test event is queued. Remove the test connection or revoke it afterward according to the test-account procedure.
+5. Save the timestamp, safe response/status, test account label and cleanup result in the private operator record.
+
+Do not fake OAuth success by inserting a token directly into the database. If a dedicated test account or operator-controlled app credentials are unavailable, leave this gate unchecked rather than using production credentials.
 
 ## Production cron setup (operator runbook; do not run until authorized)
 
