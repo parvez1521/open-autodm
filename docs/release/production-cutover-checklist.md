@@ -257,7 +257,7 @@ export META_APP_SECRET
 STAGING_APP_URL="https://<confirmed-staging-origin>"
 RAW_BODY='{"object":"instagram","entry":[]}'
 
-SIGNATURE="$(printf '%s' "$RAW_BODY" | node -e 'const c=require("node:crypto");let b="";process.stdin.on("data",d=>b+=d);process.stdin.on("end",()=>process.stdout.write(c.createHmac("sha256",process.env.META_APP_SECRET).update(b).digest("hex"))))')"
+SIGNATURE="$(printf '%s' "$RAW_BODY" | node -e 'const c=require("node:crypto");let b="";process.stdin.on("data",d=>b+=d);process.stdin.on("end",()=>process.stdout.write(c.createHmac("sha256",process.env.META_APP_SECRET).update(b).digest("hex")))')"
 
 curl --fail-with-body --silent --show-error \
   -o /tmp/open-autodm-valid-webhook-response.json \
