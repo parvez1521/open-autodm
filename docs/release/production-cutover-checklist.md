@@ -6,7 +6,88 @@ Status: **planning only**. This document records the release sequence; it does n
 
 Before using this runbook, re-check the actual target project's migration history, project plan, Security Advisor, extension locations, cron jobs, workload counts, and the exact application deployment. Staging observations do not prove production is in the same state. Keep raw ACL output and detailed live security findings in a private operator record, not in this public repository.
 
-Release-prep CI run #59 passed unit tests, TypeScript, production build, and desktop/mobile browser QA. Staging release-prep migrations and the staging `pg_net` relocation have been verified. No production secrets were retrieved or changed by the release-prep work.
+## Read-only SQL preflight and postflight
+
+Run these queries separately against the exact target Supabase project before and after the migration window. They are **read-only**. Do not combine them with the operator's mutating migration or scheduling commands. A missing expected function or any unexpected grant is a stop condition until explained.
+
+### 1. Verify extension placement and any existing processor schedule
+
+```sql
+SELECT e.extname, n.nspname AS extension_schema, e.extversion
+FROM pg_extension e
+JOIN pg_namespace n ON n.oid = e.extnamespace
+WHERE e.extname IN ('pg_cron', 'pg_net')
+ORDER BY e.extname;
+
+-- This view should exist after the approved extension migration.
+SELECT to_regclass('cron.job') AS cron_job_catalog,
+       to_regclass('net.http_request_queue') AS pg_net_request_queue;
+
+-- Read only the app's expected processor job; do not print unrelated job commands.
+SELECT jobid, jobname, schedule, active
+FROM cron.job
+WHERE jobname = 'open-autodm-process-jobs';
+
+-- Inspect recent executions; a SQL success does not alone prove the HTTP response was successful.
+SELECT d.jobid, j.jobname, d.status, d.return_message, d.start_time, d.end_time
+FROM cron.job_run_details d
+JOIN cron.job j USING (jobid)
+WHERE j.jobname = 'open-autodm-process-jobs'
+ORDER BY d.start_time DESC
+LIMIT 10;
+
+SELECT count(*) AS queued_http_requests
+FROM net.http_request_queue;
+```
+
+Before moving `pg_net`, its request queue must be empty and all cron jobs that call `net.http_*` must be paused with their in-flight runs finished. The guarded migration aborts if these conditions are not met. Do not use a live `CRON_SECRET` for an ad hoc smoke test.
+
+### 2. Verify exact privileged-function ACLs
+
+The migrations restrict these functions to `service_role`. Run this query before and after migration to check every required signature and role grant:
+
+```sql
+WITH expected(signature) AS (
+  VALUES
+    ('public.check_and_record_dm_rate_limit(uuid,integer)'),
+    ('public.claim_due_jobs(integer)'),
+    ('public.cleanup_old_rows()'),
+    ('public.increment_automation_dms_sent(uuid)'),
+    ('public.record_contact_interaction(uuid,text,text,text,uuid)'),
+    ('public.update_contact_profile(uuid,text,text,boolean)'),
+    ('public.handle_new_user()'),
+    ('public.get_traffic_guard_status(uuid)'),
+    ('public.traffic_guard_pause_account(uuid,uuid)'),
+    ('public.traffic_guard_resume_account(uuid,uuid)')
+),
+resolved AS (
+  SELECT signature, to_regprocedure(signature) AS fn
+  FROM expected
+)
+SELECT
+  signature,
+  fn IS NOT NULL AS exists,
+  CASE WHEN fn IS NOT NULL THEN has_function_privilege('anon', fn, 'EXECUTE') END AS anon_execute,
+  CASE WHEN fn IS NOT NULL THEN has_function_privilege('authenticated', fn, 'EXECUTE') END AS authenticated_execute,
+  CASE WHEN fn IS NOT NULL THEN has_function_privilege('service_role', fn, 'EXECUTE') END AS service_role_execute
+FROM resolved
+ORDER BY signature;
+```
+
+For these backend-only functions, expected postflight is: all signatures exist, `anon_execute = false`, `authenticated_execute = false`, and `service_role_execute = true`. Any deviation blocks the cutover.
+
+Check the trigger helper's pinned search path separately:
+
+```sql
+SELECT p.oid::regprocedure AS function_name, p.proconfig
+FROM pg_proc p
+WHERE p.oid = to_regprocedure('public.handle_updated_at()');
+```
+
+Postflight should show an empty search path configuration (`search_path=""`). Rerun Security Advisor and retain the full output in the private operator record.
+
+
+Check the current draft PR for the latest CI run before each cutover attempt; never treat a historical green run as validation of a newer commit. Staging release-prep migrations and the `pg_net` relocation have been verified. A live staging invalid-HMAC request returned 403 and an unauthenticated cron request returned 401; post-probe checks showed no webhook debug writes, no queued/processing work, and an empty HTTP request queue. No production secrets were retrieved or changed.
 
 ## Release blockers
 
