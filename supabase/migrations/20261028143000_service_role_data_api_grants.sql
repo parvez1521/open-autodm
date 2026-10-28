@@ -54,6 +54,19 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
 -- server API under least privilege, even when project defaults stop exposing
 -- new objects to anon/authenticated. Future SECURITY DEFINER functions must
 -- still explicitly REVOKE EXECUTE from PUBLIC and grant only intended roles.
+-- Remove legacy auto-expose defaults for future objects. Existing object
+-- privileges are unchanged; access to current app tables is granted above.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE SELECT, INSERT, UPDATE, DELETE ON TABLES FROM anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE USAGE, SELECT ON SEQUENCES FROM anon, authenticated, service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated, service_role;
+
+-- Server-side app code uses createServiceClient(). Future objects stay private
+-- to client roles by default and must receive a deliberate per-object grant.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO service_role;
 
