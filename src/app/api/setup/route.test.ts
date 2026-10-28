@@ -95,6 +95,23 @@ describe('Setup API installation-owner authorization', () => {
     expect(mocks.getMetaSettings).not.toHaveBeenCalled();
   });
 
+  it('generates pg_net setup SQL using the extensions schema', async () => {
+    setSettingsRow({
+      meta_app_id: validSetup.metaAppId,
+      webhook_verify_token: 'existing-verify-token',
+      setup_completed: true,
+      owner_user_id: 'owner-user-id',
+    });
+
+    const response = await GET(new Request('https://staging.example.test/api/setup'));
+
+    expect(response.status).toBe(200);
+    const body = await response.json() as { cronSnippet: string };
+    expect(body.cronSnippet).toContain('create schema if not exists extensions;');
+    expect(body.cronSnippet).toContain('create extension if not exists pg_net with schema extensions;');
+    expect(body.cronSnippet).toContain('select net.http_post(');
+  });
+
   it('fails closed when the owner lookup errors', async () => {
     setSettingsRow(null, { message: 'database unavailable' });
 
