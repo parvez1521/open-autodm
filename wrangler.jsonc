@@ -5,7 +5,7 @@
    "name": "open-autodm",
    "main": ".open-next/worker.js",
    "compatibility_date": "2025-03-25",
-   "compatibility_flags": ["nodejs_compat"],
+   "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
    "keep_vars": true,
    "ai": {
      "binding": "AI"
