@@ -18,6 +18,31 @@ const logger = createLogger('workers-ai');
 export const DEFAULT_AI_MODEL = '@cf/meta/llama-3.2-3b-instruct';
 export const AI_REQUEST_TIMEOUT_MS = 5000;
 
+/**
+ * Bound how long application code waits for Workers AI.
+ *
+ * The Workers AI binding's run() API does not accept an AbortSignal. This
+ * deadline returns control to the existing fallback path, but it cannot
+ * cancel an inference that the platform has already started.
+ */
+export function withTimeout<T>(
+  operation: () => Promise<T>,
+  timeoutMs = AI_REQUEST_TIMEOUT_MS
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`Workers AI request timed out after ${timeoutMs}ms`)),
+      timeoutMs
+    );
+  });
+
+  return Promise.race([Promise.resolve().then(operation), timeout]).finally(() => {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  });
+}
+
+
 export interface WorkersAiBinding {
   run: (
     model: string,
@@ -145,19 +170,14 @@ export async function generateOpeningVariations(
     `Generate ${count} distinct opening DM messages.`;
 
   try {
-    const abortCtrl = new AbortController();
-    const timeoutId = setTimeout(() => abortCtrl.abort(), AI_REQUEST_TIMEOUT_MS);
-
-    const raw = (await ai.run(DEFAULT_AI_MODEL, {
+    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: userContent },
       ],
       max_tokens: 350,
       temperature: 0.7,
-    })) as { response?: string };
-
-    clearTimeout(timeoutId);
+    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
 
     const text = typeof raw?.response === 'string' ? raw.response : '';
     const lines = text
@@ -218,19 +238,14 @@ export async function generatePublicReplies(
     `Generate ${count} short variations.`;
 
   try {
-    const abortCtrl = new AbortController();
-    const timeoutId = setTimeout(() => abortCtrl.abort(), AI_REQUEST_TIMEOUT_MS);
-
-    const raw = (await ai.run(DEFAULT_AI_MODEL, {
+    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: userContent },
       ],
       max_tokens: 150,
       temperature: 0.7,
-    })) as { response?: string };
-
-    clearTimeout(timeoutId);
+    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
 
     const text = typeof raw?.response === 'string' ? raw.response : '';
     const lines = text
@@ -294,19 +309,14 @@ export async function generateResponseDraft(
     "Write a direct message response draft:";
 
   try {
-    const abortCtrl = new AbortController();
-    const timeoutId = setTimeout(() => abortCtrl.abort(), AI_REQUEST_TIMEOUT_MS);
-
-    const raw = (await ai.run(DEFAULT_AI_MODEL, {
+    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: userContent },
       ],
       max_tokens: 180,
       temperature: 0.7,
-    })) as { response?: string };
-
-    clearTimeout(timeoutId);
+    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
 
     const text = typeof raw?.response === 'string' ? cleanAiOutput(raw.response) : '';
     if (text && text.length > 5) {
@@ -359,14 +369,14 @@ export async function generateFollowUpDraft(
     "Write the follow-up message:";
 
   try {
-    const raw = (await ai.run(DEFAULT_AI_MODEL, {
+    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: userContent },
       ],
       max_tokens: 150,
       temperature: 0.7,
-    })) as { response?: string };
+    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
 
     const text = typeof raw?.response === 'string' ? cleanAiOutput(raw.response) : '';
     if (text && text.length > 5 && text.length <= 500) {
@@ -426,14 +436,14 @@ export async function generateRuntimePublicReply(
     "Write a short, engaging reply:";
 
   try {
-    const raw = (await ai.run(DEFAULT_AI_MODEL, {
+    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: userContent },
       ],
       max_tokens: 60,
       temperature: 0.6,
-    })) as { response?: string };
+    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
 
     const text = typeof raw?.response === 'string' ? cleanAiOutput(raw.response) : '';
     if (text && text.length > 2 && text.length <= 150) {
@@ -490,14 +500,14 @@ export async function generateRuntimeDmResponse(
     "Your response:";
 
   try {
-    const raw = (await ai.run(DEFAULT_AI_MODEL, {
+    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: userContent },
       ],
       max_tokens: 200,
       temperature: 0.6,
-    })) as { response?: string };
+    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
 
     const text = typeof raw?.response === 'string' ? cleanAiOutput(raw.response) : '';
     if (text && text.length > 2 && text.length <= 1000) {
