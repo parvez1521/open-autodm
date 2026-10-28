@@ -69,7 +69,16 @@ export async function GET(request: Request): Promise<Response> {
   if (error) {
     return Response.json({ error: 'Unable to verify installation ownership' }, { status: 500 });
   }
-  if (!isInstallationOwner(user, (row?.owner_user_id as string | null) ?? null)) {
+  const recordedOwnerId = (row?.owner_user_id as string | null) ?? null;
+  const envOwner = isEnvironmentOwner(user);
+  // The ownerless fallback is only for a genuinely fresh setup. Do not let an
+  // arbitrary authenticated user claim a legacy installation that is already
+  // configured but never recorded an owner; that requires explicit env-owner
+  // configuration first.
+  if (
+    (Boolean(row?.setup_completed) && !recordedOwnerId && !envOwner) ||
+    !isInstallationOwner(user, recordedOwnerId)
+  ) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -114,14 +123,19 @@ export async function POST(request: Request): Promise<Response> {
     const db = createServiceClient();
     const { data: existing, error: lookupError } = await db
       .from('app_settings')
-      .select('webhook_verify_token, owner_user_id')
+      .select('webhook_verify_token, owner_user_id, setup_completed')
       .eq('id', 1)
       .maybeSingle();
 
     if (lookupError) {
       return Response.json({ error: 'Unable to verify installation ownership' }, { status: 500 });
     }
-    if (!isInstallationOwner(user, (existing?.owner_user_id as string | null) ?? null)) {
+    const recordedOwnerId = (existing?.owner_user_id as string | null) ?? null;
+    const envOwner = isEnvironmentOwner(user);
+    if (
+      (Boolean(existing?.setup_completed) && !recordedOwnerId && !envOwner) ||
+      !isInstallationOwner(user, recordedOwnerId)
+    ) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -135,7 +149,7 @@ export async function POST(request: Request): Promise<Response> {
       metaFbAppSecret: parsed.data.metaFbAppSecret ?? null,
       webhookVerifyToken: verifyToken,
       ownerUserId: user.id,
-      isEnvOwner: isEnvironmentOwner(user),
+      isEnvOwner: envOwner,
     });
     if (!saved.success) {
       return Response.json(
