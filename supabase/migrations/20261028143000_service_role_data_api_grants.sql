@@ -20,7 +20,8 @@ GRANT SELECT ON TABLE
   public.dm_jobs,
   public.dm_sent_log,
   public.automation_sessions,
-  public.dm_logs
+  public.dm_logs,
+  public.contacts
 TO authenticated;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
