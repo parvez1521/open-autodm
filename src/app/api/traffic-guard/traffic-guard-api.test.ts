@@ -125,16 +125,59 @@ describe('Traffic Guard API Routes — Security & Owner Isolation', () => {
       expect(res.status).toBe(403);
     });
 
-    it('allows owner to pause automations with 200', async () => {
+    it('rejects an incident that does not belong to the account without invoking the pause RPC', async () => {
       mockGetAuthenticatedUser.mockResolvedValueOnce({ id: 'user_owner' });
-      mockFrom.mockReturnValue({
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: { id: 'acc_1', user_id: 'user_owner' },
-          error: null,
+      mockFrom
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'acc_1', user_id: 'user_owner' },
+            error: null,
+          }),
+        })
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: null,
+            error: { message: 'No incident for this account' },
+          }),
+        });
+
+      const req = new Request('http://localhost/api/traffic-guard/pause', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accountId: '00000000-0000-0000-0000-000000000001',
+          incidentId: '00000000-0000-0000-0000-000000000002',
         }),
       });
+      const res = await pauseRoute(req);
+      expect(res.status).toBe(404);
+      expect(mockFrom).toHaveBeenNthCalledWith(2, 'comment_traffic_incidents');
+      expect(mockRpc).not.toHaveBeenCalled();
+    });
+
+    it('allows owner to pause automations with 200', async () => {
+      mockGetAuthenticatedUser.mockResolvedValueOnce({ id: 'user_owner' });
+      mockFrom
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'acc_1', user_id: 'user_owner' },
+            error: null,
+          }),
+        })
+        .mockReturnValueOnce({
+          select: vi.fn().mockReturnThis(),
+          eq: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({
+            data: { id: 'incident_1' },
+            error: null,
+          }),
+        });
 
       mockRpc.mockResolvedValueOnce({
         data: {
