@@ -23,6 +23,17 @@ BEGIN
       'Pause active pg_cron jobs that call net.http_* before moving pg_net';
   END IF;
 
+  IF EXISTS (
+    SELECT 1
+    FROM cron.job_run_details d
+    JOIN cron.job j USING (jobid)
+    WHERE j.command ILIKE '%net.http_%'
+      AND d.status = 'running'
+  ) THEN
+    RAISE EXCEPTION
+      'Wait for in-flight pg_cron jobs calling net.http_* to finish before moving pg_net';
+  END IF;
+
   IF to_regclass('net.http_request_queue') IS NOT NULL
      AND EXISTS (SELECT 1 FROM net.http_request_queue) THEN
     RAISE EXCEPTION
