@@ -190,17 +190,23 @@ Use a private, encrypted destination outside the repository. In a trusted termin
 ```bash
 set -eu
 umask 077
+supabase --version
+# Install/verify Docker first; the Supabase CLI runs pg_dump inside a container.
 BACKUP_DIR="$HOME/private-backups/open-autodm-production-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
+# Obtain the connection string from the Production Dashboard's Connect panel.
+# Prefer the session pooler, and percent-encode special characters in the password.
+# Keep it out of command history, repository files, screenshots and chat.
 read -r -s -p "Production database connection string: " SUPABASE_DB_URL
 printf '\n'
 export SUPABASE_DB_URL
 
 supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/roles.sql" --role-only
 supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/schema.sql"
-supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/data.sql" --use-copy --data-only
+supabase db dump --db-url "$SUPABASE_DB_URL" -f "$BACKUP_DIR/data.sql" --use-copy --data-only \\
+  -x "storage.buckets_vectors" -x "storage.vector_indexes"
 
 unset SUPABASE_DB_URL
 chmod 600 "$BACKUP_DIR"/*.sql
@@ -208,7 +214,14 @@ shasum -a 256 "$BACKUP_DIR"/*.sql > "$BACKUP_DIR/SHA256SUMS"
 printf 'Backup files and hashes saved under: %s\n' "$BACKUP_DIR"
 ```
 
-Do not treat those logical dumps as the final go/no-go gate by themselves. Validate the files, record their secure storage location and timestamp privately, and rehearse the restore on an isolated scratch project or otherwise prove that the selected platform backup is restorable. Never test restore against production. If a complete recovery path cannot be demonstrated, stop the cutover and obtain approval for an appropriate backup-capable plan or recovery strategy; do not change the billing plan automatically.
+Important: Supabase CLI `db dump` applies Supabase-specific filtering; the documented command does not include all managed schemas (including `auth` and `storage`) or Storage object bytes. The data command excludes the Storage vector tables as required by the current Supabase instructions. Inspect the CLI output and generated files; do not describe these SQL files as a full Supabase project backup.
+
+Do not treat those logical dumps as the final go/no-go gate by themselves. Validate the files, record their secure storage location and timestamp privately, and rehearse the restore on an isolated scratch project or otherwise prove that the selected platform backup is restorable. Never test restore against production or reset the current staging project as a substitute. If the application needs Auth users, Storage files/metadata, Vault secrets, provider settings or encryption keys for recoverability, document and test their separate recovery path too. If a complete recovery path cannot be demonstrated, stop the cutover and obtain approval for an appropriate backup-capable plan or recovery strategy; do not change the billing plan automatically.
+
+Current official references:
+- [Supabase database backups](https://supabase.com/docs/guides/platform/backups)
+- [Supabase CLI database dump](https://supabase.com/docs/reference/cli/supabase-db-dump)
+- [Supabase backup and restore using CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore)
 
 ### C. Record the recovery gate
 
