@@ -86,6 +86,32 @@ FROM pg_proc p
 WHERE p.oid = to_regprocedure('public.handle_updated_at()');
 ```
 
+### 3. Verify existing table grants and future-object defaults
+
+```sql
+-- Inspect current direct table rights for client roles.
+SELECT table_name, grantee,
+       string_agg(privilege_type, ', ' ORDER BY privilege_type) AS privileges
+FROM information_schema.role_table_grants
+WHERE table_schema = 'public'
+  AND grantee IN ('anon', 'authenticated')
+GROUP BY table_name, grantee
+ORDER BY table_name, grantee;
+
+-- Inspect defaults for objects created by the postgres migration owner.
+SELECT d.defaclrole::regrole::text AS owner_role,
+       COALESCE(n.nspname, '<global>') AS schema_name,
+       d.defaclobjtype AS object_type,
+       d.defaclacl::text AS default_acl
+FROM pg_default_acl d
+LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+WHERE d.defaclrole = (SELECT oid FROM pg_roles WHERE rolname = 'postgres')
+  AND (d.defaclnamespace = 0 OR n.nspname = 'public')
+ORDER BY schema_name, object_type;
+```
+
+Postflight expectations: `anon` has no direct table privileges; `authenticated` has only the deliberately retained grants for tables covered by intended owner-scoped RLS policies; the service-only tables (including `app_settings`, `debug_events`, `job_queue`, `dm_rate_events`, and `comment_traffic_events`) have no direct client grants. In the `postgres` default ACL for `public`, `anon` and `authenticated` must not appear; only the owner and intentionally granted `service_role` rights should remain. Any unexpected grant blocks cutover.
+
 Postflight should show an empty search path configuration (`search_path=""`). Rerun Security Advisor and retain the full output in the private operator record.
 
 
