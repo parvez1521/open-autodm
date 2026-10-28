@@ -92,6 +92,15 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  // This opt-out is intended for staging isolation. Keep the GET verification
+  // route available, but acknowledge signed POSTs without debug writes,
+  // payload parsing, queueing, or background processing when explicitly set.
+  // An unset value preserves existing behavior on deployments not using it.
+  if (process.env.META_WEBHOOK_PROCESSING_ENABLED?.trim().toLowerCase() === 'false') {
+    logger.warn({}, 'Signed Meta webhook acknowledged without processing because META_WEBHOOK_PROCESSING_ENABLED is false');
+    return Response.json({ status: 'ok' }, { status: 200 });
+  }
+
   debugLog('webhook', 'info', 'signature_check', 'ok', 'HMAC-SHA256 signature verified', {});
 
   let body: MetaWebhookBody;
