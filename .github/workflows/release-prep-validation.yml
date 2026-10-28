@@ -34,3 +34,13 @@ jobs:
 
       - name: TypeScript check
         run: npm run typecheck
+
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-only-dummy-anon-key-000000000000000000000000
+          SUPABASE_SERVICE_ROLE_KEY: ci-only-dummy-service-role-key-000000000000
+          TOKEN_ENCRYPTION_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          CRON_SECRET: ci-only-cron-secret-not-for-deployment
+          NEXT_PUBLIC_APP_URL: https://example.com
