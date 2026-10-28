@@ -6,6 +6,8 @@ Status: **planning only**. This document records the release sequence; it does n
 
 Before using this runbook, re-check the actual target project's migration history, project plan, Security Advisor, extension locations, cron jobs, workload counts, and the exact application deployment. Staging observations do not prove production is in the same state. Keep raw ACL output and detailed live security findings in a private operator record, not in this public repository.
 
+Cloudflare production preflight observation (read-only, 2026-10-28): the Worker Domain record maps `app.opendm.in` to service `open-autodm-production` / environment `production`, and no production Cron Trigger is configured. The Worker script settings also include the tag `cf:service=open-autodm-staging` alongside `cf:environment=production`. Verify whether this is stale metadata before cutover; the domain mapping currently points to the production service, so do not infer a routing failure from the tag alone. Resolve any confirmed metadata/configuration discrepancy only through a separately reviewed production change.
+
 ## Read-only SQL preflight and postflight
 
 Run these queries separately against the exact target Supabase project before and after the migration window. They are **read-only**. Do not combine them with the operator's mutating migration or scheduling commands. A missing expected function or any unexpected grant is a stop condition until explained.
