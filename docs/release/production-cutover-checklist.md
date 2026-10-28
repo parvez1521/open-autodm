@@ -2,27 +2,23 @@
 
 Status: **planning only**. This document records the release sequence; it does not authorize or perform a production change. The production database and Worker have not been modified by this release-prep pass.
 
-## Verified state (2026-10-28)
+## Preflight snapshot
 
-- Release-prep CI run #59 passed unit tests, TypeScript, production build, and desktop/mobile browser QA.
-- The staging database has the release-prep migrations applied and verified. The staging `pg_net` extension is in `extensions`; the scheduled staging cron is active and its latest run succeeded.
-- The production migration ledger still ends at `20260731000009`. Eight release-prep migrations remain unapplied there.
-- Production has no `pg_cron` or `pg_net` extension and no `cron.job` table. Its Cloudflare Worker currently has no Cron Triggers configured. The repo's `vercel.json` daily cron applies only to a Vercel deployment, and no Open AutoDM Vercel project was found in the connected Vercel team.
-- The production Security Advisor reports seven `SECURITY DEFINER` functions executable by `anon`, ten executable by `authenticated`, and a mutable search path on `public.handle_updated_at()`. It also reports leaked-password protection disabled.
-- At the last read-only workload check there was one active Instagram account, but zero active automations, zero queued/processing DM jobs, zero pending/processing internal jobs, zero scheduled/sending follow-ups, and zero reserved comment replies. Re-check these counts in the actual maintenance window; they can change.
-- No production secrets were retrieved or changed. Do not copy secret values into this file, a PR, an issue, or chat.
+Before using this runbook, re-check the actual target project's migration history, project plan, Security Advisor, extension locations, cron jobs, workload counts, and the exact application deployment. Staging observations do not prove production is in the same state. Keep raw ACL output and detailed live security findings in a private operator record, not in this public repository.
+
+Release-prep CI run #59 passed unit tests, TypeScript, production build, and desktop/mobile browser QA. Staging release-prep migrations and the staging `pg_net` relocation have been verified. No production secrets were retrieved or changed by the release-prep work.
 
 ## Release blockers
 
 Do not merge or schedule live processing until all of the following have an owner and pass:
 
-1. Review the eight SQL migrations below against the exact deployed application commit and approve a production maintenance window.
-2. Take/verify a restorable production backup or point-in-time recovery option. Save the current migration ledger, Security Advisor output, relevant function ACLs, extension state, and workload counts.
+1. Review the eight SQL migrations below against the exact deployed application commit, determine which versions are actually missing in the target environment, and approve a production maintenance window.
+2. Take/verify a restorable production backup or point-in-time recovery option. Save the current migration ledger, Security Advisor output, relevant function ACLs, extension state, scheduler state, and non-sensitive workload counts in the private operator record.
 3. Coordinate the same strong random `CRON_SECRET` value between the production Cloudflare Worker secret and Supabase Vault. Cloudflare does not return a secret's value on read, so do not assume the two values match merely because both bindings exist.
 4. Apply the migrations, then verify privileges, the trigger function search path, extension schemas, and Security Advisor results before enabling the production schedule.
 5. Create exactly one production job named `open-autodm-process-jobs` only after the operator authorizes periodic processing. This endpoint can process queued jobs, refresh live Instagram tokens, and clean up rows; it must not be manually called with valid credentials as a casual smoke test.
 6. Complete the real Meta OAuth consent/callback flow and a valid signed webhook event on staging with a dedicated test Instagram account. Unit tests cover valid/invalid HMAC signatures but are not a substitute for Meta's live round-trip.
-7. Enable leaked-password protection where the project's plan supports it, then rerun the Security Advisor. Do not automatically upgrade the plan.
+7. Enable leaked-password protection if the target plan supports it, or record the explicit risk acceptance/upgrade decision. Then rerun the Security Advisor. Do not automatically upgrade the plan.
 
 ## Migration order
 
