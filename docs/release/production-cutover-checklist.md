@@ -252,7 +252,7 @@ Use the exact staging origin from the deployment dashboard. In a trusted termina
 ```bash
 set -eu
 read -r -s -p "Staging Meta App Secret (or matching Facebook App Secret for FB Login): " META_APP_SECRET
-printf '\\n'
+printf '\n'
 export META_APP_SECRET
 STAGING_APP_URL="https://open-autodm-staging.parvez-autodm-staging.workers.dev"
 RAW_BODY='{"object":"instagram","entry":[]}'
@@ -265,13 +265,13 @@ trap cleanup EXIT
 
 SIGNATURE="$(printf '%s' "$RAW_BODY" | node -e 'const c=require("node:crypto");let b="";process.stdin.on("data",d=>b+=d);process.stdin.on("end",()=>process.stdout.write(c.createHmac("sha256",process.env.META_APP_SECRET).update(b).digest("hex")))')"
 
-HTTP_STATUS="$(curl --silent --show-error --max-time 15 \\
-  -o "$RESPONSE_FILE" -w '%{http_code}' \\
-  -X POST "${STAGING_APP_URL}/api/webhook" \\
-  -H "Content-Type: application/json" \\
-  -H "x-hub-signature-256: ${SIGNATURE}" \\
+HTTP_STATUS="$(curl --silent --show-error --max-time 15 \
+  -o "$RESPONSE_FILE" -w '%{http_code}' \
+  -X POST "$STAGING_APP_URL/api/webhook" \
+  -H "Content-Type: application/json" \
+  -H "x-hub-signature-256: $SIGNATURE" \
   --data-binary "$RAW_BODY")"
-printf 'HTTP %s\\n' "$HTTP_STATUS"
+printf 'HTTP %s\n' "$HTTP_STATUS"
 cat "$RESPONSE_FILE"
 test "$HTTP_STATUS" = "200"
 grep -Fq '{"status":"ok"}' "$RESPONSE_FILE"
