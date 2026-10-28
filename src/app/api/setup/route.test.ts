@@ -105,6 +105,36 @@ describe('Setup API installation-owner authorization', () => {
     expect(mocks.getMetaSettings).not.toHaveBeenCalled();
   });
 
+  it('blocks non-environment owners from claiming a completed legacy setup with no owner record', async () => {
+    setSettingsRow({ webhook_verify_token: 'existing-token', owner_user_id: null, setup_completed: true });
+    // isInstallationOwner defaults to allowing first-time setup, so this test
+    // specifically protects the additional legacy-configured fail-closed rule.
+    mocks.isInstallationOwner.mockReturnValueOnce(true);
+    mocks.isEnvironmentOwner.mockReturnValueOnce(false);
+
+    const response = await POST(setupPostRequest(validSetup));
+
+    expect(response.status).toBe(403);
+    expect(mocks.saveMetaSettings).not.toHaveBeenCalled();
+  });
+
+  it('allows an environment-defined owner to recover a completed legacy setup', async () => {
+    setSettingsRow({ webhook_verify_token: 'existing-token', owner_user_id: null, setup_completed: true });
+    mocks.isEnvironmentOwner.mockReturnValue(true);
+    mocks.isInstallationOwner.mockReturnValue(true);
+
+    const response = await POST(setupPostRequest(validSetup));
+
+    expect(response.status).toBe(200);
+    expect(mocks.saveMetaSettings).toHaveBeenCalledWith({
+      ...validSetup,
+      metaFbAppSecret: null,
+      webhookVerifyToken: 'existing-token',
+      ownerUserId: 'owner-user-id',
+      isEnvOwner: true,
+    });
+  });
+
   it('claims an unowned installation atomically during first setup', async () => {
     setSettingsRow({ webhook_verify_token: null, owner_user_id: null, setup_completed: false });
 
