@@ -119,12 +119,13 @@
   background-image: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #bc1888);
 }
 
-/* Section micro-label - the console's structural voice */
+/* Section label - sentence case, quiet. (Unslop pass: uppercase labels
+   with wide tracking are a generated-UI tell; hierarchy comes from size
+   and color, not from shouting.) */
 .micro-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   color: var(--muted-foreground);
 }
 
@@ -177,14 +178,11 @@
   transform: none;
 }
 
-/* After the reveal, hand the transition over to hover polish so cards
-   respond instantly instead of replaying the morph curve. */
+/* After the reveal, hand the transition over to the card hover rule so
+   cards respond instantly instead of replaying the morph curve. */
 .morph-reveal.is-settled {
   transition-delay: 0ms;
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease;
+  transition: border-color 0.18s ease;
   will-change: auto;
 }
 
@@ -196,32 +194,20 @@
   }
 }
 
-/* ── Card hover polish ──────────────────────────────────────────────
-   A quiet lift + warm shadow on the console's cards. Scoped to cards
-   inside <main> so modals, popovers and the login form are untouched.
-   Only settled (already-revealed) or never-tagged cards get the lift,
-   so it never fights the morph transform mid-reveal. */
+/* ── Card hover ─────────────────────────────────────────────────────
+   Unslop pass: no lift, no colored shadow on hover - a card answers
+   with a quiet border step only. Depth on dark comes from surface
+   steps and hairlines, not from shadows. The morph reveal keeps
+   owning transform while a card is mid-reveal. */
 main .bg-card {
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease;
+  transition: border-color 0.18s ease;
 }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   main .bg-card:hover {
-    transform: translateY(-2px);
     border-color: color-mix(in srgb, var(--foreground) 18%, var(--border));
-    box-shadow:
-      0 10px 30px -12px rgb(0 0 0 / 0.28),
-      0 2px 8px -2px rgb(249 115 22 / 0.08);
   }
-  /* A card that is mid-morph must not lift - the reveal owns transform. */
   main .bg-card.morph-reveal:not(.is-settled):hover {
-    transform: translateY(30px) scale(0.78) rotate(-5deg);
-    box-shadow: none;
-  }
-  main .bg-card.morph-reveal.is-revealed:not(.is-settled):hover {
-    transform: none;
+    border-color: var(--border);
   }
 }

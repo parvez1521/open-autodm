@@ -40,6 +40,15 @@ export function ScrollMorph() {
     const main = document.querySelector("main");
     if (!main) return;
 
+    // The dashboard scrolls inside <main>; the homepage scrolls the window.
+    // Observe against <main> only when it is the actual scroll container,
+    // otherwise the viewport is the root.
+    const mainStyle = window.getComputedStyle(main);
+    const mainScrolls =
+      (mainStyle.overflowY === "auto" || mainStyle.overflowY === "scroll") &&
+      main.scrollHeight > main.clientHeight;
+    const root: Element | null = mainScrolls ? main : null;
+
     const tagged = new Set<Element>();
     const groupCounts = new Map<Element, number>();
 
@@ -54,7 +63,7 @@ export function ScrollMorph() {
           window.setTimeout(() => el.classList.add("is-settled"), 800 + delay);
         }
       },
-      { root: main, threshold: 0.08, rootMargin: "0px 0px -4% 0px" },
+      { root, threshold: 0.08, rootMargin: "0px 0px -4% 0px" },
     );
 
     const tag = (root: ParentNode) => {

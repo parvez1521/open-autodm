@@ -1,171 +1,335 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { LoginForm } from "@/components/auth/LoginForm";
-import { NodeEditor } from "@/components/ui/NodeEditor";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import {
+    ArrowRight,
+    BarChart3,
+    Clock3,
+    MessagesSquare,
+    PenLine,
+    Timer,
+    UserCheck,
+    Webhook,
+    Zap,
+} from "lucide-react";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
+import { NodeEditor } from "@/components/ui/NodeEditor";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { ScrollMorph } from "@/components/ui/ScrollMorph";
 
-// Creative animated background doodles component
-function BackgroundDoodles() {
-  return (
-    <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-30 dark:opacity-20 mix-blend-multiply dark:mix-blend-screen">
-      <svg className="w-full h-full" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-        <motion.path
-          d="M -100,500 C 100,400 300,700 500,500 S 800,400 1100,600"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeDasharray="12 12"
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 0.5 }}
-          transition={{ duration: 4, ease: "easeInOut", opacity: { duration: 1 } }}
-          className="text-primary/40"
-        />
-        <motion.path
-          d="M 200, -100 C 300, 200 100, 500 400, 800 S 700, 1000 600, 1200"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 0.3 }}
-          transition={{ duration: 6, ease: "easeInOut", delay: 1 }}
-          className="text-secondary/40"
-        />
-      </svg>
-    </div>
-  );
-}
+const FEATURES = [
+    {
+        icon: MessagesSquare,
+        title: "Comment to DM",
+        body: "A keyword in a post or Reel comment triggers a Private Reply with your link, PDF, or offer. Instagram allows one within 7 days of the comment, and the engine checks before it sends.",
+    },
+    {
+        icon: Zap,
+        title: "DM and story replies",
+        body: "Keyword replies inside DMs and story mentions, plus an away mode that answers while you are offline, in the same conversation thread.",
+    },
+    {
+        icon: BarChart3,
+        title: "Analytics and live debug",
+        body: "A comment-to-DM funnel, your top automations, and a debug stream that shows every webhook as it is verified, matched, queued, and sent.",
+    },
+    {
+        icon: PenLine,
+        title: "Viral Script Writer",
+        note: "New",
+        body: "Writes the Reel before the automation exists: three hook options, a timestamped script paced for speaking, caption and hashtags. It ends on your comment keyword, so the script and the automation use the same word.",
+        href: "#script-writer",
+        linkLabel: "See an example",
+    },
+] as const;
 
-export default function LoginPage() {
-  return (
-    <div className="h-screen w-screen flex flex-col p-4 sm:p-8 md:p-12 font-sans relative overflow-hidden text-foreground bg-background">
+const STEPS = [
+    {
+        title: "Connect Instagram",
+        body: "Add your own Meta app credentials and connect a Business or Creator account. Access tokens stay encrypted in your own database, never on a third-party server.",
+    },
+    {
+        title: "Create an automation",
+        body: "Pick a keyword and a two-step DM flow, then attach it to every post or only the ones you choose.",
+    },
+    {
+        title: "Comments become DMs",
+        body: "Every matching comment gets a Private Reply, checked against Meta's limits and your rate cap before it goes out.",
+    },
+] as const;
 
-      {/* Global Theme Toggle */}
-      <div className="absolute top-6 right-6 lg:top-8 lg:right-8 z-50 flex items-center">
-        <ThemeToggle />
-      </div>
+const SAFETY = [
+    { icon: Timer, label: "180 DMs per hour, hard cap" },
+    { icon: Clock3, label: "24-hour window checked before every send" },
+    { icon: UserCheck, label: "One DM per person, per automation, per day" },
+    { icon: Webhook, label: "Webhooks verified with HMAC-SHA256" },
+] as const;
 
-      {/* Full-Screen Seamless Dotted Pattern */}
-      <div
-        className="absolute inset-0 z-0 opacity-[0.15] dark:opacity-30 transition-opacity"
-        style={{
-          backgroundImage: `radial-gradient(circle at 1.5px 1.5px, currentColor 1.5px, transparent 0)`,
-          backgroundSize: "32px 32px"
-        }}
-      />
+const SAMPLE_SECTIONS = [
+    {
+        time: "0–3s",
+        label: "Hook",
+        spoken: "Paid tools pe paise waste karna band karo — ye 3 websites bilkul free hain.",
+    },
+    {
+        time: "8–15s",
+        label: "Value",
+        spoken: "Pehli website tumhare notes ko flashcards aur quiz me badal deti hai. Revision 10x fast, bina extra app ke.",
+    },
+    {
+        time: "27–30s",
+        label: "CTA",
+        spoken: "Teeno ke links chahiye to comment me LINK likho, DM me bhej dunga.",
+    },
+] as const;
 
-      <BackgroundDoodles />
+export default function LandingPage() {
+    return (
+        <div className="relative min-h-screen bg-background text-foreground overflow-x-clip">
+            <ScrollMorph />
 
-      {/* Header Logo Row */}
-      <div className="relative z-10 flex items-center space-x-3 mb-2 mx-auto lg:mx-0 lg:ml-12 w-full max-w-[90rem]">
-        <LogoMark className="w-9 h-9 drop-shadow-lg" />
-        <LogoWordmark className="text-xl" />
-      </div>
-
-      {/* Main Container */}
-      <div className="flex flex-col lg:flex-row gap-6 w-full max-w-[90rem] z-10 mx-auto flex-1 min-h-0 items-center justify-between">
-
-        {/* Left Area - headline + interactive nodes */}
-        <div className="hidden lg:flex relative flex-col justify-center items-start flex-1 w-full lg:w-[55%] h-full lg:pl-16 pt-2 lg:pt-8 pointer-events-none">
-
-          <div className="relative z-10 flex flex-col w-full max-w-2xl shrink-0 text-left mt-2 lg:mt-4 pointer-events-auto">
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="text-5xl lg:text-[68px] font-heading font-extrabold leading-[1.0] tracking-tighter mb-6 relative"
-            >
-              <div className="absolute -inset-4 bg-primary/10 blur-[60px] rounded-full z-[-1] hidden lg:block" />
-              Comment-to-DM, <motion.span
-                initial={{ rotate: 0 }}
-                animate={{ rotate: -3 }}
-                transition={{ duration: 0.7, delay: 0.8, type: "spring", stiffness: 200, damping: 10 }}
-                className="inline-block relative ml-1 mr-2"
-              >
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#F97316] to-[#fc9c54] font-serif italic drop-shadow-sm px-1 font-light tracking-normal">
-                  self-hosted
-                </span>
-                <svg className="absolute -bottom-2 left-0 w-full h-4 text-[#F97316] opacity-90" viewBox="0 0 100 20" preserveAspectRatio="none">
-                  <motion.path
-                    d="M 5 15 Q 50 25 95 10"
-                    stroke="currentColor"
-                    strokeWidth="5"
-                    fill="none"
-                    strokeLinecap="round"
-                    initial={{ pathLength: 0, opacity: 0 }}
-                    animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 0.8, delay: 1.2, ease: "easeOut" }}
-                  />
-                </svg>
-              </motion.span><br className="hidden sm:block" />
-              <div className="mt-3 lg:mt-5">and 100% yours.</div>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="text-base lg:text-[1.1rem] text-muted-foreground font-medium max-w-screen-sm mb-2 leading-relaxed mx-auto lg:mx-0 opacity-90"
-            >
-              Automate Instagram comment replies and DMs through your own Meta app, on your own
-              infrastructure - free, open source, and built to respect every Instagram API rule.
-              Drag the nodes to interact.
-            </motion.p>
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="w-full relative z-50 flex-1 min-h-[350px] flex items-center justify-center lg:justify-start mt-4 pointer-events-auto"
-          >
-            <NodeEditor />
-          </motion.div>
-
-        </div>
-
-        {/* Right Area - auth form */}
-        <div className="flex w-full lg:w-1/2 max-w-[460px] flex-col justify-center items-center lg:items-end relative h-full shrink-0 lg:pr-12 pointer-events-none">
-
-          <div className="absolute inset-0 pointer-events-none items-center justify-center lg:justify-end opacity-80 mix-blend-multiply dark:mix-blend-screen z-20 hidden lg:flex">
-            <svg width="650" height="650" viewBox="0 0 650 650" className="absolute -right-8 pointer-events-none">
-              <motion.path
-                d="M 325,40 C 550,20 650,250 550,480 C 450,710 150,650 50,450 C -50,250 100,60 325,40"
-                fill="none"
-                stroke="#F97316"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                initial={{ pathLength: 0, opacity: 0 }}
-                animate={{
-                  pathLength: 1,
-                  opacity: 0.8,
-                  d: [
-                    "M 325,40 C 550,20 650,250 550,480 C 450,710 150,650 50,450 C -50,250 100,60 325,40",
-                    "M 315,35 C 560,25 640,240 560,490 C 460,700 140,660 60,440 C -40,260 110,65 315,35",
-                    "M 335,45 C 540,15 660,260 540,470 C 440,720 160,640 40,460 C -60,240 90,55 335,45",
-                    "M 325,40 C 550,20 650,250 550,480 C 450,710 150,650 50,450 C -50,250 100,60 325,40"
-                  ]
+            {/* Quiet dot grid, the console's own motif */}
+            <div
+                className="pointer-events-none fixed inset-0 opacity-[0.07] dark:opacity-[0.16]"
+                style={{
+                    backgroundImage:
+                        "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
+                    backgroundSize: "32px 32px",
                 }}
-                transition={{
-                  pathLength: { duration: 2, ease: "easeOut" },
-                  opacity: { duration: 1 },
-                  d: { duration: 15, repeat: Infinity, ease: "easeInOut" }
-                }}
-                style={{ filter: "drop-shadow(0px 0px 8px rgba(249,115,22,0.4))" }}
-              />
-            </svg>
-          </div>
+            />
 
-          <div className="relative z-30 w-full flex justify-end pointer-events-auto">
-            <LoginForm />
-          </div>
+            {/* Header */}
+            <header className="relative z-10 border-b border-border">
+                <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-10">
+                    <div className="flex items-center gap-3">
+                        <LogoMark className="h-8 w-8" />
+                        <LogoWordmark className="text-[15px]" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <a
+                            href="https://github.com/parvez1521/open-autodm"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hidden h-9 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+                        >
+                            GitHub
+                        </a>
+                        <ThemeToggle />
+                    </div>
+                </div>
+            </header>
+
+            <main className="relative z-10">
+                {/* ── Hero ─────────────────────────────────────────── */}
+                <section className="mx-auto max-w-7xl px-6 pb-20 pt-14 lg:px-10 lg:pb-28 lg:pt-20">
+                    <div className="grid items-start gap-14 lg:grid-cols-[1.15fr_1fr] lg:gap-10">
+                        <div>
+                            <h1 className="font-heading text-[40px] font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[56px]">
+                                Turn comments into customers on autopilot
+                            </h1>
+                            <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground lg:text-lg lg:leading-relaxed">
+                                open-autoDM is open-source, self-hosted Instagram automation
+                                software. It runs on your own Meta app, database, and domain —
+                                no per-seat pricing, and no third party holding your tokens.
+                            </p>
+                            <div className="mt-8 flex flex-wrap items-center gap-3">
+                                <a
+                                    href="#signin"
+                                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                                >
+                                    Sign in to your console
+                                    <ArrowRight className="h-4 w-4" />
+                                </a>
+                                <a
+                                    href="#how"
+                                    className="inline-flex h-11 items-center rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                                >
+                                    How it works
+                                </a>
+                            </div>
+                            <p className="mt-6 text-[13px] text-muted-foreground">
+                                MIT licensed · Self-hosted · Your data stays on your instance
+                            </p>
+
+                            {/* The product, doing its thing — drag the hub */}
+                            <div className="mt-12 hidden lg:block">
+                                <NodeEditor />
+                            </div>
+                        </div>
+
+                        <div id="signin" className="scroll-mt-24 lg:sticky lg:top-10">
+                            <LoginForm />
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── Features ─────────────────────────────────────── */}
+                <section className="border-t border-border">
+                    <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
+                        <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                            What it does
+                        </h2>
+                        <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+                            One console for the whole loop: the Reel that brings the comment,
+                            the automation that answers it, and the numbers that prove it
+                            worked.
+                        </p>
+
+                        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+                            {FEATURES.map((f) => (
+                                <div key={f.title} className="rounded-xl border border-border bg-card p-6">
+                                    <f.icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
+                                    <h3 className="mt-4 flex items-baseline gap-2 text-[15px] font-semibold text-foreground">
+                                        {f.title}
+                                        {"note" in f && f.note ? (
+                                            <span className="text-xs font-medium text-primary">{f.note}</span>
+                                        ) : null}
+                                    </h3>
+                                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
+                                    {"href" in f && f.href ? (
+                                        <a
+                                            href={f.href}
+                                            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+                                        >
+                                            {f.linkLabel}
+                                            <ArrowRight className="h-3.5 w-3.5" />
+                                        </a>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── Script Writer spotlight ──────────────────────── */}
+                <section id="script-writer" className="scroll-mt-16 border-t border-border">
+                    <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
+                        <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
+                            <div>
+                                <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                                    The script comes first
+                                </h2>
+                                <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
+                                    The Viral Script Writer lives inside the console. Give it a
+                                    topic and it writes for the first three seconds first —
+                                    because that is where a Reel is won.
+                                </p>
+                                <ul className="mt-6 space-y-3 text-sm leading-relaxed text-muted-foreground">
+                                    <li className="flex gap-3">
+                                        <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-primary" />
+                                        Three hook options, then a timestamped script paced at
+                                        speaking speed for 15 to 90 second Reels
+                                    </li>
+                                    <li className="flex gap-3">
+                                        <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-primary" />
+                                        English, Hindi, or Hinglish, in the tone you pick
+                                    </li>
+                                    <li className="flex gap-3">
+                                        <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-primary" />
+                                        Runs on a free model — Llama 3.3 70B on Cloudflare Workers
+                                        AI, with Groq as a fallback. No extra Meta permission, no
+                                        new data stored
+                                    </li>
+                                    <li className="flex gap-3">
+                                        <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-primary" />
+                                        The script ends on your keyword, and one click turns that
+                                        keyword into the automation that answers it
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {/* Example output, built in code like the real result */}
+                            <div className="rounded-xl border border-border bg-card p-6">
+                                <div className="flex items-baseline justify-between gap-3">
+                                    <h3 className="text-sm font-semibold text-foreground">
+                                        3 free AI websites — student edition
+                                    </h3>
+                                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                                        Example output
+                                    </span>
+                                </div>
+                                <div className="mt-5 space-y-4">
+                                    {SAMPLE_SECTIONS.map((s) => (
+                                        <div key={s.time} className="flex gap-3.5">
+                                            <span className="h-fit shrink-0 rounded-md bg-muted px-2 py-1 font-mono text-[11px] font-medium text-foreground">
+                                                {s.time}
+                                            </span>
+                                            <div className="min-w-0">
+                                                <div className="text-xs font-medium text-primary">{s.label}</div>
+                                                <p className="mt-0.5 text-sm leading-relaxed text-foreground">
+                                                    {s.spoken}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border/60 pt-4">
+                                    <span className="rounded-md border border-border bg-muted/40 px-2.5 py-1.5 font-mono text-xs text-foreground">
+                                        Comment &quot;LINK&quot;
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        The keyword becomes the automation trigger
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── How it works ─────────────────────────────────── */}
+                <section id="how" className="scroll-mt-16 border-t border-border">
+                    <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
+                        <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                            How it works
+                        </h2>
+                        <div className="mt-10 grid gap-4 md:grid-cols-3">
+                            {STEPS.map((s, i) => (
+                                <div key={s.title} className="rounded-xl border border-border bg-card p-6">
+                                    <span className="font-mono text-xs text-muted-foreground">
+                                        {String(i + 1).padStart(2, "0")}
+                                    </span>
+                                    <h3 className="mt-3 text-[15px] font-semibold text-foreground">{s.title}</h3>
+                                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-4 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+                            {SAFETY.map((s) => (
+                                <div key={s.label} className="flex items-center gap-3 bg-card px-5 py-4">
+                                    <s.icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                                    <span className="text-[13px] leading-snug text-foreground">{s.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
+                {/* ── Footer ───────────────────────────────────────── */}
+                <footer className="border-t border-border">
+                    <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-8 lg:px-10">
+                        <div className="flex items-center gap-2.5">
+                            <LogoMark className="h-6 w-6" />
+                            <span className="text-[13px] text-muted-foreground">
+                                open-autoDM · MIT licensed · Self-hosted
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-5 text-[13px] text-muted-foreground">
+                            <a
+                                href="https://github.com/parvez1521/open-autodm"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="transition-colors hover:text-foreground"
+                            >
+                                GitHub
+                            </a>
+                            <a href="#signin" className="transition-colors hover:text-foreground">
+                                Sign in
+                            </a>
+                        </div>
+                    </div>
+                </footer>
+            </main>
         </div>
-
-      </div>
-
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 text-[9px] text-muted-foreground uppercase tracking-widest font-mono">
-        open-autoDM · MIT Licensed · Self-Hosted &amp; Free Forever
-      </div>
-    </div>
-  );
+    );
 }
