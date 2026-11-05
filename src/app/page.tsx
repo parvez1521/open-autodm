@@ -16,6 +16,7 @@ import { NodeEditor } from "@/components/ui/NodeEditor";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
+import { PipelineShowcase } from "@/components/home/PipelineShowcase";
 
 const FEATURES = [
     {
@@ -40,21 +41,6 @@ const FEATURES = [
         body: "Writes the Reel before the automation exists: three hook options, a timestamped script paced for speaking, caption and hashtags. It ends on your comment keyword, so the script and the automation use the same word.",
         href: "#script-writer",
         linkLabel: "See an example",
-    },
-] as const;
-
-const STEPS = [
-    {
-        title: "Connect Instagram",
-        body: "Add your own Meta app credentials and connect a Business or Creator account. Access tokens stay encrypted in your own database, never on a third-party server.",
-    },
-    {
-        title: "Create an automation",
-        body: "Pick a keyword and a two-step DM flow, then attach it to every post or only the ones you choose.",
-    },
-    {
-        title: "Comments become DMs",
-        body: "Every matching comment gets a Private Reply, checked against Meta's limits and your rate cap before it goes out.",
     },
 ] as const;
 
@@ -282,16 +268,8 @@ export default function LandingPage() {
                         <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                             How it works
                         </h2>
-                        <div className="mt-10 grid gap-4 md:grid-cols-3">
-                            {STEPS.map((s, i) => (
-                                <div key={s.title} className="rounded-xl border border-border bg-card p-6">
-                                    <span className="font-mono text-xs text-muted-foreground">
-                                        {String(i + 1).padStart(2, "0")}
-                                    </span>
-                                    <h3 className="mt-3 text-[15px] font-semibold text-foreground">{s.title}</h3>
-                                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.body}</p>
-                                </div>
-                            ))}
+                        <div className="mt-10">
+                            <PipelineShowcase />
                         </div>
 
                         <div className="mt-4 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
