@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Bot, Send, Instagram, MessageCircle, Wrench, CheckCircle2, Circle, ArrowRight, Plus, Sparkles } from "lucide-react";
+import { Wrench, CheckCircle2, Circle, ArrowRight, Plus, PenLine } from "lucide-react";
 import { useAutomations } from "@/hooks/useAutomations";
 import { useContacts } from "@/hooks/useContacts";
 import { useAnalytics } from "@/hooks/useAnalytics";
@@ -38,10 +38,10 @@ export default function DashboardPage() {
     const allDone = checklist.every(c => c.done);
 
     const stats = [
-        { label: "Active automations", value: String(activeCount), icon: Bot },
-        { label: "Comments · 30d", value: (analytics?.totals.comments ?? 0).toLocaleString(), icon: MessageCircle },
-        { label: "DMs delivered", value: totalDms.toLocaleString(), icon: Send },
-        { label: "Contacts captured", value: String(contacts?.length ?? 0), icon: Instagram },
+        { label: "Active automations", value: String(activeCount) },
+        { label: "Comments · 30d", value: (analytics?.totals.comments ?? 0).toLocaleString() },
+        { label: "DMs delivered", value: totalDms.toLocaleString() },
+        { label: "Contacts captured", value: String(contacts?.length ?? 0) },
     ];
 
     return (
@@ -72,7 +72,6 @@ export default function DashboardPage() {
                     <div key={stat.label} className="bg-card border border-border rounded-xl p-4">
                         <div className="flex items-center justify-between">
                             <span className="micro-label">{stat.label}</span>
-                            <stat.icon className="w-3.5 h-3.5 text-muted-foreground/60" />
                         </div>
                         <p className="text-2xl font-heading font-semibold tracking-tight text-foreground mt-2 tabular-nums">{stat.value}</p>
                     </div>
@@ -82,14 +81,13 @@ export default function DashboardPage() {
             {/* Viral Script Writer promo */}
             <Link href="/script-writer" className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-xl">
                 <div className="relative overflow-hidden bg-card border border-primary/25 rounded-xl p-5">
-                    <div className="absolute inset-x-0 top-0 h-[2px] ig-thread opacity-80" />
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3.5 min-w-0">
                             <span className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                                <Sparkles className="w-5 h-5 text-primary" />
+                                <PenLine className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
                             </span>
                             <div className="min-w-0">
-                                <h2 className="text-[14px] font-heading font-semibold text-foreground">Viral Script Writer <span className="ml-1.5 align-middle text-[9px] font-bold tracking-wider uppercase text-primary bg-primary/10 border border-primary/20 rounded-full px-1.5 py-px">New</span></h2>
+                                <h2 className="text-[14px] font-heading font-semibold text-foreground">Viral Script Writer</h2>
                                 <p className="text-[13px] text-muted-foreground mt-0.5">
                                     Generate a hook-first Reel script tuned for Instagram - then turn its CTA keyword into an automation.
                                 </p>

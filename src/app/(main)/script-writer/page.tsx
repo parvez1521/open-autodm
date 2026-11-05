@@ -16,7 +16,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Sparkles, Loader2, Copy, Check, Bot, AlertTriangle, Clock3,
+  PenLine, Loader2, Copy, Check, Bot, AlertTriangle, Clock3,
   MessageSquareText, Hash, Clapperboard, Trash2, History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -182,22 +182,18 @@ export default function ScriptWriterPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-heading font-semibold tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-xl font-heading font-semibold tracking-tight text-foreground">
             Viral Script Writer
-            <span className="text-[9px] font-bold tracking-wider uppercase text-primary bg-primary/10 border border-primary/20 rounded-full px-1.5 py-px">AI</span>
           </h1>
-          <p className="text-[13px] text-muted-foreground mt-1 max-w-xl">
-            Hook-first Reel scripts tuned for Instagram retention - powered by a free AI model
-            (Cloudflare Workers AI, Groq fallback). The script ends with your comment keyword,
-            ready to become an automation.
+          <p className="text-[13px] text-muted-foreground mt-1 max-w-xl leading-relaxed">
+            Hook-first Reel scripts written for Instagram retention, on a free model
+            (Cloudflare Workers AI, Groq fallback). The script ends with your comment
+            keyword, ready to become an automation.
           </p>
         </div>
         {status && (
           <div className="hidden sm:flex flex-col items-end gap-1 shrink-0" data-no-reveal>
-            <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full border px-2 py-0.5",
-              status.groq || status.workersAiRest
-                ? "text-secondary border-secondary/30 bg-secondary/10"
-                : "text-muted-foreground border-border bg-muted/40")}>
+            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
               <span className={cn("w-1.5 h-1.5 rounded-full", status.groq || status.workersAiRest ? "bg-secondary" : "bg-muted-foreground/50")} />
               {status.workersAiRest ? "Workers AI ready" : status.groq ? "Groq ready" : "Workers AI binding / Groq"}
             </span>
@@ -298,7 +294,7 @@ export default function ScriptWriterPage() {
                 />
               </div>
               <div>
-                <label className={labelCls} htmlFor="sw-provider">AI provider</label>
+                <label className={labelCls} htmlFor="sw-provider">Model provider</label>
                 <select id="sw-provider" value={provider} onChange={(e) => setProvider(e.target.value as typeof provider)} className={inputCls}>
                   <option value="auto">Auto (Workers AI → Groq)</option>
                   <option value="workers-ai">Workers AI only</option>
@@ -318,11 +314,11 @@ export default function ScriptWriterPage() {
             disabled={!canGenerate}
             className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:pointer-events-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenLine className="w-4 h-4" />}
             {loading ? "Writing your script..." : "Generate script"}
           </button>
           <p className="text-[11.5px] text-muted-foreground/80 leading-relaxed">
-            Free-tier AI: roughly 80 scripts/day on Workers AI (70B) before the daily
+            Free tier: roughly 80 scripts/day on Workers AI (70B) before the daily
             allocation resets. Review facts and prices before you film - AI can be wrong.
           </p>
         </div>
@@ -333,7 +329,7 @@ export default function ScriptWriterPage() {
             <div className="bg-card border border-amber-500/30 rounded-xl p-5" role="alert">
               <h2 className="text-[14px] font-heading font-semibold text-foreground flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
-                {error.kind === "ai_unavailable" ? "AI provider not configured yet" : "Generation failed"}
+                {error.kind === "ai_unavailable" ? "Script model not configured yet" : "Generation failed"}
               </h2>
               <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed">{error.message}</p>
               {error.kind === "ai_unavailable" && (
@@ -367,7 +363,7 @@ export default function ScriptWriterPage() {
               <div className="bg-card border border-border rounded-xl p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-[15px] font-heading font-semibold text-foreground truncate">{script.title}</h2>
+                    <h2 className="text-[15px] font-heading font-semibold text-foreground leading-snug">{script.title}</h2>
                     <p className="text-[12px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
                       <Clock3 className="w-3.5 h-3.5" /> {duration}s · via {result.provider === "groq" ? "Groq" : "Workers AI"} · {result.model.split("/").pop()}
                     </p>
@@ -392,7 +388,7 @@ export default function ScriptWriterPage() {
                       >
                         <span className="text-primary font-bold mr-1.5">{i + 1}.</span>
                         {h}
-                        {h === script.chosenHook && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-primary">Picked</span>}
+                        {h === script.chosenHook && <span className="ml-2 text-[11px] font-medium text-primary">Picked</span>}
                       </button>
                     ))}
                   </div>
@@ -415,10 +411,8 @@ export default function ScriptWriterPage() {
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg ig-thread p-px">
-                    <span className="inline-flex items-center gap-1.5 bg-card rounded-[7px] px-2.5 py-1.5 text-[12.5px] font-semibold text-foreground">
-                      Comment “{script.ctaKeyword}”
-                    </span>
+                  <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2.5 py-1.5 font-mono text-xs text-foreground">
+                    Comment “{script.ctaKeyword}”
                   </span>
                   <Link href="/automations" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-foreground text-background text-[12.5px] font-semibold hover:opacity-90 transition-opacity">
                     <Bot className="w-3.5 h-3.5" /> Create automation with this keyword
