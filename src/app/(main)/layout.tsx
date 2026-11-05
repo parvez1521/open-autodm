@@ -1,5 +1,6 @@
 import { Sidebar, MobileSidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
+import { ScrollMorph } from "@/components/ui/ScrollMorph";
 
 export default function MainLayout({
     children,
@@ -28,6 +29,7 @@ export default function MainLayout({
             <div className="flex-1 flex flex-col overflow-hidden relative z-10">
                 <Topbar />
 
+                <ScrollMorph />
                 <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 scroll-smooth">
                     {children}
                 </main>

@@ -9,6 +9,7 @@ import {
     Settings,
     Wrench,
     Github,
+    PenLine,
     ChevronLeft,
     ChevronRight,
     X,
@@ -25,6 +26,7 @@ const NAV = {
         { name: "Dashboard", href: "/dashboard", icon: Home, external: false },
         { name: "Automations", href: "/automations", icon: Bot, external: false },
         { name: "Analytics", href: "/analytics", icon: ChartNoAxesColumn, external: false },
+        { name: "Script Writer", href: "/script-writer", icon: PenLine, external: false },
     ],
     System: [
         { name: "Setup Wizard", href: "/setup", icon: Wrench, external: false },
