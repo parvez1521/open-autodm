@@ -9,6 +9,7 @@ import {
     Settings,
     Wrench,
     Github,
+    Sparkles,
     ChevronLeft,
     ChevronRight,
     X,
@@ -25,6 +26,7 @@ const NAV = {
         { name: "Dashboard", href: "/dashboard", icon: Home, external: false },
         { name: "Automations", href: "/automations", icon: Bot, external: false },
         { name: "Analytics", href: "/analytics", icon: ChartNoAxesColumn, external: false },
+        { name: "Script Writer", href: "/script-writer", icon: Sparkles, external: false },
     ],
     System: [
         { name: "Setup Wizard", href: "/setup", icon: Wrench, external: false },
@@ -84,6 +86,9 @@ function NavGroups({
                                     )}
                                     <item.icon className={cn("w-4 h-4 shrink-0", isActive ? "text-foreground" : "")} />
                                     {!collapsed && <span className="truncate">{item.name}</span>}
+                                    {!collapsed && item.name === "Script Writer" && (
+                                        <span className="ml-auto text-[9px] font-bold tracking-wider uppercase text-primary bg-primary/10 border border-primary/20 rounded-full px-1.5 py-px">AI</span>
+                                    )}
                                 </Link>
                             );
                         })}

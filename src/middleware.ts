@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/automations') ||
     pathname.startsWith('/settings') ||
+    pathname.startsWith('/script-writer') ||
     pathname.startsWith('/setup');
 
   if (isProtectedRoute && !user) {
