@@ -1,20 +1,34 @@
+import dynamic from "next/dynamic";
 import { readSaasFlags } from "@/lib/billing/flags";
 
+// Loaded on demand: the signup form ships only when signup is open,
+// and the page's default (invite-only) render — which the page tests
+// exercise in a no-JSX-transform harness (tests/customer-journey) —
+// stays free of client-component imports.
+const SignupForm = dynamic(
+  () => import("@/components/auth/SignupForm").then((m) => m.SignupForm),
+);
+
 /**
- * Phase 13 prototype — signup page.
+ * Signup page — lives at /get-started, NOT /signup, on purpose.
+ * The route-name invariant (tests/signup-protection.test.ts) forbids
+ * any route segment named for signup/registration.
  *
- * Route note: this page lives at /get-started, NOT /signup, on purpose.
- * The release's invite-only invariant (tests/signup-protection.test.ts)
- * forbids any route segment named for signup/registration, and this
- * prototype must not weaken that invariant.
- *
- * Behaviour: while PUBLIC_SIGNUP_ENABLED is off (the default) the page
- * renders ONLY the disabled / invite-only state — no form, no auth call.
- * When the owner deliberately enables the flag, a prototype form renders;
- * it is non-functional in this phase (no account creation is wired, and
- * no user-creation auth method is called anywhere in this tree).
+ * Behaviour is flag-gated by PUBLIC_SIGNUP_ENABLED:
+ *  - OFF (the default): the page renders ONLY the disabled invite-only
+ *    state below — no form, no auth call, exactly the Phase 10.4 S-02
+ *    posture.
+ *  - ON (owner's deliberate choice, e.g. a public-launch preview): the
+ *    page renders the real SignupForm — the single component in this
+ *    tree allowed to use the supabase.auth signUp method; see
+ *    src/components/auth/SignupForm.tsx and the scoped exemption in
+ *    tests/signup-protection.test.ts. The instance access gate
+ *    (src/lib/signupProtection.ts) still applies to every identity
+ *    afterwards: anonymous identities are always denied, and an owner
+ *    allowlist, when configured, still narrows who may operate the
+ *    instance — including self-registered users.
  */
-export default function GetStartedPrototypePage() {
+export default function GetStartedPage() {
   const flags = readSaasFlags(process.env);
 
   if (!flags.publicSignupEnabled) {
@@ -34,26 +48,11 @@ export default function GetStartedPrototypePage() {
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-4 rounded-xl border border-border bg-card p-6" data-testid="signup-form-prototype">
-      <h1 className="font-heading text-xl font-semibold">Create your account</h1>
-      <p className="rounded bg-amber-500/15 px-2 py-1 text-[12px] text-amber-600 dark:text-amber-400">
-        Prototype form — submission is disabled in Phase 13; no account is created.
-      </p>
-      <form aria-label="Prototype signup form">
-        <label className="block text-sm">
-          Email
-          <input type="email" name="email" autoComplete="email" className="mt-1 block w-full rounded-lg border border-border bg-background px-3 py-2" placeholder="you@example.com" />
-        </label>
-        <label className="mt-3 block text-sm">
-          Password
-          <input type="password" name="password" autoComplete="new-password" className="mt-1 block w-full rounded-lg border border-border bg-background px-3 py-2" />
-        </label>
-        <button type="button" disabled className="mt-4 w-full rounded-lg bg-foreground px-3 py-2 text-sm font-semibold text-background opacity-50">
-          Create account (disabled in prototype)
-        </button>
-      </form>
-      <p className="text-[12px] text-muted-foreground">
-        Next steps after signup would be: email verification → create your workspace → choose a plan.
+    <div className="mx-auto w-full max-w-sm" data-testid="signup-form">
+      <SignupForm />
+      <p className="mt-4 text-center text-[12px] leading-relaxed text-muted-foreground">
+        Next steps after signup: confirm your email, then sign in to your console and
+        connect Instagram.
       </p>
     </div>
   );

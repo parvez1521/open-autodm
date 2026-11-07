@@ -32,6 +32,16 @@
  * and the residual control remains the Supabase dashboard toggle —
  * see phase10.4-scratch-A-signup.md for the full justification and the
  * owner verification procedure.
+ *
+ * OWNER-DIRECTED UPDATE (preview launch preparation, 2026-11-07): the
+ * owner has since chosen to open signup on the preview behind
+ * PUBLIC_SIGNUP_ENABLED (default still OFF). The invariant is now
+ * scoped, not removed: pin (1) still holds for every creation method
+ * everywhere, and for signUp everywhere EXCEPT the one flag-gated
+ * component (src/components/auth/SignupForm.tsx), which this suite
+ * pins as the sole signUp call site in the tree. The identity gate
+ * (3)–(7) is unchanged and still applies to self-registered
+ * identities exactly as it does to dashboard-created ones.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -132,6 +142,7 @@ const ENV_KEYS = [
   'INSTANCE_ALLOWED_USER_IDS',
   'OWNER_USER_ID',
   'OWNER_EMAIL',
+  'PUBLIC_SIGNUP_ENABLED',
 ] as const;
 const savedEnv: Record<string, string | undefined> = {};
 
@@ -197,18 +208,39 @@ const USER_CREATION_PATTERNS: { label: string; re: RegExp }[] = [
 
 // ── (1) No app endpoint / UI path performs signup ─────────────────────────
 
+/** The one file exempted from the signUp ban: the flag-gated form. */
+const SIGNUP_FORM_REL = 'components/auth/SignupForm.tsx';
+
 describe('S-02 (1): no signup path exists anywhere in src/', () => {
-  it('no source file calls any user-creation / self-provisioning auth method', () => {
+  it('no source file calls any user-creation / self-provisioning auth method (sole exception: signUp inside the flag-gated SignupForm)', () => {
     const offenders: string[] = [];
     for (const file of collectSourceFiles(SRC_ROOT)) {
       const src = fs.readFileSync(file, 'utf8');
+      const rel = path.relative(SRC_ROOT, file).replace(/\\/g, '/');
       for (const { label, re } of USER_CREATION_PATTERNS) {
+        if (label === 'signUp' && rel === SIGNUP_FORM_REL) continue;
         if (re.test(src)) {
-          offenders.push(`${path.relative(SRC_ROOT, file).replace(/\\/g, '/')} → ${label}`);
+          offenders.push(`${rel} → ${label}`);
         }
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  it('the signUp exception is exactly one file, and that file uses no other creation method', () => {
+    const users: string[] = [];
+    for (const file of collectSourceFiles(SRC_ROOT)) {
+      const src = fs.readFileSync(file, 'utf8');
+      if (/\.signUp\s*\(/.test(src)) {
+        users.push(path.relative(SRC_ROOT, file).replace(/\\/g, '/'));
+      }
+    }
+    expect(users).toEqual([SIGNUP_FORM_REL]);
+    const formSrc = readSrc(SIGNUP_FORM_REL);
+    for (const { label, re } of USER_CREATION_PATTERNS) {
+      if (label === 'signUp') continue;
+      expect(formSrc, `SignupForm must not use ${label}`).not.toMatch(re);
+    }
   });
 
   it('no route or page is named for signup/registration', () => {
@@ -234,6 +266,7 @@ describe('S-02 (1): no signup path exists anywhere in src/', () => {
   it('the only client auth-call sites are the known, non-creating ones', () => {
     const allowed = new Set([
       'signInWithPassword',
+      'signUp',
       'signOut',
       'getSession',
       'getUser',
@@ -256,6 +289,8 @@ describe('S-02 (1): no signup path exists anywhere in src/', () => {
     }
     // Sanity: the inventory is non-empty and includes the login call.
     expect(seen.get('components/auth/LoginForm.tsx')).toEqual(new Set(['signInWithPassword']));
+    // …and the flag-gated signup form is the only other form-level site.
+    expect(seen.get('components/auth/SignupForm.tsx')).toEqual(new Set(['signUp']));
   });
 });
 
@@ -341,6 +376,22 @@ describe('S-02: signupProtection allowlist evaluation', () => {
     expect(posture.dashboardToggleDetectableFromApp).toBe(false);
     expect(posture.supabaseDashboardSignupToggle).toBe('owner-verification-required');
     expect(posture.anonymousIdentities).toBe('denied');
+  });
+
+  it('posture flips honestly when the owner enables PUBLIC_SIGNUP_ENABLED (gate itself unchanged)', async () => {
+    const { getSignupPosture, evaluateInstanceAccess } = await import('@/lib/signupProtection');
+    process.env['PUBLIC_SIGNUP_ENABLED'] = 'true';
+    const posture = getSignupPosture();
+    expect(posture.mode).toBe('public-signup');
+    expect(posture.appInitiatedSignup).toBe(true);
+    expect(posture.userProvisioning).toBe('self-service-signup');
+    expect(posture.anonymousIdentities).toBe('denied');
+    // The access gate does not move with the flag: anonymous is still
+    // denied, and a configured allowlist still narrows membership.
+    expect(evaluateInstanceAccess(asIdentity(ANONYMOUS)).allowed).toBe(false);
+    process.env['INSTANCE_ALLOWED_EMAILS'] = 'invited@example.com';
+    expect(evaluateInstanceAccess(asIdentity(STRANGER)).allowed).toBe(false);
+    expect(evaluateInstanceAccess(asIdentity(INVITED)).allowed).toBe(true);
   });
 });
 

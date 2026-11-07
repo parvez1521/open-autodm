@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ArrowLeft } from "@/components/phosphor";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
+import { readSaasFlags } from "@/lib/billing/flags";
 
 export const metadata: Metadata = {
     title: "Sign in | open-autoDM",
@@ -11,9 +12,13 @@ export const metadata: Metadata = {
 /**
  * Dedicated sign-in page. The landing page (/) explains the product;
  * this page is only for getting into the console. The form itself is
- * the shared LoginForm — sign-in only, accounts are invite-only.
+ * the shared LoginForm — sign-in only. When the owner has enabled
+ * PUBLIC_SIGNUP_ENABLED, a create-account entry appears under the
+ * form and points at the flag-gated /get-started page; with the flag
+ * off (default) the page is exactly the invite-only sign-in.
  */
 export default function LoginPage() {
+    const signupEnabled = readSaasFlags(process.env).publicSignupEnabled;
     return (
         <div className="relative flex min-h-screen flex-col bg-background text-foreground">
             {/* Header */}
@@ -46,6 +51,18 @@ export default function LoginPage() {
                 <div className="mt-10 flex w-full justify-center">
                     <LoginForm />
                 </div>
+
+                {signupEnabled && (
+                    <p className="mt-6 text-center text-[13px] text-muted-foreground">
+                        New to open-autoDM?{" "}
+                        <a
+                            href="/get-started"
+                            className="font-medium text-foreground underline underline-offset-4"
+                        >
+                            Create an account
+                        </a>
+                    </p>
+                )}
             </main>
 
             {/* Footer */}

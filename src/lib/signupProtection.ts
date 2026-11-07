@@ -54,8 +54,23 @@
  *   - A blank variable counts as unconfigured (same semantics as
  *     OWNER_*), never as "allow everyone".
  *   - No variable, default, or code path in this module can CREATE a
- *     user or enable public registration; the module only ever narrows
- *     which already-verified identities are accepted.
+ *     user; the module only ever narrows which already-verified
+ *     identities are accepted. Account creation, when the owner
+ *     deliberately enables it (below), lives OUTSIDE this module.
+ *
+ * OWNER-DIRECTED CHANGE — flag-gated public signup (preview launch
+ * preparation, 2026-11-07): the default posture above is unchanged,
+ * but the owner can now set PUBLIC_SIGNUP_ENABLED=true (see
+ * src/lib/billing/flags.ts), in which case /get-started renders the
+ * one component allowed to call supabase.auth.signUp
+ * (src/components/auth/SignupForm.tsx — the S-02 source scan exempts
+ * exactly that file for exactly that method, and pins that it stays
+ * the only one). This module's gate is NOT weakened by the flag:
+ * anonymous identities are still always denied, and a configured
+ * allowlist still narrows who may operate the instance — including
+ * people who self-registered while the flag was on. The posture
+ * report below simply tells the truth about which mode the owner
+ * has selected.
  *
  * Consumers: src/lib/auth.ts (every API route), src/middleware.ts
  * (protected pages), src/app/auth/callback/route.ts (session minting).
@@ -158,16 +173,20 @@ export function isIdentityAllowed(user: IdentityLike): boolean {
   }
 }
 
+import { readSaasFlags } from '@/lib/billing/flags';
+
 export interface SignupPosture {
-  mode: 'invite-only';
-  /** The app itself never initiates registration; pinned by the test suite. */
-  appInitiatedSignup: false;
-  userProvisioning: 'supabase-dashboard-by-owner';
+  mode: 'invite-only' | 'public-signup';
+  /** True only when the owner has enabled PUBLIC_SIGNUP_ENABLED. */
+  appInitiatedSignup: boolean;
+  userProvisioning: 'supabase-dashboard-by-owner' | 'self-service-signup';
   anonymousIdentities: 'denied';
   allowlist: AllowlistState;
   /**
    * The dashboard "Allow new users to sign up" toggle cannot be read from
    * app code or runtime — the owner must verify it in the dashboard.
+   * (With public signup enabled in the app, the dashboard toggle must
+   * also be ON or Supabase will refuse the registration itself.)
    */
   dashboardToggleDetectableFromApp: false;
   supabaseDashboardSignupToggle: 'owner-verification-required';
@@ -175,10 +194,11 @@ export interface SignupPosture {
 
 /** Posture report for the owner-gated status surface. Contains no secrets. */
 export function getSignupPosture(): SignupPosture {
+  const signupEnabled = readSaasFlags(process.env).publicSignupEnabled;
   return {
-    mode: 'invite-only',
-    appInitiatedSignup: false,
-    userProvisioning: 'supabase-dashboard-by-owner',
+    mode: signupEnabled ? 'public-signup' : 'invite-only',
+    appInitiatedSignup: signupEnabled,
+    userProvisioning: signupEnabled ? 'self-service-signup' : 'supabase-dashboard-by-owner',
     anonymousIdentities: 'denied',
     allowlist: getAllowlistState(),
     dashboardToggleDetectableFromApp: false,

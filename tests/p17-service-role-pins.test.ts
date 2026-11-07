@@ -245,6 +245,19 @@ const CLASSIFIED: Record<string, Classified> = {
     exceptionReason:
       'Setup wizard for the deployment singleton (app_settings id=1): any authenticated user may complete FIRST setup; once completed, POST is owner-only and fail-closed when no owner is configured; the webhook verify token is redacted for non-owners.',
   },
+  // Launch preparation (2026-11-07): the public waitlist is
+  // platform-level by design — the addresses are not tenant data and
+  // belong to no workspace. The waitlist_entries table grants NOTHING
+  // to anon/authenticated and has no policies (migration …000034), so
+  // this route is the only write path; its guards are strict email
+  // validation/normalization and a per-IP rate limit, both pinned by
+  // tests/waitlist.test.ts.
+  'app/api/waitlist/route.ts': {
+    kind: 'platform-singleton',
+    tokens: ['normalizeWaitlistEmail', 'isRateLimited', 'from("waitlist_entries")'],
+    exceptionReason:
+      'Public landing-page waitlist insert (launch preparation, 2026-11-07): unauthenticated by design, but the table is platform-level (no tenant data), RLS grants anon/authenticated nothing, and this service-role route is the single write path behind email validation and a per-IP rate limit.',
+  },
   'lib/settings.ts': {
     kind: 'platform-singleton',
     tokens: ["from('platform_config')", "from('app_settings')"],
@@ -328,9 +341,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 36 importing files, 80 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed)', () => {
+  it('counts reconcile with the audit: 37 importing files, 81 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site)', () => {
     const importers = serviceImporters();
-    expect(importers.length).toBe(36);
+    expect(importers.length).toBe(37);
     let calls = 0;
     for (const f of importers) {
       for (const line of sourceOf(f).split('\n')) {
@@ -341,7 +354,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(80);
+    expect(calls).toBe(81);
   });
 
   it('every classified file still carries its audited guard tokens', () => {

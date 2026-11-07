@@ -29,6 +29,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
 import { PipelineShowcase } from "@/components/home/PipelineShowcase";
 import { ScriptSampleShowcase } from "@/components/home/ScriptSampleShowcase";
+import { WaitlistForm } from "@/components/home/WaitlistForm";
 
 const FEATURES = [
     {
@@ -541,6 +542,15 @@ export default function LandingPage() {
                                 >
                                     Sign in
                                 </a>
+                            </div>
+                            <div className="mx-auto mt-12 max-w-md border-t border-border pt-8 text-center">
+                                <p className="micro-label">Waitlist</p>
+                                <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+                                    Not ready to self-host? Public access opens in
+                                    stages. Join the waitlist and we will write to you
+                                    when a slot opens. One email, when it matters.
+                                </p>
+                                <WaitlistForm />
                             </div>
                         </div>
                     </div>
