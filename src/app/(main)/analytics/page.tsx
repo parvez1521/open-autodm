@@ -15,7 +15,7 @@ import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
 } from "recharts";
-import { Loader2, MessageCircle, Send, Image as ImageIcon, Users, UserCheck, AlertTriangle, ChartNoAxesColumn } from "lucide-react";
+import { CircleNotch, ChatCircle, PaperPlaneTilt, Image as ImageIcon, Users, UserCheck, Warning, ChartBar } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
@@ -101,8 +101,8 @@ export default function AnalyticsPage() {
 
     const tiles = totals
         ? [
-              { label: "Triggers", value: totals.triggers, sub: `${totals.comments} comments · ${totals.dmKeywords} DMs · ${totals.storyReplies} stories`, icon: MessageCircle },
-              { label: "DMs delivered", value: totals.delivered, sub: totals.failed > 0 ? `${totals.failed} failed` : "no failures", icon: Send },
+              { label: "Triggers", value: totals.triggers, sub: `${totals.comments} comments · ${totals.dmKeywords} DMs · ${totals.storyReplies} stories`, icon: ChatCircle },
+              { label: "DMs delivered", value: totals.delivered, sub: totals.failed > 0 ? `${totals.failed} failed` : "no failures", icon: PaperPlaneTilt },
               { label: "Follows gained", value: totals.followsGained, sub: `${totals.askToFollowShown} asked to follow`, icon: UserCheck },
               { label: "New contacts", value: totals.newContacts, sub: `${totals.newContactFollowers} already follow you`, icon: Users },
           ]
@@ -151,13 +151,13 @@ export default function AnalyticsPage() {
 
             {isLoading || !data ? (
                 <div className="py-24 flex justify-center">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
             ) : (
                 <>
                     {data.truncated && (
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 text-[12px] font-medium text-amber-600 dark:text-amber-400">
-                            <AlertTriangle className="w-3.5 h-3.5" />
+                            <Warning className="w-3.5 h-3.5" />
                             Very large range - numbers are computed from the first 20,000 events.
                         </div>
                     )}
@@ -267,7 +267,7 @@ export default function AnalyticsPage() {
                         </div>
                         {data.perAutomation.length === 0 ? (
                             <div className="p-10 text-center">
-                                <ChartNoAxesColumn className="w-6 h-6 mx-auto mb-2 text-muted-foreground/30" />
+                                <ChartBar className="w-6 h-6 mx-auto mb-2 text-muted-foreground/30" />
                                 <p className="text-[13px] text-muted-foreground">No automations yet - create one and the numbers start here.</p>
                             </div>
                         ) : (
@@ -286,7 +286,7 @@ export default function AnalyticsPage() {
                                     </thead>
                                     <tbody className="divide-y divide-border/60">
                                         {data.perAutomation.map((a) => {
-                                            const TypeIcon = a.type === "dm_reply" ? Send : a.type === "story_reply" ? ImageIcon : MessageCircle;
+                                            const TypeIcon = a.type === "dm_reply" ? PaperPlaneTilt : a.type === "story_reply" ? ImageIcon : ChatCircle;
                                             return (
                                                 <tr key={a.id} className="hover:bg-muted/30 transition-colors">
                                                     <td className="px-5 py-3">

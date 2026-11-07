@@ -151,10 +151,10 @@ export function createShapeLayer(partial: Partial<ThumbShapeLayer> = {}): ThumbS
 
 export function defaultThumbBackground(): ThumbBackground {
   return {
-    type: "gradient",
+    type: "solid",
     color: "#111827",
-    gradientFrom: "#1e3a8a",
-    gradientTo: "#7c3aed",
+    gradientFrom: "#111827",
+    gradientTo: "#1f2937",
     gradientAngle: 45,
     imageSrc: "",
     imageFit: "cover",

@@ -3,18 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-    Home,
-    Bot,
-    ChartNoAxesColumn,
-    Settings,
+    House,
+    Robot,
+    ChartBar,
+    Gear,
     Wrench,
-    Github,
-    PenLine,
-    Clapperboard,
-    ChevronLeft,
-    ChevronRight,
+    GithubLogo,
+    PencilLine,
+    FilmSlate,
+    CaretLeft,
+    CaretRight,
     X,
-} from "lucide-react";
+} from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -25,32 +25,30 @@ import { useUiStore } from "@/lib/store";
 
 const NAV = {
     Workspace: [
-        { name: "Dashboard", href: "/dashboard", icon: Home, external: false },
-        { name: "Automations", href: "/automations", icon: Bot, external: false },
-        { name: "Analytics", href: "/analytics", icon: ChartNoAxesColumn, external: false },
-        { name: "Script Writer", href: "/script-writer", icon: PenLine, external: false },
+        { name: "Dashboard", href: "/dashboard", icon: House, external: false },
+        { name: "Automations", href: "/automations", icon: Robot, external: false },
+        { name: "Analytics", href: "/analytics", icon: ChartBar, external: false },
+        { name: "Script Writer", href: "/script-writer", icon: PencilLine, external: false },
         // Creator Studio (Programme S1): in-app section under /studio.
-        { name: "Creator Studio", href: "/studio", icon: Clapperboard, external: false },
+        { name: "Creator Studio", href: "/studio", icon: FilmSlate, external: false },
     ],
     System: [
         { name: "Setup Wizard", href: "/setup", icon: Wrench, external: false },
-        { name: "Settings", href: "/settings", icon: Settings, external: false },
-        { name: "GitHub", href: "https://github.com", icon: Github, external: true },
+        { name: "Settings", href: "/settings", icon: Gear, external: false },
+        { name: "GitHub", href: "https://github.com", icon: GithubLogo, external: true },
     ],
 };
 
 /**
- * Shared nav groups. `threadId` must be unique per rendered instance -
- * desktop and mobile sidebars are both mounted (CSS-hidden), and a shared
- * framer-motion layoutId would make the active marker jump between them.
+ * Shared nav groups, used by both the desktop sidebar and the mobile
+ * drawer. The active item is marked by its filled row surface and
+ * medium weight only.
  */
 function NavGroups({
     collapsed,
-    threadId,
     onNavigate,
 }: {
     collapsed: boolean;
-    threadId: string;
     onNavigate?: () => void;
 }) {
     const pathname = usePathname();
@@ -81,13 +79,6 @@ function NavGroups({
                                             : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                     )}
                                 >
-                                    {/* Active marker - the warm thread */}
-                                    {isActive && (
-                                        <motion.span
-                                            layoutId={threadId}
-                                            className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 rounded-full ig-thread"
-                                        />
-                                    )}
                                     <item.icon className={cn("w-4 h-4 shrink-0", isActive ? "text-foreground" : "")} />
                                     {!collapsed && <span className="truncate">{item.name}</span>}
                                 </Link>
@@ -116,7 +107,7 @@ export function Sidebar({ workspaceRuntimeEnabled = false }: { workspaceRuntimeE
                 className="absolute -right-2.5 top-7 w-5 h-5 bg-card border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors z-50"
                 aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-                {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+                {isCollapsed ? <CaretRight className="w-3 h-3" /> : <CaretLeft className="w-3 h-3" />}
             </button>
 
             {/* Brand */}
@@ -141,7 +132,7 @@ export function Sidebar({ workspaceRuntimeEnabled = false }: { workspaceRuntimeE
 
             {/* Nav */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none py-4">
-                <NavGroups collapsed={isCollapsed} threadId="nav-thread-desktop" />
+                <NavGroups collapsed={isCollapsed} />
             </div>
 
             {/* Workspace switcher — Programme 18 Phase G, flag-gated:
@@ -195,7 +186,7 @@ export function MobileSidebar({ workspaceRuntimeEnabled = false }: { workspaceRu
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.18 }}
                         onClick={close}
-                        className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+                        className="absolute inset-0 bg-black/45"
                     />
 
                     {/* Panel */}
@@ -223,7 +214,7 @@ export function MobileSidebar({ workspaceRuntimeEnabled = false }: { workspaceRu
 
                         {/* Nav */}
                         <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none py-4">
-                            <NavGroups collapsed={false} threadId="nav-thread-mobile" onNavigate={close} />
+                            <NavGroups collapsed={false} onNavigate={close} />
                         </div>
 
                         {/* Workspace switcher — flag-gated, as desktop. */}

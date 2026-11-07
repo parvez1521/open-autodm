@@ -13,7 +13,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Save, Check, Download, ArrowRight } from "lucide-react";
+import { FileText, FloppyDisk, Check, DownloadSimple, ArrowRight } from "@/components/phosphor";
 import {
   cleanTranscriptText,
   formatTimestamp,
@@ -137,7 +137,7 @@ export default function TranscriptToolsPage() {
       <StudioToolHeader
         icon={FileText}
         title="Transcript Tools"
-        purpose="Clean, format and reuse transcripts — paste or upload, no fetching."
+        purpose="Clean, format and reuse transcripts, paste or upload, no fetching."
         points={[
           "Paste text or upload .srt, .vtt or .txt caption files",
           "Timestamped and clean-text views, with word and timing stats",
@@ -153,7 +153,7 @@ export default function TranscriptToolsPage() {
         <p className="mt-2 text-[13px] text-muted-foreground">
           Transcripts come in by pasting or uploading a caption file. There is no compliant
           free way to pull them straight from a video URL, so the Studio doesn&rsquo;t offer
-          one — if a site offers you a transcript download, bring the file here.
+          one. If a site offers you a transcript download, bring the file here.
         </p>
 
         <div className="mt-4">
@@ -281,7 +281,7 @@ export default function TranscriptToolsPage() {
                 className={secondaryButtonClass}
                 onClick={() => downloadText("transcript-clean.txt", cleanText)}
               >
-                <Download className="w-3.5 h-3.5" /> Download clean .txt
+                <DownloadSimple className="w-3.5 h-3.5" /> Download clean .txt
               </button>
               <button
                 type="button"
@@ -289,7 +289,7 @@ export default function TranscriptToolsPage() {
                 onClick={() => downloadText("transcript.srt", srtText)}
                 disabled={srtText === ""}
               >
-                <Download className="w-3.5 h-3.5" /> Download .srt
+                <DownloadSimple className="w-3.5 h-3.5" /> Download .srt
               </button>
               {srtText === "" && (
                 <span className="text-xs text-muted-foreground">
@@ -302,7 +302,7 @@ export default function TranscriptToolsPage() {
                 onClick={save}
                 disabled={saved}
               >
-                {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                {saved ? <Check className="w-3.5 h-3.5" /> : <FloppyDisk className="w-3.5 h-3.5" />}
                 {saved ? "Saved" : "Save to Projects"}
               </button>
               {saveError && (

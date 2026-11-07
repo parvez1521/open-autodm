@@ -34,7 +34,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { CircleNotch } from "@/components/phosphor";
 import { ApiError } from "@/lib/api/client";
 import { useWorkspace } from "./WorkspaceProvider";
 
@@ -122,7 +122,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                 <h1 className="font-heading text-xl font-semibold">Workspace access lost</h1>
                 <p className="text-sm text-muted-foreground">
                     You no longer have access to this workspace. Your membership may have been
-                    removed or changed — the workspace has been removed from your switcher. Pick
+                    removed or changed, the workspace has been removed from your switcher. Pick
                     another workspace, or ask a workspace owner/admin to invite you again.
                 </p>
             </div>
@@ -148,7 +148,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                 email: inviteEmail,
                 role: inviteRole,
             });
-            setNotice("Invitation created. Copy the link now — it is shown only once and no email is sent.");
+            setNotice("Invitation created. Copy the link now, it is shown only once and no email is sent.");
         } catch (err) {
             if (err instanceof ApiError && err.status === 403) {
                 setError("Permission denied: only workspace owners and admins can invite members.");
@@ -226,7 +226,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                 body: JSON.stringify({ name: newWorkspaceName }),
             });
             setNewWorkspaceName("");
-            setNotice("Workspace created — you are its owner.");
+            setNotice("Workspace created, you are its owner.");
             await refreshWorkspaces();
         } catch (err) {
             setError(err instanceof ApiError ? err.message : "Could not create the workspace");
@@ -241,7 +241,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                 <h1 className="font-heading text-2xl font-semibold">Workspace</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                     {selectedWorkspace
-                        ? `${selectedWorkspace.name ?? selectedWorkspace.workspaceId} — your role: ${selectedWorkspace.role}`
+                        ? `${selectedWorkspace.name ?? selectedWorkspace.workspaceId}, your role: ${selectedWorkspace.role}`
                         : "No workspace selected."}
                 </p>
             </div>
@@ -260,7 +260,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                 <h2 className="text-sm font-semibold">Members</h2>
                 {loadingMembers ? (
                     <span role="status" className="inline-flex">
-                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        <CircleNotch className="w-4 h-4 animate-spin text-muted-foreground" />
                         <span className="sr-only">Loading members…</span>
                     </span>
                 ) : members.length === 0 ? (

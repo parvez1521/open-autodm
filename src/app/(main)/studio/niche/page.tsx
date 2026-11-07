@@ -9,7 +9,7 @@
  */
 
 import { useState } from "react";
-import { Crosshair, Save, Check, Info } from "lucide-react";
+import { Crosshair, FloppyDisk, Check, Info } from "@/components/phosphor";
 import { analyseNiche } from "@/lib/studio/nicheEngine";
 import { STUDIO_CATEGORIES, type NicheReport, type StudioCategory } from "@/lib/studio/types";
 import {
@@ -66,7 +66,7 @@ export default function NicheFinderPage() {
       getBrowserProjectStore().save({
         kind: "niche",
         title: `Niche: ${report.topic}`,
-        summary: `Score ${report.overall}/100 — ${report.verdict}`,
+        summary: `Score ${report.overall}/100, ${report.verdict}`,
         payload: report,
       });
       setSaved(true);
@@ -84,7 +84,7 @@ export default function NicheFinderPage() {
       <StudioToolHeader
         icon={Crosshair}
         title="Niche Finder"
-        purpose="Score a topic before you commit to it — demand, competition, ease and earning potential."
+        purpose="Score a topic before you commit to it, demand, competition, ease and earning potential."
         points={[
           "Scores for demand, competition, ease of starting and earning potential",
           "Audience size and indicative CPM bands for the niche",
@@ -148,7 +148,7 @@ export default function NicheFinderPage() {
               disabled={saved}
               className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted/60 transition-colors disabled:opacity-60"
             >
-              {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {saved ? <Check className="w-3.5 h-3.5" /> : <FloppyDisk className="w-3.5 h-3.5" />}
               {saved ? "Saved to Projects" : "Save to Projects"}
             </button>
           </div>
@@ -187,7 +187,7 @@ export default function NicheFinderPage() {
 
           <p className="mt-5 flex gap-1.5 text-xs text-muted-foreground border-t border-border pt-3">
             <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
-            Heuristic estimate from the Studio's built-in dataset — relative indices for
+            Heuristic estimate from the Studio's built-in dataset, relative indices for
             comparing niches, not live market data. Use it to shortlist, then validate with
             a small test series.
           </p>

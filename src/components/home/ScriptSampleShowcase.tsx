@@ -28,7 +28,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play } from "@/components/phosphor";
 
 const SAMPLE_SECTIONS = [
     {

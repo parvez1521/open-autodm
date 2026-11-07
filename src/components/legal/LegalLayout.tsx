@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { LogoMark, LogoWordmark } from '@/components/ui/Logo';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
-import { ArrowLeft, Shield, FileText, Trash2, Mail } from 'lucide-react';
+import { ArrowLeft, Shield, FileText, Trash, EnvelopeSimple } from '@/components/phosphor';
 
 interface LegalLayoutProps {
   title: string;
@@ -21,26 +21,17 @@ export function LegalLayout({
   const navItems = [
     { label: 'Privacy Policy', href: '/privacy-policy', icon: Shield, active: activePath === '/privacy-policy' },
     { label: 'Terms of Service', href: '/terms', icon: FileText, active: activePath === '/terms' },
-    { label: 'Data Deletion', href: '/data-deletion', icon: Trash2, active: activePath === '/data-deletion' },
+    { label: 'Data Deletion', href: '/data-deletion', icon: Trash, active: activePath === '/data-deletion' },
   ];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col font-sans relative selection:bg-primary/20">
-      {/* Background Dotted Pattern */}
-      <div
-        className="fixed inset-0 z-0 opacity-[0.12] dark:opacity-25 pointer-events-none"
-        style={{
-          backgroundImage: `radial-gradient(circle at 1.5px 1.5px, currentColor 1.5px, transparent 0)`,
-          backgroundSize: '32px 32px',
-        }}
-      />
-
       {/* Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md transition-colors">
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-background transition-colors">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-2.5 group">
-              <LogoMark className="w-8 h-8 drop-shadow-sm group-hover:scale-105 transition-transform" />
+            <Link href="/" className="flex items-center space-x-2.5">
+              <LogoMark className="w-8 h-8" />
               <LogoWordmark className="text-lg" />
             </Link>
           </div>
@@ -101,13 +92,13 @@ export function LegalLayout({
         </nav>
 
         {/* Document Body Card */}
-        <article className="bg-card border border-border rounded-xl shadow-sm p-6 sm:p-10 text-[14.5px] leading-relaxed text-foreground/90 space-y-8">
+        <article className="bg-card border border-border rounded-xl p-6 sm:p-10 text-[14.5px] leading-relaxed text-foreground/90 space-y-8">
           {children}
         </article>
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border mt-16 py-8 bg-card/50">
+      <footer className="relative z-10 border-t border-border mt-16 py-8 bg-card">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-muted-foreground">
           <div className="flex items-center gap-2">
             <LogoMark className="w-4 h-4 opacity-75" />
@@ -121,7 +112,7 @@ export function LegalLayout({
             <Link href="/data-deletion" className="hover:text-foreground transition-colors">Data Deletion</Link>
             <span>·</span>
             <a href="mailto:work.techhacksai@gmail.com" className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
-              <Mail className="w-3 h-3" />
+              <EnvelopeSimple className="w-3 h-3" />
               <span>Contact Operator</span>
             </a>
           </div>

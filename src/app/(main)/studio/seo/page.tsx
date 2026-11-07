@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { SearchCheck, Save, Check } from "lucide-react";
+import { FileMagnifyingGlass, FloppyDisk, Check } from "@/components/phosphor";
 import { buildSeoPack } from "@/lib/studio/seoEngine";
 import { STUDIO_CATEGORIES, type StudioCategory } from "@/lib/studio/types";
 import {
@@ -61,7 +61,7 @@ export default function SeoWorkspacePage() {
   return (
     <div className="space-y-5">
       <StudioToolHeader
-        icon={SearchCheck}
+        icon={FileMagnifyingGlass}
         title="SEO Workspace"
         purpose="Titles, a structured description and a right-sized tag list, ready to paste."
         points={[
@@ -148,7 +148,7 @@ export default function SeoWorkspacePage() {
                 disabled={saved}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted/60 transition-colors disabled:opacity-60"
               >
-                {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+                {saved ? <Check className="w-3.5 h-3.5" /> : <FloppyDisk className="w-3.5 h-3.5" />}
                 {saved ? "Saved to Projects" : "Save pack to Projects"}
               </button>
             </div>
@@ -194,7 +194,7 @@ export default function SeoWorkspacePage() {
           <div className={studioCardClass}>
             <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="text-sm font-medium">
-                Tags <span className="text-muted-foreground font-normal">— {pack.tags.length} tags, {pack.tagsCharCount}/500 characters</span>
+                Tags<span className="text-muted-foreground font-normal">, {pack.tags.length} tags, {pack.tagsCharCount}/500 characters</span>
               </h3>
               <CopyButton text={pack.tags.join(", ")} label="Copy tags" />
             </div>

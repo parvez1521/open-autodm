@@ -1,6 +1,6 @@
 "use client";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, Send, MessageCircle, Zap, MessageSquarePlus } from "lucide-react";
+import { CaretLeft, PaperPlaneTilt, ChatCircle, Lightning, ChatCircleDots } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import type { DMResponse } from "../NewAutomationModal";
 
@@ -24,8 +24,8 @@ function CreatorAvatar({ url, size = "sm" }: { url?: string | null; size?: "sm" 
         return <img src={url} alt="you" className={cn(cls, "rounded-full object-cover shrink-0")} />;
     }
     return (
-        <div className={cn(cls, "rounded-full ig-ring shrink-0 flex items-center justify-center")}>
-            <Zap className="w-2.5 h-2.5 text-white" />
+        <div className={cn(cls, "rounded-full bg-zinc-700 shrink-0 flex items-center justify-center")}>
+            <Lightning className="w-2.5 h-2.5 text-white" />
         </div>
     );
 }
@@ -41,14 +41,14 @@ export function CommentsPhone({
     customReplies: string[];
     creatorProfilePicUrl?: string | null;
 }) {
-    const colors = ["from-pink-500 to-orange-400", "from-violet-500 to-indigo-400", "from-emerald-500 to-teal-400"];
+    const colors = ["from-pink-500 to-orange-400", "from-slate-500 to-slate-400", "from-emerald-500 to-teal-400"];
 
     return (
         <PhoneShell label="Comments">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/8">
-                <ChevronLeft className="w-4 h-4 text-white/50" />
+                <CaretLeft className="w-4 h-4 text-white/50" />
                 <span className="font-semibold text-[13px]">Comments</span>
-                <Send className="w-3.5 h-3.5 text-white/50" />
+                <PaperPlaneTilt className="w-3.5 h-3.5 text-white/50" />
             </div>
 
             {postThumbnailUrl && (
@@ -101,14 +101,14 @@ export function StoryPhone({ keyword }: { keyword: string }) {
     return (
         <PhoneShell label="Your story">
             <div className="flex items-center gap-2.5 px-3 py-2.5">
-                <div className="w-7 h-7 rounded-full ig-ring p-[1.5px]">
+                <div className="w-7 h-7 rounded-full border border-white/25 p-[1.5px]">
                     <div className="w-full h-full rounded-full bg-black" />
                 </div>
                 <span className="text-[12px] font-semibold">Your story</span>
                 <span className="text-[10px] text-white/40">2h</span>
             </div>
             <div className="flex-1 relative mx-2 rounded-xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-purple-900 via-pink-900 to-orange-900 flex items-center justify-center">
+                <div className="absolute inset-0 bg-zinc-900 flex items-center justify-center">
                     <div className="text-center px-4">
                         <p className="text-3xl mb-2">📸</p>
                         <p className="text-[12px] font-semibold text-white/80">Story content</p>
@@ -118,7 +118,7 @@ export function StoryPhone({ keyword }: { keyword: string }) {
             <div className="px-3 py-3">
                 <div className="flex items-center bg-white/8 rounded-full h-9 px-3.5 border border-white/12 gap-2">
                     <span className="text-[12px] text-white/80 flex-1 truncate">{keyword || "Reply to story…"}</span>
-                    <Send className="w-3 h-3 text-white/40" />
+                    <PaperPlaneTilt className="w-3 h-3 text-white/40" />
                 </div>
                 <p className="text-[9px] text-white/25 text-center mt-1.5">They reply with your keyword → the flow starts</p>
             </div>
@@ -156,13 +156,13 @@ export function DMConversationPhone({
         <PhoneShell label="DM preview">
             {/* Header */}
             <div className="flex items-center gap-2.5 px-3 py-2 border-b border-white/8">
-                <ChevronLeft className="w-3.5 h-3.5 text-white/50 shrink-0" />
+                <CaretLeft className="w-3.5 h-3.5 text-white/50 shrink-0" />
                 <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-pink-500 to-orange-400 shrink-0" />
                 <div className="flex-1 min-w-0">
                     <p className="text-[11.5px] font-semibold leading-none">user_1</p>
                     <p className="text-[9px] text-white/30 mt-0.5">Active now</p>
                 </div>
-                <MessageCircle className="w-3.5 h-3.5 text-white/25 shrink-0" />
+                <ChatCircle className="w-3.5 h-3.5 text-white/25 shrink-0" />
             </div>
 
             {trigger?.kind !== "dm" && trigger?.kind !== "story" && openingEnabled && (
@@ -178,7 +178,7 @@ export function DMConversationPhone({
                     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-start gap-1">
                         {trigger.kind === "story" && (
                             <div className="flex items-center gap-1.5 pl-7">
-                                <div className="w-6 h-10 rounded-md bg-gradient-to-b from-purple-800 to-orange-800 opacity-70" />
+                                <div className="w-6 h-10 rounded-md bg-zinc-800 opacity-70" />
                                 <span className="text-[8.5px] text-white/30">Replied to your story</span>
                             </div>
                         )}
@@ -317,7 +317,7 @@ export function DMConversationPhone({
 
                 {!openingEnabled && responses.length === 0 && !trigger && (
                     <div className="flex-1 flex flex-col items-center justify-center opacity-25">
-                        <MessageSquarePlus className="w-6 h-6 mb-2" />
+                        <ChatCircleDots className="w-6 h-6 mb-2" />
                         <p className="text-[11px]">Build your flow on the left</p>
                     </div>
                 )}
@@ -334,7 +334,7 @@ export function DMConversationPhone({
             <div className="px-3 py-2 border-t border-white/5">
                 <div className="flex items-center bg-white/5 rounded-full h-8 px-3 border border-white/8 gap-2">
                     <span className="text-[11px] text-white/20 flex-1">Message…</span>
-                    <Send className="w-3 h-3 text-white/15" />
+                    <PaperPlaneTilt className="w-3 h-3 text-white/15" />
                 </div>
             </div>
         </PhoneShell>

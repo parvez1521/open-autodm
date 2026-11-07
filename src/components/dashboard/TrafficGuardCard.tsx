@@ -2,17 +2,17 @@
 
 import { useState } from 'react';
 import {
-  ShieldAlert,
+  ShieldWarning,
   ShieldCheck,
-  Activity,
-  AlertTriangle,
+  Pulse,
+  Warning,
   PauseCircle,
   PlayCircle,
   Clock,
-  CheckCircle2,
+  CheckCircle,
   Info,
-  RefreshCw,
-} from 'lucide-react';
+  ArrowsClockwise,
+} from '@/components/phosphor';
 import { useTrafficGuard } from '@/hooks/useTrafficGuard';
 import { cn } from '@/lib/utils';
 
@@ -87,7 +87,7 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
       {isHighTraffic && !isPaused && (
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-rose-500/15 border-b border-rose-500/20 text-rose-600 dark:text-rose-400 text-[13px] font-medium">
           <div className="flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 shrink-0 animate-pulse" />
+            <ShieldWarning className="w-4 h-4 shrink-0 animate-pulse" />
             <span>Unusually high comment traffic ({currentCount} unique comments in last 60s)</span>
           </div>
           <span className="text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-rose-500/20">
@@ -99,7 +99,7 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
       {isRecovered && isPaused && (
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-sky-500/15 border-b border-sky-500/20 text-sky-600 dark:text-sky-400 text-[13px] font-medium">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <CheckCircle className="w-4 h-4 shrink-0" />
             <span>Traffic has normalized (&lt; {recoveryThreshold} comments/60s for 5m). Ready to resume.</span>
           </div>
           <span className="text-[11px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-sky-500/20">
@@ -114,7 +114,7 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-[15px] font-heading font-semibold text-foreground flex items-center gap-2">
-                <Activity className="w-4 h-4 text-primary shrink-0" />
+                <Pulse className="w-4 h-4 text-primary shrink-0" />
                 Smart Comment Traffic Guard
               </h2>
               <span className={cn(
@@ -143,13 +143,13 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
             className="p-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50"
             title="Refresh metrics"
           >
-            <RefreshCw className={cn("w-3.5 h-3.5", isRefetching && "animate-spin")} />
+            <ArrowsClockwise className={cn("w-3.5 h-3.5", isRefetching && "animate-spin")} />
           </button>
         </div>
 
         {actionError && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 text-destructive text-[12px]">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <Warning className="w-3.5 h-3.5 shrink-0" />
             <span>{actionError}</span>
           </div>
         )}
@@ -203,7 +203,7 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
             <p className="text-[13px] font-medium text-foreground flex items-center gap-1.5">
               {isHighTraffic && !isPaused && (
                 <>
-                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <Warning className="w-4 h-4 text-rose-500 shrink-0" />
                   Spike active: Consider pausing to protect creator account.
                 </>
               )}
@@ -215,7 +215,7 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
               )}
               {isRecovered && isPaused && (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-sky-500 shrink-0" />
+                  <CheckCircle className="w-4 h-4 text-sky-500 shrink-0" />
                   Traffic normalized: Ready to resume {guard.paused_by_guard_count} paused automations.
                 </>
               )}

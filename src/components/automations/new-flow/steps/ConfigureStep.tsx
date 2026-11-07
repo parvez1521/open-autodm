@@ -2,10 +2,10 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
-    X, Trash2, Plus,
-    Image as ImageIcon, ChevronDown, MessageSquare, LayoutGrid,
-    Zap, AlertTriangle, Sparkles,
-} from "lucide-react";
+    X, Trash, Plus,
+    Image as ImageIcon, CaretDown, Chat, SquaresFour,
+    Lightning, Warning,
+} from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { AutomationFlowData, DMResponse, CardButton } from "../NewAutomationModal";
@@ -151,7 +151,7 @@ function AiDraftControl({ action, label, placeholder, defaultPrompt, automationN
                     disabled={busy || disabled}
                     className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-lg text-[12px] font-semibold border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
                 >
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    <Lightning className="w-3.5 h-3.5 text-primary" />
                     {busy ? "Generating…" : label}
                 </button>
             </div>
@@ -211,7 +211,7 @@ function KeywordInput({ keywords, onChange, anyMode, onAnyModeChange, copy }: {
 
             {anyMode && copy.anyModeHint && (
                 <div className="flex items-start gap-2 text-[12px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    <Warning className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     {copy.anyModeHint}
                 </div>
             )}
@@ -388,10 +388,10 @@ function ResponseBlock({ res, idx, onUpdate, onDelete }: {
                 </div>
                 <div className="flex items-center">
                     <button onClick={() => setOpen(o => !o)} className="p-1.5 text-muted-foreground hover:text-foreground rounded-md transition-colors">
-                        <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", open && "rotate-180")} />
+                        <CaretDown className={cn("w-3.5 h-3.5 transition-transform", open && "rotate-180")} />
                     </button>
                     <button onClick={onDelete} className="p-1.5 text-muted-foreground hover:text-destructive rounded-md transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash className="w-3.5 h-3.5" />
                     </button>
                 </div>
             </div>
@@ -500,7 +500,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                             </div>
                         ) : (
                             <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-lg">
-                                <Zap className="w-3.5 h-3.5 text-muted-foreground" />
+                                <Lightning className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="text-[12px] font-medium text-muted-foreground">
                                     {data.postId && data.postId !== "all" ? "Specific post selected" : "Triggers on all posts"}
                                 </span>
@@ -573,7 +573,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                 }
                             }}
                         />
-                        <p className="text-[11px] text-muted-foreground">AI drafts replacement replies from your prompt — review, edit or delete them before saving.</p>
+                        <p className="text-[11px] text-muted-foreground">AI drafts replacement replies from your prompt, review, edit or delete them before saving.</p>
                     </section>
                 )}
 
@@ -648,7 +648,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                                     {openingAiOptions && openingAiOptions.length > 0 && (
                                                         <div className="space-y-1.5">
                                                             <div className="flex items-center justify-between">
-                                                                <p className="micro-label">AI variations — pick one</p>
+                                                                <p className="micro-label">AI variations, pick one</p>
                                                                 <button onClick={() => setOpeningAiOptions(null)} className="text-muted-foreground hover:text-foreground">
                                                                     <X className="w-3.5 h-3.5" />
                                                                 </button>
@@ -780,14 +780,14 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                             disabled={!canAddMoreResponses}
                                             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                         >
-                                            <MessageSquare className="w-3.5 h-3.5" /> Text message
+                                            <Chat className="w-3.5 h-3.5" /> Text message
                                         </button>
                                         <button
                                             onClick={() => canAddMoreResponses && addResponse("card")}
                                             disabled={!canAddMoreResponses}
                                             className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                         >
-                                            <LayoutGrid className="w-3.5 h-3.5" /> Card message
+                                            <SquaresFour className="w-3.5 h-3.5" /> Card message
                                         </button>
                                     </div>
 
@@ -853,7 +853,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                     <textarea
                                         value={data.followUpMessage}
                                         onChange={e => onUpdate({ followUpMessage: e.target.value })}
-                                        placeholder="e.g. Hey {username}, just checking in — did the guide help?"
+                                        placeholder="e.g. Hey {username}, just checking in, did the guide help?"
                                         rows={3}
                                         maxLength={1000}
                                         className={textareaCls}
@@ -880,10 +880,6 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
 
             {/* ── Right - phones ── */}
             <div className="hidden xl:flex w-[600px] shrink-0 bg-[#0a0a0b] border-l border-border overflow-hidden relative">
-                <div
-                    className="absolute inset-0 opacity-[0.12] pointer-events-none"
-                    style={{ backgroundImage: `radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)`, backgroundSize: "28px 28px" }}
-                />
                 <motion.div
                     initial={{ y: 24, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}

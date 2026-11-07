@@ -1,16 +1,22 @@
 import type { Metadata } from "next";
-import { Inter, Bricolage_Grotesque } from "next/font/google";
+import { Hanken_Grotesk, Bricolage_Grotesque, IBM_Plex_Mono } from "next/font/google";
 import { AppProviders } from "@/components/providers/Providers";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const hanken = Hanken_Grotesk({
+  variable: "--font-hanken",
   subsets: ["latin"],
 });
 
 const bricolage = Bricolage_Grotesque({
   variable: "--font-bricolage",
   subsets: ["latin"],
+});
+
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -27,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${bricolage.variable} font-sans antialiased bg-background text-foreground transition-colors duration-300`}
+        className={`${hanken.variable} ${bricolage.variable} ${plexMono.variable} font-sans antialiased bg-background text-foreground transition-colors duration-300`}
       >
         <AppProviders>
           {children}

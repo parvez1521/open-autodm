@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Search, Users, MessageCircle, Send, Image as ImageIcon, MousePointerClick, RefreshCw } from "lucide-react";
+import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
 
@@ -14,15 +14,15 @@ import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
  */
 
 const TRIGGER_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; className: string }> = {
-    comment: { label: "Comment", icon: MessageCircle, className: "bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20" },
-    dm: { label: "DM Keyword", icon: Send, className: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
+    comment: { label: "Comment", icon: ChatCircle, className: "bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20" },
+    dm: { label: "DM Keyword", icon: PaperPlaneTilt, className: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
     story_reply: { label: "Story Reply", icon: ImageIcon, className: "bg-green-500/10 text-green-500 border-green-500/20" },
-    button: { label: "Button Tap", icon: MousePointerClick, className: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+    button: { label: "Button Tap", icon: CursorClick, className: "bg-primary/10 text-primary border-primary/20" },
 };
 
 const AVATAR_GRADIENTS = [
     "from-pink-500 to-orange-400",
-    "from-violet-500 to-indigo-400",
+    "from-slate-500 to-slate-400",
     "from-emerald-500 to-teal-400",
     "from-amber-500 to-red-400",
     "from-sky-500 to-blue-500",
@@ -93,7 +93,7 @@ export function ContactsList() {
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-3 rounded-xl border border-border">
                 <div className="relative w-full sm:max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                         type="text"
                         placeholder="Search username or automation…"
@@ -110,7 +110,7 @@ export function ContactsList() {
                         onClick={() => void refetch()}
                         className="flex items-center justify-center space-x-2 px-4 py-2 border border-border/50 rounded-xl bg-background hover:bg-muted/50 transition-colors text-sm font-medium"
                     >
-                        <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
+                        <ArrowsClockwise className={cn("w-4 h-4", isFetching && "animate-spin")} />
                         <span>Refresh</span>
                     </button>
                 </div>
@@ -132,7 +132,7 @@ export function ContactsList() {
                     <tbody className="divide-y divide-border/30">
                         {filtered.map((contact, i) => {
                             const trigger = contact.last_trigger_type ? TRIGGER_CONFIG[contact.last_trigger_type] : null;
-                            const TriggerIcon = trigger?.icon ?? MessageCircle;
+                            const TriggerIcon = trigger?.icon ?? ChatCircle;
                             const display = contact.username ? `@${contact.username}` : `IG user ${contact.audience_ig_user_id.slice(-6)}`;
                             const initial = (contact.username ?? contact.audience_ig_user_id).charAt(0).toUpperCase();
 

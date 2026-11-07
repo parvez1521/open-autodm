@@ -21,8 +21,9 @@
  *        ScriptSampleShowcase: same sample content, in-view paced
  *        playback, click-to-jump with pause, reduced-motion static,
  *        segmented pacing rail.
- *   B-A3 The real CTAs carry the arrow micro-interaction (transform
- *        on hover AND focus-visible, so keyboard users get it too).
+ *   B-A3 SUPERSEDED 2026-11-07 by the owner's design ban (no hover
+ *        animations): the pin now asserts the landing page carries
+ *        NO hover/focus transform micro-interaction at all.
  *
  * No claim, statistic, testimonial, or logo was added anywhere: a pin
  * below asserts the sample copy moved verbatim into the component.
@@ -177,11 +178,13 @@ describe('B-A2 — ScriptSampleShowcase (functional pacing demo)', () => {
   });
 });
 
-describe('B-A3 — CTA arrow micro-interaction', () => {
-  it('the hero CTA and the feature-card link arrows move on hover and focus-visible', () => {
-    const occurrences = pageSrc.split('group-hover:translate-x-0.5').length - 1;
-    expect(occurrences).toBeGreaterThanOrEqual(2);
-    expect(pageSrc).toContain('group-focus-visible:translate-x-0.5');
-    expect(pageSrc).toContain('transition-transform duration-200');
+describe('B-A3 — superseded by the owner design ban (2026-11-07): no hover animations', () => {
+  it('the landing page carries no hover/focus transform micro-interaction', () => {
+    // The P27 arrow micro-interaction was removed deliberately: the
+    // owner's design ban list prohibits hover animations outright.
+    // Feedback is color/underline only. This pin guards the ban.
+    expect(pageSrc).not.toContain('group-hover:translate');
+    expect(pageSrc).not.toContain('group-focus-visible:translate');
+    expect(pageSrc).not.toContain('transition-transform');
   });
 });

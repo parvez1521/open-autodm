@@ -27,8 +27,9 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-heading: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -111,21 +112,15 @@
   }
 }
 
-/* The one warm thread - the Instagram sunset, used thin and sparingly */
-.ig-thread {
-  background-image: linear-gradient(90deg, #f09433, #e6683c, #dc2743, #bc1888);
-}
-.ig-ring {
-  background-image: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #bc1888);
-}
-
-/* Section label - sentence case, quiet. (Unslop pass: uppercase labels
-   with wide tracking are a generated-UI tell; hierarchy comes from size
-   and color, not from shouting.) */
+/* Eyebrow / micro label: IBM Plex Mono, uppercase, letter-spaced.
+   The editorial signature: metadata is set like a spec sheet, and
+   hierarchy comes from size and color. */
 .micro-label {
-  font-size: 12px;
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--muted-foreground);
 }
 

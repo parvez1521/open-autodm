@@ -21,17 +21,17 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
     Check,
-    Download,
+    DownloadSimple,
     Gauge,
     Lock,
-    MessageCircle,
+    ChatCircle,
     Pause,
     Play,
-    Send,
+    PaperPlaneTilt,
     ShieldCheck,
     UserCheck,
-    Webhook,
-} from "lucide-react";
+    PlugsConnected,
+} from "@/components/phosphor";
 
 const IG_GRADIENT = "linear-gradient(90deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)";
 const STEP_MS = [3400, 4000, 4200, 3800];
@@ -39,7 +39,7 @@ const STEP_MS = [3400, 4000, 4200, 3800];
 const STEPS = [
     {
         label: "Trigger",
-        icon: Webhook,
+        icon: PlugsConnected,
         tag: "Step 01 — Reel or Post comment",
         title: "1. Trigger",
         body: "Monitors comments on your selected Reel or Post in real time via Meta webhooks.",
@@ -55,7 +55,7 @@ const STEPS = [
     },
     {
         label: "Public Reply",
-        icon: MessageCircle,
+        icon: ChatCircle,
         tag: "Step 03 — Public reply on the comment",
         title: "3. Public Reply",
         body: "A public reply lands under the comment, so every other viewer sees the offer and the thread keeps moving.",
@@ -63,7 +63,7 @@ const STEPS = [
     },
     {
         label: "Private DM",
-        icon: Send,
+        icon: PaperPlaneTilt,
         tag: "Step 04 — Private Reply in DMs",
         title: "4. Private DM",
         body: "The promised resource arrives as a Private Reply in the commenter's inbox — inside Instagram's 7-day window, checked before sending.",
@@ -136,7 +136,7 @@ function Scene({ step }: { step: number }) {
                             transition={{ delay: 1.6 }}
                             className="inline-flex items-center gap-1 text-xs font-medium text-emerald-500"
                         >
-                            <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> Trigger Match
+                            <Check className="h-3.5 w-3.5" weight="bold" /> Trigger Match
                         </motion.span>
                     </div>
                     <p className="mt-1.5 text-sm text-foreground">
@@ -158,7 +158,7 @@ function Scene({ step }: { step: number }) {
                         transition={{ delay: 0.35 + i * 0.85, duration: 0.35 }}
                         className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3.5"
                     >
-                        <g.icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.75} />
+                        <g.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                         <span className="flex-1 text-sm leading-snug text-foreground">{g.text}</span>
                         <motion.span
                             initial={{ scale: 0 }}
@@ -166,7 +166,7 @@ function Scene({ step }: { step: number }) {
                             transition={{ delay: 0.6 + i * 0.85, type: "spring", stiffness: 400, damping: 18 }}
                             className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500"
                         >
-                            <Check className="h-3 w-3" strokeWidth={3} />
+                            <Check className="h-3 w-3" weight="bold" />
                         </motion.span>
                     </motion.div>
                 ))}
@@ -225,7 +225,7 @@ function Scene({ step }: { step: number }) {
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white"
                         style={{ background: IG_GRADIENT }}
                     >
-                        <Download className="h-4 w-4" strokeWidth={2} />
+                        <DownloadSimple className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">
                         <span className="block truncate text-[13px] font-semibold text-foreground">
@@ -235,7 +235,7 @@ function Scene({ step }: { step: number }) {
                     </span>
                 </div>
                 <span className="mt-2.5 inline-flex items-center gap-1 text-[11px] text-emerald-500">
-                    <Check className="h-3 w-3" strokeWidth={3} /> Delivered
+                    <Check className="h-3 w-3" weight="bold" /> Delivered
                 </span>
             </motion.div>
         </div>
@@ -397,7 +397,7 @@ export function PipelineShowcase() {
                                 transition={{ delay: 0.55 }}
                                 className="mt-6 inline-flex items-center gap-2 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 font-mono text-xs text-emerald-500"
                             >
-                                <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                <Check className="h-3.5 w-3.5" weight="bold" />
                                 {active.chip}
                             </motion.span>
                         </motion.div>

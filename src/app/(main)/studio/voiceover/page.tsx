@@ -18,16 +18,16 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import {
-  AudioLines,
+  Waveform,
   Play,
   Square,
-  Download,
-  BookmarkPlus,
+  DownloadSimple,
+  BookmarkSimple,
   Check,
-  Loader2,
-  AlertTriangle,
+  CircleNotch,
+  Warning,
   FileAudio,
-} from "lucide-react";
+} from "@/components/phosphor";
 import { getBrowserHandoffStore } from "@/lib/studio/handoff";
 import {
   getBrowserProjectStore,
@@ -218,10 +218,10 @@ export default function VoiceoverStudioPage() {
     switch (state.phase) {
       case "loading-model":
         return downloadPercent !== null
-          ? `Downloading the voice model${downloadFile ? ` (${downloadFile})` : ""} — ${downloadPercent}%`
+          ? `Downloading the voice model${downloadFile ? ` (${downloadFile})` : ""}, ${downloadPercent}%`
           : "Downloading the voice model…";
       case "generating":
-        return `Generating audio — part ${state.chunksDone} of ${state.chunksTotal}…`;
+        return `Generating audio, part ${state.chunksDone} of ${state.chunksTotal}…`;
       default:
         return null;
     }
@@ -231,9 +231,9 @@ export default function VoiceoverStudioPage() {
   return (
     <div className="space-y-5">
       <StudioToolHeader
-        icon={AudioLines}
+        icon={Waveform}
         title="Voiceover Studio"
-        purpose="Turn the script into narration in the browser — no uploads, no paid voices."
+        purpose="Turn the script into narration in the browser, no uploads, no paid voices."
         points={[
           "Instant preview with your browser's built-in voice",
           "Export a real WAV with Kokoro-82M running on your device",
@@ -254,7 +254,7 @@ export default function VoiceoverStudioPage() {
           <textarea
             id="voiceover-text"
             className={cn(studioInputClass, "min-h-32")}
-            placeholder="Paste or write the words to speak — or send a finished script here from the Script Builder."
+            placeholder="Paste or write the words to speak, or send a finished script here from the Script Builder."
             value={text}
             onChange={(e) => {
               setText(e.target.value);
@@ -266,7 +266,7 @@ export default function VoiceoverStudioPage() {
             <span>{text.length} characters</span>
             <span>Estimated length ≈ {formatDuration(estSeconds)}</span>
             {text.length > 4000 && (
-              <span>Long text is generated in parts — it can take a little while.</span>
+              <span>Long text is generated in parts, it can take a little while.</span>
             )}
             {handoffNote && <span className="text-foreground">{handoffNote}</span>}
           </div>
@@ -310,24 +310,24 @@ export default function VoiceoverStudioPage() {
             >
               {voices.map((v) => (
                 <option key={v.id} value={v.id}>
-                  {v.name} — {v.gender === "female" ? "Female" : "Male"}
+                  {v.name}, {v.gender === "female" ? "Female" : "Male"}
                 </option>
               ))}
             </select>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              English is Kokoro's quality tier — its strongest, most natural voices.
+              English is Kokoro's quality tier, its strongest, most natural voices.
             </p>
           </div>
         ) : (
           <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3.5">
             <p className="text-[13px] font-medium">
-              Beta — Hindi voices are experimental
+              Beta, Hindi voices are experimental
             </p>
             <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
               The Kokoro model family includes four Hindi voices (
               {HINDI_MODEL_VOICES.map((v) => v.name).join(", ")}), but the in-browser
               library build used here ships English voices only, so Hindi export is not
-              available in this build — we would rather say that plainly than offer a
+              available in this build. We would rather say that plainly than offer a
               button that cannot work. If your device has a Hindi voice installed, the
               Preview below can still read Hindi text aloud.
             </p>
@@ -338,11 +338,11 @@ export default function VoiceoverStudioPage() {
       <div className="grid gap-5 lg:grid-cols-2">
         <div className={studioCardClass}>
           <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <Play className="w-4 h-4" /> Preview — browser speech
+            <Play className="w-4 h-4" /> Preview, browser speech
           </h3>
           <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
             Instant playback using your device's built-in voice. Preview only: the
-            browser cannot save this as an audio file — use Export when you need the
+            browser cannot save this as an audio file, use Export when you need the
             file.
           </p>
           <div className="mt-3 flex items-center gap-2">
@@ -370,7 +370,7 @@ export default function VoiceoverStudioPage() {
 
         <div className={studioCardClass}>
           <h3 className="flex items-center gap-2 text-sm font-semibold">
-            <FileAudio className="w-4 h-4" /> Export — Kokoro-82M in your browser
+            <FileAudio className="w-4 h-4" /> Export, Kokoro-82M in your browser
           </h3>
           {language === "hi" ? (
             <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
@@ -392,7 +392,7 @@ export default function VoiceoverStudioPage() {
                   disabled={!text.trim() || busy}
                 >
                   {busy ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <CircleNotch className="w-4 h-4 animate-spin" />
                   ) : (
                     <FileAudio className="w-4 h-4" />
                   )}
@@ -406,13 +406,13 @@ export default function VoiceoverStudioPage() {
                     className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-60"
                     title="Save the text and voice choice to Projects"
                   >
-                    {saved ? <Check className="w-4 h-4" /> : <BookmarkPlus className="w-4 h-4" />}
+                    {saved ? <Check className="w-4 h-4" /> : <BookmarkSimple className="w-4 h-4" />}
                     {saved ? "Saved" : "Save to Projects"}
                   </button>
                 )}
               </div>
               <p className="mt-1.5 text-xs text-muted-foreground">
-                Projects saves the text and voice choice — audio files are not stored at
+                Projects saves the text and voice choice, audio files are not stored at
                 this tier; you can regenerate the WAV any time.
               </p>
               {saveError && (
@@ -422,13 +422,13 @@ export default function VoiceoverStudioPage() {
               )}
               {statusLine && (
                 <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> {statusLine}
+                  <CircleNotch className="w-3.5 h-3.5 animate-spin" /> {statusLine}
                 </p>
               )}
               {engine.phase === "error" && engine.errorCode === "init_failed" && (
                 <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/30 p-3.5">
                   <p className="flex items-center gap-1.5 text-[13px] font-medium">
-                    <AlertTriangle className="w-4 h-4" /> The export engine could not be
+                    <Warning className="w-4 h-4" /> The export engine could not be
                     initialised in this browser.
                   </p>
                   <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
@@ -441,10 +441,10 @@ export default function VoiceoverStudioPage() {
               {engine.phase === "error" && engine.errorCode === "generation_failed" && (
                 <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/30 p-3.5">
                   <p className="flex items-center gap-1.5 text-[13px] font-medium">
-                    <AlertTriangle className="w-4 h-4" /> Generation failed partway through.
+                    <Warning className="w-4 h-4" /> Generation failed partway through.
                   </p>
                   <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                    Your text and settings are unchanged — try again.
+                    Your text and settings are unchanged, try again.
                     {engineDetail ? ` (${engineDetail})` : ""}
                   </p>
                 </div>
@@ -459,7 +459,7 @@ export default function VoiceoverStudioPage() {
                       download="voiceover.wav"
                       className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted/60 transition-colors"
                     >
-                      <Download className="w-4 h-4" /> Download WAV
+                      <DownloadSimple className="w-4 h-4" /> Download WAV
                     </a>
                     <span className="text-xs text-muted-foreground">
                       {result.voiceName} · {formatDuration(Math.round(result.durationSec))} of

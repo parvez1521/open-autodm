@@ -2,27 +2,27 @@
 
 import {
     ArrowRight,
-    AudioLines,
-    BarChart3,
-    Clapperboard,
-    Clock3,
+    Books,
+    ChartBar,
+    ChatsCircle,
+    Clock,
     Crosshair,
     FileText,
+    FilmStrip,
     FolderOpen,
     Image as ImageIcon,
-    LibraryBig,
-    Lightbulb,
     Images,
-    MessagesSquare,
-    PenLine,
-    Presentation,
-    SearchCheck,
+    Lightbulb,
+    Lightning,
+    MagnifyingGlassPlus,
+    PencilLine,
+    PlugsConnected,
+    PresentationChart,
     Timer,
-    TrendingUp,
+    TrendUp,
     UserCheck,
-    Webhook,
-    Zap,
-} from "lucide-react";
+    Waveform,
+} from "@/components/phosphor";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 import { NodeEditor } from "@/components/ui/NodeEditor";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -32,22 +32,22 @@ import { ScriptSampleShowcase } from "@/components/home/ScriptSampleShowcase";
 
 const FEATURES = [
     {
-        icon: MessagesSquare,
+        icon: ChatsCircle,
         title: "Comment to DM",
         body: "A keyword in a post or Reel comment triggers a Private Reply with your link, PDF, or offer. Instagram allows one within 7 days of the comment, and the engine checks before it sends.",
     },
     {
-        icon: Zap,
+        icon: Lightning,
         title: "DM and story replies",
         body: "Keyword replies inside DMs and story mentions, plus an away mode that answers while you are offline, in the same conversation thread.",
     },
     {
-        icon: BarChart3,
+        icon: ChartBar,
         title: "Analytics and live debug",
         body: "A comment-to-DM funnel, your top automations, and a debug stream that shows every webhook as it is verified, matched, queued, and sent.",
     },
     {
-        icon: PenLine,
+        icon: PencilLine,
         title: "Viral Script Writer",
         note: "New",
         body: "Writes the Reel before the automation exists: three hook options, a timestamped script paced for speaking, caption and hashtags. It ends on your comment keyword, so the script and the automation use the same word.",
@@ -58,26 +58,26 @@ const FEATURES = [
 
 const SAFETY = [
     { icon: Timer, label: "180 DMs per hour, hard cap" },
-    { icon: Clock3, label: "24-hour window checked before every send" },
+    { icon: Clock, label: "24-hour window checked before every send" },
     { icon: UserCheck, label: "One DM per person, per automation, per day" },
-    { icon: Webhook, label: "Webhooks verified with HMAC-SHA256" },
+    { icon: PlugsConnected, label: "Webhooks verified with HMAC-SHA256" },
 ] as const;
 
 const PILLARS = [
     {
-        icon: Zap,
+        icon: Lightning,
         title: "Automate",
         href: "#automation",
         body: "Instagram comment-to-DM automation, DM and story replies, and hard safety caps on every send.",
     },
     {
-        icon: Clapperboard,
+        icon: FilmStrip,
         title: "Create",
         href: "#creator-studio",
         body: "Creator Studio covers the whole production line: niche, ideas, scripts, voiceover, thumbnails and SEO.",
     },
     {
-        icon: TrendingUp,
+        icon: TrendUp,
         title: "Grow",
         href: "#automation",
         body: "Analytics and a live debug stream show what is working, and the SEO workspace packages every video for discovery.",
@@ -106,15 +106,15 @@ const STUDIO_GROUPS = [
         label: "Create",
         tools: [
             {
-                icon: PenLine,
+                icon: PencilLine,
                 name: "Script Builder",
                 does: "Build a video script section by section.",
                 get: "a structured script with a hook, sections and a closing CTA.",
             },
             {
-                icon: AudioLines,
+                icon: Waveform,
                 name: "Voiceover Studio",
-                does: "Generate narration right in your browser — nothing is uploaded.",
+                does: "Generate narration right in your browser, nothing is uploaded.",
                 get: "a voiceover you can preview and use in your video.",
             },
             {
@@ -135,13 +135,13 @@ const STUDIO_GROUPS = [
                 get: "templates, layers and your own images in one editor.",
             },
             {
-                icon: Presentation,
+                icon: PresentationChart,
                 name: "Presentations",
                 does: "Turn a topic into a slide deck.",
                 get: "a deck you can present in the browser or export as a file.",
             },
             {
-                icon: SearchCheck,
+                icon: MagnifyingGlassPlus,
                 name: "SEO Workspace",
                 does: "Package every video for search and discovery.",
                 get: "titles, a structured description and right-sized tags.",
@@ -152,7 +152,7 @@ const STUDIO_GROUPS = [
         label: "Reuse",
         tools: [
             {
-                icon: LibraryBig,
+                icon: Books,
                 name: "Prompt Library",
                 does: "Start from prompts that are ready to use.",
                 get: "prompts for hooks, scripts, thumbnails, SEO and outreach.",
@@ -182,19 +182,12 @@ const NAV_LINKS = [
 ] as const;
 
 export default function LandingPage() {
+    // Continuous numbering for the Creator Studio index (01-11 across groups).
+    let toolNumber = 0;
+
     return (
         <div className="relative min-h-screen bg-background text-foreground overflow-x-clip">
             <ScrollMorph />
-
-            {/* Quiet dot grid, the console's own motif */}
-            <div
-                className="pointer-events-none fixed inset-0 opacity-[0.07] dark:opacity-[0.16]"
-                style={{
-                    backgroundImage:
-                        "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
-                    backgroundSize: "32px 32px",
-                }}
-            />
 
             {/* Header */}
             <header className="relative z-10 border-b border-border">
@@ -249,16 +242,16 @@ export default function LandingPage() {
                         </h1>
                         <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground lg:text-lg lg:leading-relaxed">
                             open-autoDM is open-source, self-hosted Instagram automation
-                            software. It runs on your own Meta app, database, and domain —
+                            software. It runs on your own Meta app, database, and domain,
                             no per-seat pricing, and no third party holding your tokens.
                         </p>
                         <div className="mt-8 flex flex-wrap items-center gap-3">
                             <a
                                 href="/login"
-                                className="group inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                                className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                             >
                                 Sign in to your console
-                                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
+                                <ArrowRight className="h-4 w-4" />
                             </a>
                             <a
                                 href="#platform"
@@ -272,7 +265,7 @@ export default function LandingPage() {
                         </p>
                     </div>
 
-                    {/* The product, doing its thing — drag the hub */}
+                    {/* The product, doing its thing: drag the hub */}
                     <div className="mt-14 hidden lg:block">
                         <NodeEditor />
                     </div>
@@ -281,22 +274,38 @@ export default function LandingPage() {
                 {/* ── Platform overview ────────────────────────────── */}
                 <section id="platform" className="scroll-mt-16 border-t border-border">
                     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
-                        <p className="micro-label text-muted-foreground">The platform</p>
-                        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                            {PILLARS.map((p) => (
-                                <a
-                                    key={p.title}
-                                    href={p.href}
-                                    className="group rounded-xl border border-border bg-card p-6 transition-colors hover:bg-muted/40"
-                                >
-                                    <p.icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
-                                    <h3 className="mt-4 flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
-                                        {p.title}
-                                        <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
-                                    </h3>
-                                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
-                                </a>
-                            ))}
+                        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-20">
+                            <div>
+                                <p className="micro-label">The platform</p>
+                                <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                                    One platform, three jobs
+                                </h2>
+                                <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+                                    One console for the whole creator loop: the automation
+                                    that brings the audience in, the studio that makes the
+                                    next video, and the analytics that show what worked.
+                                </p>
+                            </div>
+                            <div>
+                                {PILLARS.map((p) => (
+                                    <a
+                                        key={p.title}
+                                        href={p.href}
+                                        className="-mx-3 flex items-start gap-4 border-b border-border px-3 py-6 transition-colors last:border-b-0 hover:bg-muted/40"
+                                    >
+                                        <p.icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                                        <span className="min-w-0 flex-1">
+                                            <span className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
+                                                {p.title}
+                                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                            </span>
+                                            <span className="mt-1.5 block text-sm leading-relaxed text-muted-foreground">
+                                                {p.body}
+                                            </span>
+                                        </span>
+                                    </a>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -304,7 +313,8 @@ export default function LandingPage() {
                 {/* ── Automation ───────────────────────────────────── */}
                 <section id="automation" className="scroll-mt-16 border-t border-border">
                     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
-                        <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                        <p className="micro-label">Automation</p>
+                        <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                             What it does
                         </h2>
                         <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
@@ -313,26 +323,34 @@ export default function LandingPage() {
                             worked.
                         </p>
 
-                        <div className="mt-10 grid gap-4 sm:grid-cols-2">
-                            {FEATURES.map((f) => (
-                                <div key={f.title} className="rounded-xl border border-border bg-card p-6">
-                                    <f.icon className="h-5 w-5 text-muted-foreground" strokeWidth={1.5} />
-                                    <h3 className="mt-4 flex items-baseline gap-2 text-[15px] font-semibold text-foreground">
+                        <div className="mt-10 border-t border-border">
+                            {FEATURES.map((f, i) => (
+                                <div
+                                    key={f.title}
+                                    className="grid gap-3 border-b border-border py-7 lg:grid-cols-[4rem_minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-8"
+                                >
+                                    <span className="font-mono text-[13px] text-muted-foreground lg:pt-1">
+                                        {String(i + 1).padStart(2, "0")}
+                                    </span>
+                                    <h3 className="flex items-center gap-2.5 font-heading text-base font-semibold text-foreground">
+                                        <f.icon className="h-5 w-5 shrink-0 text-muted-foreground" />
                                         {f.title}
                                         {"note" in f && f.note ? (
                                             <span className="text-xs font-medium text-primary">{f.note}</span>
                                         ) : null}
                                     </h3>
-                                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.body}</p>
-                                    {"href" in f && f.href ? (
-                                        <a
-                                            href={f.href}
-                                            className="group mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
-                                        >
-                                            {f.linkLabel}
-                                            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
-                                        </a>
-                                    ) : null}
+                                    <div>
+                                        <p className="text-sm leading-relaxed text-muted-foreground">{f.body}</p>
+                                        {"href" in f && f.href ? (
+                                            <a
+                                                href={f.href}
+                                                className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+                                            >
+                                                {f.linkLabel}
+                                                <ArrowRight className="h-3.5 w-3.5" />
+                                            </a>
+                                        ) : null}
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -352,7 +370,7 @@ export default function LandingPage() {
                         <div className="mt-4 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
                             {SAFETY.map((s) => (
                                 <div key={s.label} className="flex items-center gap-3 bg-card px-5 py-4">
-                                    <s.icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.5} />
+                                    <s.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                                     <span className="text-[13px] leading-snug text-foreground">{s.label}</span>
                                 </div>
                             ))}
@@ -370,7 +388,7 @@ export default function LandingPage() {
                                 </h2>
                                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
                                     The Viral Script Writer lives inside the console. Give it a
-                                    topic and it writes for the first three seconds first —
+                                    topic and it writes for the first three seconds first,
                                     because that is where a Reel is won.
                                 </p>
                                 <ul className="mt-6 space-y-3 text-sm leading-relaxed text-muted-foreground">
@@ -385,7 +403,7 @@ export default function LandingPage() {
                                     </li>
                                     <li className="flex gap-3">
                                         <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-primary" />
-                                        Runs on a free model — Llama 3.3 70B on Cloudflare Workers
+                                        Runs on a free model, Llama 3.3 70B on Cloudflare Workers
                                         AI, with Groq as a fallback. No extra Meta permission, no
                                         new data stored
                                     </li>
@@ -413,38 +431,46 @@ export default function LandingPage() {
                             Creator Studio
                         </h2>
                         <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-                            One console to plan, create and package every video — from
+                            One console to plan, create and package every video, from
                             niche research to publish-ready SEO.
                         </p>
 
                         <div className="mt-12 space-y-12">
                             {STUDIO_GROUPS.map((group) => (
                                 <div key={group.label}>
-                                    <h3 className="micro-label text-muted-foreground">{group.label}</h3>
-                                    <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                        {group.tools.map((tool) => (
-                                            <div
-                                                key={tool.name}
-                                                className="rounded-xl border border-border bg-card p-6"
-                                            >
-                                                <tool.icon
-                                                    className="h-5 w-5 text-muted-foreground"
-                                                    strokeWidth={1.5}
-                                                />
-                                                <h4 className="mt-4 text-[15px] font-semibold text-foreground">
-                                                    {tool.name}
-                                                </h4>
-                                                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                                                    {tool.does}
-                                                </p>
-                                                <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
-                                                    <span className="font-medium text-foreground">
-                                                        You get:
-                                                    </span>{" "}
-                                                    {tool.get}
-                                                </p>
-                                            </div>
-                                        ))}
+                                    <h3 className="micro-label">{group.label}</h3>
+                                    <div className="mt-4 border-t border-border">
+                                        {group.tools.map((tool) => {
+                                            toolNumber += 1;
+                                            const n = String(toolNumber).padStart(2, "0");
+                                            return (
+                                                <a
+                                                    key={tool.name}
+                                                    href="/studio"
+                                                    className="-mx-3 flex flex-col gap-1.5 border-b border-border px-3 py-5 transition-colors hover:bg-muted/40 sm:grid sm:grid-cols-[3.25rem_minmax(0,1fr)_minmax(0,1.35fr)_auto] sm:items-start sm:gap-6"
+                                                >
+                                                    <span className="font-mono text-[13px] text-muted-foreground sm:pt-0.5">
+                                                        {n}
+                                                    </span>
+                                                    <span className="flex items-center gap-2.5 font-heading text-[15px] font-semibold text-foreground">
+                                                        <tool.icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                                                        {tool.name}
+                                                    </span>
+                                                    <span>
+                                                        <span className="block text-sm leading-relaxed text-muted-foreground">
+                                                            {tool.does}
+                                                        </span>
+                                                        <span className="mt-1 block text-[13px] leading-relaxed text-muted-foreground">
+                                                            <span className="font-medium text-foreground">
+                                                                You get:
+                                                            </span>{" "}
+                                                            {tool.get}
+                                                        </span>
+                                                    </span>
+                                                    <ArrowRight className="hidden h-4 w-4 text-muted-foreground sm:mt-1 sm:block" />
+                                                </a>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}
@@ -453,15 +479,15 @@ export default function LandingPage() {
                         <div className="mt-12 flex flex-wrap items-center gap-4">
                             <a
                                 href="/studio"
-                                className="group inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                                className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                             >
                                 Open Creator Studio
-                                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
+                                <ArrowRight className="h-4 w-4" />
                             </a>
                             <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground">
                                 The Studio tools run on built-in engines that work offline.
                                 Where a free AI tier is configured, they can enhance the
-                                output — and it is always labelled when they do.
+                                output, and it is always labelled when they do.
                             </p>
                         </div>
                     </div>
@@ -475,17 +501,17 @@ export default function LandingPage() {
                                 Simple, honest pricing
                             </h2>
                             <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-                                Self-host open-autoDM free on your own infrastructure — or
+                                Self-host open-autoDM free on your own infrastructure, or
                                 take a hosted plan when you would rather have it managed for
                                 you. No per-seat pricing either way.
                             </p>
                         </div>
                         <a
                             href="/pricing"
-                            className="group inline-flex h-11 items-center gap-2 rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                            className="inline-flex h-11 items-center gap-2 rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                         >
                             See pricing
-                            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
+                            <ArrowRight className="h-4 w-4" />
                         </a>
                     </div>
                 </section>
@@ -498,16 +524,16 @@ export default function LandingPage() {
                                 Ready to turn comments into customers?
                             </h2>
                             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-                                Sign in to your console, or run your own instance — the
+                                Sign in to your console, or run your own instance. The
                                 code is open-source and MIT licensed.
                             </p>
                             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                                 <a
                                     href="/login"
-                                    className="group inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                                 >
                                     Get started
-                                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
+                                    <ArrowRight className="h-4 w-4" />
                                 </a>
                                 <a
                                     href="/login"

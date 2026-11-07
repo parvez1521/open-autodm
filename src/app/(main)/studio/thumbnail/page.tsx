@@ -15,22 +15,22 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
-  BookmarkPlus,
+  BookmarkSimple,
   Check,
   Copy,
-  Download,
+  DownloadSimple,
   Eye,
-  EyeOff,
+  EyeSlash,
   Image as ImageIcon,
-  Loader2,
-  Redo2,
+  CircleNotch,
+  ArrowClockwise,
   Shapes,
-  Sparkles,
-  Trash2,
-  Type,
-  Undo2,
-  Upload,
-} from "lucide-react";
+  Lightning,
+  Trash,
+  TextT,
+  ArrowCounterClockwise,
+  UploadSimple,
+} from "@/components/phosphor";
 import {
   THUMB_FONT_STACKS,
   THUMB_TEMPLATES,
@@ -515,13 +515,13 @@ export default function ThumbnailEditorPage() {
     setAiBusy(false);
     if (outcome.status === "ok") {
       addImageFitted(outcome.imageDataUrl);
-      setAiNote("Generated with Workers AI (FLUX.1-schnell) — free tier");
+      setAiNote("Generated with Workers AI (FLUX.1-schnell), free tier");
       return;
     }
     switch (outcome.status) {
       case "not_configured":
         setAiNote(
-          "AI image generation is not configured on this workspace yet. The editor works fully without it — upload your own images or use stock from the Libraries."
+          "AI image generation is not configured on this workspace yet. The editor works fully without it, upload your own images or use stock from the Libraries."
         );
         break;
       case "quota_reached":
@@ -531,10 +531,10 @@ export default function ThumbnailEditorPage() {
         setAiNote("You have reached today's per-person free image limit. The editor works fully with your own uploads in the meantime.");
         break;
       case "rate_limited":
-        setAiNote("Too many image requests in a minute — wait a moment and try again.");
+        setAiNote("Too many image requests in a minute, wait a moment and try again.");
         break;
       case "signed_out":
-        setAiNote("Sign in again to generate AI images — the editor itself works either way.");
+        setAiNote("Sign in again to generate AI images, the editor itself works either way.");
         break;
       default:
         setAiNote("The free AI image service did not respond just now. Try again in a moment, or upload your own image.");
@@ -591,7 +591,7 @@ export default function ThumbnailEditorPage() {
               setSelectedLayerId(layer.id);
             }}
           >
-            <Type className="w-3.5 h-3.5" /> Add text
+            <TextT className="w-3.5 h-3.5" /> Add text
           </button>
           <select
             className={smallInputClass}
@@ -620,7 +620,7 @@ export default function ThumbnailEditorPage() {
             <Shapes className="w-3.5 h-3.5" /> Add shape
           </button>
           <button type="button" className={secondaryButtonClass} onClick={() => uploadRef.current?.click()}>
-            <Upload className="w-3.5 h-3.5" /> Upload image
+            <UploadSimple className="w-3.5 h-3.5" /> Upload image
           </button>
           <input
             ref={uploadRef}
@@ -639,7 +639,7 @@ export default function ThumbnailEditorPage() {
             onClick={() => setHistory((h) => historyUndo(h))}
             disabled={history.past.length === 0}
           >
-            <Undo2 className="w-3.5 h-3.5" /> Undo
+            <ArrowCounterClockwise className="w-3.5 h-3.5" /> Undo
           </button>
           <button
             type="button"
@@ -647,7 +647,7 @@ export default function ThumbnailEditorPage() {
             onClick={() => setHistory((h) => historyRedo(h))}
             disabled={history.future.length === 0}
           >
-            <Redo2 className="w-3.5 h-3.5" /> Redo
+            <ArrowClockwise className="w-3.5 h-3.5" /> Redo
           </button>
           <span className="mx-1 h-5 w-px bg-border" />
           <button type="button" className={secondaryButtonClass} onClick={fitScale}>
@@ -666,7 +666,7 @@ export default function ThumbnailEditorPage() {
           <span className="text-xs text-muted-foreground">{Math.round(scale * 100)}%</span>
           <span className="flex-1" />
           <button type="button" className={secondaryButtonClass} onClick={exportPng}>
-            <Download className="w-3.5 h-3.5" /> Export PNG
+            <DownloadSimple className="w-3.5 h-3.5" /> Export PNG
           </button>
           <button
             type="button"
@@ -674,7 +674,7 @@ export default function ThumbnailEditorPage() {
             onClick={saveToProjects}
             disabled={saved}
           >
-            {saved ? <Check className="w-4 h-4" /> : <BookmarkPlus className="w-4 h-4" />}
+            {saved ? <Check className="w-4 h-4" /> : <BookmarkSimple className="w-4 h-4" />}
             {saved ? "Saved" : "Save to Projects"}
           </button>
         </div>
@@ -714,7 +714,7 @@ export default function ThumbnailEditorPage() {
           <div className={studioCardClass}>
             <h3 className="text-sm font-medium">Layers</h3>
             {doc.layers.length === 0 && (
-              <p className="mt-2 text-xs text-muted-foreground">No layers yet — add text, a shape or an image.</p>
+              <p className="mt-2 text-xs text-muted-foreground">No layers yet, add text, a shape or an image.</p>
             )}
             <div className="mt-3 space-y-1.5">
               {[...doc.layers].reverse().map((layer) => (
@@ -740,7 +740,7 @@ export default function ThumbnailEditorPage() {
                     onClick={() => applyDoc(updateLayer(doc, layer.id, { visible: !layer.visible }))}
                     title={layer.visible ? "Hide layer" : "Show layer"}
                   >
-                    {layer.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                    {layer.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeSlash className="w-3.5 h-3.5" />}
                   </button>
                   <button
                     type="button"
@@ -778,7 +778,7 @@ export default function ThumbnailEditorPage() {
                     }}
                     title="Delete layer"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ))}
@@ -828,7 +828,7 @@ export default function ThumbnailEditorPage() {
                     </select>
                   </div>
                   <button type="button" className={secondaryButtonClass} onClick={() => bgUploadRef.current?.click()}>
-                    <Upload className="w-3.5 h-3.5" /> Upload background image
+                    <UploadSimple className="w-3.5 h-3.5" /> Upload background image
                   </button>
                   <input
                     ref={bgUploadRef}
@@ -870,7 +870,7 @@ export default function ThumbnailEditorPage() {
 
           <div className={studioCardClass}>
             <h3 className="flex items-center gap-2 text-sm font-medium">
-              <Sparkles className="w-4 h-4" /> AI image (free tier)
+              <Lightning className="w-4 h-4" /> AI image (free tier)
             </h3>
             <div className="mt-3">
               <label className={studioLabelClass} htmlFor="thumb-ai-prompt">Prompt</label>
@@ -891,7 +891,7 @@ export default function ThumbnailEditorPage() {
                 onClick={generateAiImage}
                 disabled={aiBusy || aiPrompt.trim().length < 3}
               >
-                {aiBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                {aiBusy ? <CircleNotch className="w-4 h-4 animate-spin" /> : <Lightning className="w-4 h-4" />}
                 Generate image
               </button>
               {aiNote && <p className="text-xs text-muted-foreground">{aiNote}</p>}
@@ -1025,7 +1025,7 @@ export default function ThumbnailEditorPage() {
                   )}
                   {!(selected as ThumbImageLayer).src && (
                     <p className="text-xs text-muted-foreground">
-                      This is an empty photo slot — upload an image, generate one with AI, or bring
+                      This is an empty photo slot, upload an image, generate one with AI, or bring
                       one over from the Libraries to fill it.
                     </p>
                   )}

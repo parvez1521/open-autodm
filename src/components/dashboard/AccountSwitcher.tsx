@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Instagram, Check, ChevronsUpDown, Plus, Loader2 } from "lucide-react";
+import { InstagramLogo, Check, CaretUpDown, Plus, CircleNotch } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
@@ -18,12 +18,12 @@ import type { InstagramAccount } from "@/hooks/useInstagramAccounts";
 function AccountAvatar({ account, size = 7 }: { account: InstagramAccount | null; size?: 6 | 7 }) {
     const cls = size === 6 ? "w-6 h-6" : "w-7 h-7";
     return (
-        <div className={cn(cls, "relative rounded-full ig-ring p-[1.5px] shrink-0")}>
+        <div className={cn(cls, "relative rounded-full border border-border shrink-0")}>
             <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden">
                 {account?.profile_picture_url ? (
                     <img src={account.profile_picture_url} alt={account.username} className="w-full h-full object-cover rounded-full" />
                 ) : (
-                    <Instagram className="w-3 h-3 text-muted-foreground" />
+                    <InstagramLogo className="w-3 h-3 text-muted-foreground" />
                 )}
             </div>
         </div>
@@ -97,7 +97,7 @@ export function AccountSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                                 </>
                             )}
                         </div>
-                        <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <CaretUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     </>
                 )}
             </button>
@@ -154,7 +154,7 @@ export function AccountSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                                 disabled={connecting}
                                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12.5px] font-medium text-foreground hover:bg-muted/60 disabled:opacity-60 transition-colors"
                             >
-                                {connecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                                {connecting ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
                                 {connecting ? "Redirecting…" : "Add account"}
                             </button>
                             {connectError && <p className="px-2 pb-1 text-[11px] text-destructive">{connectError}</p>}

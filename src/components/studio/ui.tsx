@@ -3,7 +3,10 @@
 /** Small shared building blocks for Creator Studio pages (Programme S1). */
 
 import { useState } from "react";
-import { Check, Copy, Sparkles, Cpu, type LucideIcon } from "lucide-react";
+import { Check, Copy, Lightning, Cpu } from "@/components/phosphor";
+// Type-only import from the main entry (erased at build time): the
+// ssr entry does not export the Icon type.
+import type { Icon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { EngineLabel } from "@/lib/studio/types";
 
@@ -22,7 +25,7 @@ export function EngineBadge({ engine }: { engine: EngineLabel }) {
           : "Produced by Studio's built-in offline engine"
       }
     >
-      {engine === "free-ai" ? <Sparkles className="w-3 h-3" /> : <Cpu className="w-3 h-3" />}
+      {engine === "free-ai" ? <Lightning className="w-3 h-3" /> : <Cpu className="w-3 h-3" />}
       {engine === "free-ai" ? "Free AI" : "Built-in engine"}
     </span>
   );
@@ -73,7 +76,7 @@ export function StudioToolHeader({
   purpose,
   points,
 }: {
-  icon: LucideIcon;
+  icon: Icon;
   title: string;
   purpose: string;
   points?: string[];

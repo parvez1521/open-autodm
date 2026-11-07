@@ -12,9 +12,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import {
-    Wrench, KeyRound, Webhook, Clock3, CheckCircle2, Copy, Check,
-    ExternalLink, Loader2, ShieldCheck, AlertTriangle, Users
-} from "lucide-react";
+    Wrench, Key, PlugsConnected, Clock, CheckCircle, Copy, Check,
+    ArrowSquareOut, CircleNotch, ShieldCheck, Warning, Users
+} from "@/components/phosphor";
 import { useSetupStatus, useSaveSetup } from "@/hooks/useSetup";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +78,7 @@ function StepCard({
                     "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
                     done ? "bg-secondary/10" : "bg-muted"
                 )}>
-                    {done ? <CheckCircle2 className="w-4 h-4 text-secondary" /> : <Icon className="w-4 h-4 text-muted-foreground" />}
+                    {done ? <CheckCircle className="w-4 h-4 text-secondary" /> : <Icon className="w-4 h-4 text-muted-foreground" />}
                 </div>
                 <span className="micro-label">Step {step}</span>
                 <h2 className="text-[13.5px] font-heading font-semibold text-foreground">{title}</h2>
@@ -118,7 +118,7 @@ export default function SetupPage() {
     if (isLoading) {
         return (
             <div className="w-full max-w-2xl mx-auto py-24 flex justify-center">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
         );
     }
@@ -146,7 +146,7 @@ export default function SetupPage() {
             </div>
 
             {/* Step 1 */}
-            <StepCard step={1} title="Create your Meta app" icon={ExternalLink} done={configured}>
+            <StepCard step={1} title="Create your Meta app" icon={ArrowSquareOut} done={configured}>
                 <NumberedList items={[
                     <>Go to <a href="https://developers.facebook.com/apps" target="_blank" rel="noopener noreferrer" className="text-primary font-medium underline underline-offset-2">developers.facebook.com/apps</a> and click <b>Create App</b>.</>,
                     <>Use case <b>Other</b> → app type <b>Business</b>.</>,
@@ -155,7 +155,7 @@ export default function SetupPage() {
                     <>Your Instagram must be a <b>Business or Creator</b> account (switch in the app: Settings → Account type).</>,
                 ]} />
                 <div className="mt-4 flex items-start gap-2 text-[12px] text-muted-foreground bg-muted/50 rounded-lg px-3 py-2.5">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+                    <Warning className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
                     <span>
                         Your app starts in <b>Development mode</b> - perfect for building and testing. In dev mode, automations
                         work for accounts that hold a <b>role on your app</b> (you + testers - see Step 5). To let the
@@ -165,10 +165,10 @@ export default function SetupPage() {
             </StepCard>
 
             {/* Step 2 */}
-            <StepCard step={2} title="Save your app credentials" icon={KeyRound} done={configured && !justSaved}>
+            <StepCard step={2} title="Save your app credentials" icon={Key} done={configured && !justSaved}>
                 {configured && (
                     <div className="mb-4 flex items-center gap-2 text-[12px] font-medium text-secondary bg-secondary/10 rounded-lg px-3 py-2.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <CheckCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>Saved for app <code className="font-mono font-semibold">{setup?.metaAppId}</code>. Re-enter below only to change them.</span>
                     </div>
                 )}
@@ -216,14 +216,14 @@ export default function SetupPage() {
                         disabled={saveMutation.isPending || !appId.trim() || !appSecret.trim()}
                         className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
-                        {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <KeyRound className="w-3.5 h-3.5" />}
+                        {saveMutation.isPending ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
                         {saveMutation.isPending ? "Saving…" : "Save credentials"}
                     </button>
                 </div>
             </StepCard>
 
             {/* Step 3 */}
-            <StepCard step={3} title="Wire up the Meta portal" icon={Webhook}>
+            <StepCard step={3} title="Wire up the Meta portal" icon={PlugsConnected}>
                 {!configured && !justSaved ? (
                     <p className="text-[13px] text-muted-foreground">Complete Step 2 first - your webhook verify token is generated when credentials are saved.</p>
                 ) : (
@@ -255,7 +255,7 @@ export default function SetupPage() {
             </StepCard>
 
             {/* Step 4 */}
-            <StepCard step={4} title="Enable the background engine" icon={Clock3}>
+            <StepCard step={4} title="Enable the background engine" icon={Clock}>
                 <p className="text-[13px] text-muted-foreground mb-3 leading-relaxed">
                     Most DMs send instantly from the webhook. This cron delivers the rest - rate-limited overflow,
                     retries, and automatic token refresh. In <b>Supabase → SQL Editor</b>, replace{" "}
@@ -296,7 +296,7 @@ export default function SetupPage() {
                         ]} />
                     </div>
                     <div className="flex items-start gap-2 text-[12px] text-muted-foreground bg-muted/50 rounded-lg px-3 py-2.5">
-                        <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
+                        <Warning className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-500" />
                         <span>
                             <b>Going public:</b> to fire on comments from anyone, request <b>Advanced Access</b> via Meta&apos;s free
                             App Review - upload a short screencast of your working flow. Typically approved in days; nothing in
@@ -312,7 +312,7 @@ export default function SetupPage() {
                     animate={{ opacity: 1, y: 0 }}
                     className="rounded-xl border border-secondary/25 bg-secondary/5 p-4 flex items-start gap-3"
                 >
-                    <CheckCircle2 className="w-4.5 h-4.5 w-[18px] h-[18px] text-secondary shrink-0 mt-0.5" />
+                    <CheckCircle className="w-4.5 h-4.5 w-[18px] h-[18px] text-secondary shrink-0 mt-0.5" />
                     <div>
                         <p className="text-[13px] font-semibold text-foreground">Setup complete - connect Instagram next</p>
                         <p className="text-[13px] text-muted-foreground mt-0.5">

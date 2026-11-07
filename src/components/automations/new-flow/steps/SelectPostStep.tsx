@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MessageCircle, PlaySquare, Layers, Search, Instagram, Heart } from "lucide-react";
+import { ChatCircle, PlayCircle, Stack, MagnifyingGlass, InstagramLogo, Heart } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useInstagramPosts } from "@/hooks/useInstagramPosts";
@@ -32,7 +32,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
     return (
         <div className="flex flex-col w-full h-full">
             {/* Top bar */}
-            <div className="sticky top-0 z-20 bg-background/85 backdrop-blur-md border-b border-border">
+            <div className="sticky top-0 z-20 bg-background border-b border-border">
                 <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
                         <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
@@ -55,13 +55,13 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                             onClick={() => onSelect("all", flowName, null, "")}
                             className="inline-flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium border border-border hover:border-foreground/25 rounded-lg transition-colors"
                         >
-                            <Layers className="w-3.5 h-3.5 opacity-60" />
+                            <Stack className="w-3.5 h-3.5 opacity-60" />
                             Trigger on all posts
                         </button>
                     </div>
 
                     <div className="relative w-full sm:w-60">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                        <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                         <input
                             type="text"
                             placeholder="Search captions…"
@@ -78,7 +78,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                 <div className="max-w-5xl mx-auto">
                     {!instagramAccountId ? (
                         <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
-                            <Instagram className="w-7 h-7 text-muted-foreground/30 mb-3" />
+                            <InstagramLogo className="w-7 h-7 text-muted-foreground/30 mb-3" />
                             <p className="text-[13px] text-muted-foreground font-medium">No Instagram account connected.</p>
                             <p className="text-[12px] text-muted-foreground/70 mt-1">
                                 Connect your account in Settings first.
@@ -121,7 +121,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                             transition={{ delay: Math.min(idx * 0.03, 0.3) }}
                                             onClick={() => onSelect(post.id, flowName, thumbUrl ?? null, post.caption ?? "")}
                                             className={cn(
-                                                "group relative rounded-lg overflow-hidden cursor-pointer text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                                "group relative rounded-lg overflow-hidden cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                                                 isSelected
                                                     ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
                                                     : "ring-1 ring-border hover:ring-foreground/30"
@@ -132,17 +132,17 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                                     <img
                                                         src={thumbUrl}
                                                         alt="Post thumbnail"
-                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                                                        className="w-full h-full object-cover"
                                                     />
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center bg-muted">
-                                                        <Instagram className="w-6 h-6 text-muted-foreground/30" />
+                                                        <InstagramLogo className="w-6 h-6 text-muted-foreground/30" />
                                                     </div>
                                                 )}
 
-                                                <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/45 backdrop-blur-sm flex items-center justify-center">
-                                                    {post.type === "reel" ? <PlaySquare className="w-3 h-3 text-white" /> :
-                                                     post.type === "carousel" ? <Layers className="w-3 h-3 text-white" /> :
+                                                <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/55 flex items-center justify-center">
+                                                    {post.type === "reel" ? <PlayCircle className="w-3 h-3 text-white" /> :
+                                                     post.type === "carousel" ? <Stack className="w-3 h-3 text-white" /> :
                                                      <span className="w-2.5 h-2.5 bg-white rounded-[2px] opacity-80" />}
                                                 </div>
 
@@ -152,7 +152,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                                     </p>
                                                     <div className="flex items-center justify-between text-white/70 text-[10px] font-medium tabular-nums">
                                                         <span className="flex items-center gap-1"><Heart className="w-2.5 h-2.5" />{post.like_count.toLocaleString()}</span>
-                                                        <span className="flex items-center gap-1"><MessageCircle className="w-2.5 h-2.5" />{post.comments_count.toLocaleString()}</span>
+                                                        <span className="flex items-center gap-1"><ChatCircle className="w-2.5 h-2.5" />{post.comments_count.toLocaleString()}</span>
                                                         <span>{new Date(post.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                                                     </div>
                                                 </div>

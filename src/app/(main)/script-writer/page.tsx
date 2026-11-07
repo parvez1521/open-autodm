@@ -16,9 +16,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  PenLine, Loader2, Copy, Check, Bot, AlertTriangle, Clock3,
-  MessageSquareText, Hash, Clapperboard, Trash2, History,
-} from "lucide-react";
+  PencilLine, CircleNotch, Copy, Check, Robot, Warning, Clock,
+  ChatText, Hash, FilmSlate, Trash, ClockCounterClockwise,
+} from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { apiClient, ApiError } from "@/lib/api/client";
 import type { GeneratedScript } from "@/lib/script-writer/prompt";
@@ -281,7 +281,7 @@ export default function ScriptWriterPage() {
           </div>
 
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 space-y-3">
-            <p className="micro-label !text-primary flex items-center gap-1.5"><Bot className="w-3.5 h-3.5" /> AutoDM connection</p>
+            <p className="micro-label !text-primary flex items-center gap-1.5"><Robot className="w-3.5 h-3.5" /> AutoDM connection</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelCls} htmlFor="sw-keyword">Comment keyword *</label>
@@ -314,7 +314,7 @@ export default function ScriptWriterPage() {
             disabled={!canGenerate}
             className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:pointer-events-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenLine className="w-4 h-4" />}
+            {loading ? <CircleNotch className="w-4 h-4 animate-spin" /> : <PencilLine className="w-4 h-4" />}
             {loading ? "Writing your script..." : "Generate script"}
           </button>
           <p className="text-[11.5px] text-muted-foreground/80 leading-relaxed">
@@ -328,7 +328,7 @@ export default function ScriptWriterPage() {
           {error && (
             <div className="bg-card border border-amber-500/30 rounded-xl p-5" role="alert">
               <h2 className="text-[14px] font-heading font-semibold text-foreground flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <Warning className="w-4 h-4 text-amber-500" />
                 {error.kind === "ai_unavailable" ? "Script model not configured yet" : "Generation failed"}
               </h2>
               <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed">{error.message}</p>
@@ -348,7 +348,7 @@ export default function ScriptWriterPage() {
           {!script && !error && (
             <div className="bg-card border border-border rounded-xl p-8 text-center" data-no-reveal>
               <span className="mx-auto w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <Clapperboard className="w-5 h-5 text-primary" />
+                <FilmSlate className="w-5 h-5 text-primary" />
               </span>
               <h2 className="text-[14px] font-heading font-semibold text-foreground mt-3">Your script will appear here</h2>
               <p className="text-[13px] text-muted-foreground mt-1 max-w-sm mx-auto leading-relaxed">
@@ -365,7 +365,7 @@ export default function ScriptWriterPage() {
                   <div className="min-w-0">
                     <h2 className="text-[15px] font-heading font-semibold text-foreground leading-snug">{script.title}</h2>
                     <p className="text-[12px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
-                      <Clock3 className="w-3.5 h-3.5" /> {duration}s · via {result.provider === "groq" ? "Groq" : "Workers AI"} · {result.model.split("/").pop()}
+                      <Clock className="w-3.5 h-3.5" /> {duration}s · via {result.provider === "groq" ? "Groq" : "Workers AI"} · {result.model.split("/").pop()}
                     </p>
                   </div>
                   <CopyButton text={scriptToText(script)} label="Copy full script" />
@@ -396,7 +396,7 @@ export default function ScriptWriterPage() {
               </div>
 
               <div className="bg-card border border-border rounded-xl p-5">
-                <p className="micro-label mb-3 flex items-center gap-1.5"><MessageSquareText className="w-3.5 h-3.5" /> Timestamped script</p>
+                <p className="micro-label mb-3 flex items-center gap-1.5"><ChatText className="w-3.5 h-3.5" /> Timestamped script</p>
                 <div className="space-y-3">
                   {script.sections.map((sec, i) => (
                     <div key={i} className="flex gap-3">
@@ -415,7 +415,7 @@ export default function ScriptWriterPage() {
                     Comment “{script.ctaKeyword}”
                   </span>
                   <Link href="/automations" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-foreground text-background text-[12.5px] font-semibold hover:opacity-90 transition-opacity">
-                    <Bot className="w-3.5 h-3.5" /> Create automation with this keyword
+                    <Robot className="w-3.5 h-3.5" /> Create automation with this keyword
                   </Link>
                   <span className="text-[11.5px] text-muted-foreground">Opens Automations - use {script.ctaKeyword} as the trigger keyword.</span>
                 </div>
@@ -449,13 +449,13 @@ export default function ScriptWriterPage() {
           {history.length > 0 && (
             <div className="bg-card border border-border rounded-xl p-5">
               <div className="flex items-center justify-between gap-2">
-                <p className="micro-label flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Recent scripts (this browser)</p>
+                <p className="micro-label flex items-center gap-1.5"><ClockCounterClockwise className="w-3.5 h-3.5" /> Recent scripts (this browser)</p>
                 <button
                   type="button"
                   onClick={() => { setHistory([]); try { localStorage.removeItem(HISTORY_KEY); } catch { /* ignore */ } }}
                   className="inline-flex items-center gap-1 text-[12px] text-muted-foreground hover:text-destructive transition-colors"
                 >
-                  <Trash2 className="w-3.5 h-3.5" /> Clear
+                  <Trash className="w-3.5 h-3.5" /> Clear
                 </button>
               </div>
               <div className="mt-3 space-y-1.5">

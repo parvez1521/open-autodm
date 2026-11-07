@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { MessageCircle, Send, Image, AtSign } from "lucide-react";
+import { ChatCircle, PaperPlaneTilt, Image, At } from "@/components/phosphor";
 import { AUTOMATION_TYPES } from "../constants";
 import { cn } from "@/lib/utils";
 
@@ -9,10 +9,10 @@ interface SelectTypeStepProps {
 }
 
 const ICONS = {
-    "message": MessageCircle,
-    "send": Send,
+    "message": ChatCircle,
+    "send": PaperPlaneTilt,
     "image": Image,
-    "at-sign": AtSign
+    "at-sign": At
 };
 
 export function SelectTypeStep({ onSelect, selectedType }: SelectTypeStepProps) {

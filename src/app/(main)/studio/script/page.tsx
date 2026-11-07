@@ -15,14 +15,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  PenLine,
-  Download,
-  BookmarkPlus,
+  PencilLine,
+  DownloadSimple,
+  BookmarkSimple,
   Check,
-  Sparkles,
-  Loader2,
-  Mic,
-} from "lucide-react";
+  Lightning,
+  CircleNotch,
+  Microphone,
+} from "@/components/phosphor";
 import {
   SCRIPT_FORMAT_OPTIONS,
   SCRIPT_TONE_OPTIONS,
@@ -55,15 +55,15 @@ import { cn } from "@/lib/utils";
 
 const POLISH_NOTES: Partial<Record<AiPolishOutcome["status"], string>> = {
   not_configured:
-    "Free AI is not configured on this instance, so the built-in text stays — it is complete as written.",
+    "Free AI is not configured on this instance, so the built-in text stays, it is complete as written.",
   quota_reached:
     "Today's shared free AI quota is used up. Your text is unchanged and complete as written.",
   daily_quota_reached:
     "You have reached today's per-user free AI limit. Your text is unchanged.",
   rate_limited:
-    "Too many free AI requests in a minute — wait a moment and try again. Your text is unchanged.",
+    "Too many free AI requests in a minute, wait a moment and try again. Your text is unchanged.",
   ai_unavailable: "Free AI did not respond just now. Your text is unchanged.",
-  signed_out: "Sign in again to use the free AI polish — your built-in text works either way.",
+  signed_out: "Sign in again to use the free AI polish, your built-in text works either way.",
 };
 
 const secondaryButtonClass =
@@ -214,12 +214,12 @@ export default function ScriptBuilderPage() {
   return (
     <div className="space-y-5">
       <StudioToolHeader
-        icon={PenLine}
+        icon={PencilLine}
         title="Script Builder"
         purpose="Build a structured script with a hook, sections and a closing call to action."
         points={[
           "Hook, timed sections and a closing call to action",
-          "Three formats and four tones — every section editable",
+          "Three formats and four tones, every section editable",
           "Copy, download, save to Projects, or send to Voiceover Studio",
         ]}
       />
@@ -305,7 +305,7 @@ export default function ScriptBuilderPage() {
             onClick={build}
             disabled={!topic.trim()}
           >
-            <PenLine className="w-4 h-4" />
+            <PencilLine className="w-4 h-4" />
             Build script
           </button>
         </div>
@@ -315,7 +315,7 @@ export default function ScriptBuilderPage() {
         <div className={studioCardClass}>
           <p className="text-sm text-muted-foreground">
             No script yet. Add a topic above, pick a format and tone, and build your first
-            draft — it takes a second and works fully offline.
+            draft, it takes a second and works fully offline.
           </p>
         </div>
       )}
@@ -345,7 +345,7 @@ export default function ScriptBuilderPage() {
                   downloadText(`script-${downloadSlug}.txt`, scriptToPlainText(draft), "text/plain")
                 }
               >
-                <Download className="w-3.5 h-3.5" />
+                <DownloadSimple className="w-3.5 h-3.5" />
                 Download .txt
               </button>
               <button
@@ -355,7 +355,7 @@ export default function ScriptBuilderPage() {
                   downloadText(`script-${downloadSlug}.md`, scriptToMarkdown(draft), "text/markdown")
                 }
               >
-                <Download className="w-3.5 h-3.5" />
+                <DownloadSimple className="w-3.5 h-3.5" />
                 Download .md
               </button>
               <button
@@ -364,7 +364,7 @@ export default function ScriptBuilderPage() {
                 onClick={saveDraft}
                 disabled={saved}
               >
-                {saved ? <Check className="w-3.5 h-3.5" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
+                {saved ? <Check className="w-3.5 h-3.5" /> : <BookmarkSimple className="w-3.5 h-3.5" />}
                 {saved ? "Saved" : "Save to Projects"}
               </button>
               {saveError && (
@@ -374,7 +374,7 @@ export default function ScriptBuilderPage() {
               )}
               <span className="flex-1" />
               <button type="button" className={studioPrimaryButtonClass} onClick={sendToVoiceover}>
-                <Mic className="w-4 h-4" />
+                <Microphone className="w-4 h-4" />
                 Send to Voiceover
               </button>
             </div>
@@ -410,9 +410,9 @@ export default function ScriptBuilderPage() {
                     disabled={polishBusyId === section.id}
                   >
                     {polishBusyId === section.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                     ) : (
-                      <Sparkles className="w-3.5 h-3.5" />
+                      <Lightning className="w-3.5 h-3.5" />
                     )}
                     Polish with Free AI
                   </button>

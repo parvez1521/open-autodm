@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { CheckCircle, AlertTriangle, Clock, HelpCircle, Loader2, XCircle } from 'lucide-react';
+import { CheckCircle, Warning, Clock, Question, CircleNotch, XCircle } from '@/components/phosphor';
 
 type BannerState =
   | { kind: 'loading' }
@@ -82,7 +82,7 @@ export function DeletionStatusBanner({ confirmationCode }: { confirmationCode: s
     return (
       <div className="p-4 rounded-xl bg-muted/40 border border-border text-foreground mb-6 space-y-2">
         <div className="flex items-center gap-2 font-semibold text-base">
-          <Loader2 className="w-5 h-5 shrink-0 animate-spin" />
+          <CircleNotch className="w-5 h-5 shrink-0 animate-spin" />
           <span>Checking the status of this deletion request…</span>
         </div>
         {codeLine}
@@ -110,7 +110,7 @@ export function DeletionStatusBanner({ confirmationCode }: { confirmationCode: s
     return (
       <div className="p-4 rounded-xl bg-muted/40 border border-border text-foreground mb-6 space-y-2">
         <div className="flex items-center gap-2 font-semibold text-base">
-          <HelpCircle className="w-5 h-5 shrink-0" />
+          <Question className="w-5 h-5 shrink-0" />
           <span>Data Deletion Request Status: Processed - no data found</span>
         </div>
         {codeLine}
@@ -159,7 +159,7 @@ export function DeletionStatusBanner({ confirmationCode }: { confirmationCode: s
   return (
     <div className="p-4 rounded-xl bg-muted/40 border border-border text-foreground mb-6 space-y-2">
       <div className="flex items-center gap-2 font-semibold text-base">
-        <AlertTriangle className="w-5 h-5 shrink-0" />
+        <Warning className="w-5 h-5 shrink-0" />
         <span>We could not verify this reference</span>
       </div>
       {codeLine}

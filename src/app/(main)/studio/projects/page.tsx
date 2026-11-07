@@ -12,15 +12,15 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FolderOpen,
-  Trash2,
-  ChevronDown,
-  ChevronRight,
+  Trash,
+  CaretDown,
+  CaretRight,
   Info,
   Tag,
   X,
   Image as ImageIcon,
-  Download,
-} from "lucide-react";
+  DownloadSimple,
+} from "@/components/phosphor";
 import {
   getBrowserProjectStore,
   normalizeTags,
@@ -66,7 +66,7 @@ function ProjectDetail({ project }: { project: StudioProject }) {
     return (
       <div className="text-[13px] text-muted-foreground space-y-1">
         <p>
-          Overall <span className="text-foreground font-medium">{r.overall}/100</span> — {r.verdict}
+          Overall <span className="text-foreground font-medium">{r.overall}/100</span>, {r.verdict}
         </p>
         <p>
           Demand {r.subScores.demand} · Competition {r.subScores.competition} · Ease{" "}
@@ -82,7 +82,7 @@ function ProjectDetail({ project }: { project: StudioProject }) {
       <ul className="list-disc pl-5 space-y-1 text-[13px] text-muted-foreground">
         {(p.ideas ?? []).map((idea, i) => (
           <li key={i}>
-            <span className="text-foreground">{idea.title}</span> — {idea.format}
+            <span className="text-foreground">{idea.title}</span>, {idea.format}
           </li>
         ))}
       </ul>
@@ -114,7 +114,7 @@ function ProjectDetail({ project }: { project: StudioProject }) {
         <ul className="list-disc pl-5 space-y-1">
           {(draft.sections ?? []).map((s) => (
             <li key={s.id}>
-              <span className="text-foreground">{s.heading}</span> (~{s.seconds}s) —{" "}
+              <span className="text-foreground">{s.heading}</span> (~{s.seconds}s),{" "}
               {s.text.split("\n")[0]?.slice(0, 110)}
               {(s.text.split("\n")[0]?.length ?? 0) > 110 ? "…" : ""}
             </li>
@@ -151,7 +151,7 @@ function ProjectDetail({ project }: { project: StudioProject }) {
     return (
       <div className="text-[13px] text-muted-foreground space-y-1.5">
         <p>
-          <span className="text-foreground font-medium">{d.deck?.topic}</span> — for{" "}
+          <span className="text-foreground font-medium">{d.deck?.topic}</span>, for{" "}
           {d.deck?.audience} · {d.deck?.slides?.length ?? 0} slides
         </p>
         <ol className="list-decimal pl-5 space-y-0.5">
@@ -175,7 +175,7 @@ function ProjectDetail({ project }: { project: StudioProject }) {
           }}
           className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
         >
-          <Download className="w-3.5 h-3.5" /> Download HTML deck
+          <DownloadSimple className="w-3.5 h-3.5" /> Download HTML deck
         </button>
       </div>
     );
@@ -192,7 +192,7 @@ function ProjectDetail({ project }: { project: StudioProject }) {
         {v.charCount} characters
       </p>
       <p>
-        Audio files are not stored at this tier — reopen the Voiceover Studio with this
+        Audio files are not stored at this tier, reopen the Voiceover Studio with this
         text to regenerate the WAV.
       </p>
       <p className="whitespace-pre-wrap rounded-lg bg-muted/50 p-3 max-h-56 overflow-y-auto">
@@ -246,7 +246,7 @@ function StockDetail({ payload: s }: { payload: StockReferencePayload }) {
   return (
     <div className="text-[13px] text-muted-foreground space-y-1.5">
       <p>
-        <span className="text-foreground font-medium">{s.title}</span> — {s.media} from{" "}
+        <span className="text-foreground font-medium">{s.title}</span>, {s.media} from{" "}
         {s.source === "pexels" ? "Pexels" : "Openverse"}
       </p>
       <p>
@@ -291,7 +291,7 @@ function StockDetail({ payload: s }: { payload: StockReferencePayload }) {
                   s.source === "pexels"
                     ? `Photo by ${s.creator} on Pexels`
                     : `${s.title} by ${s.creator} (${s.licenseName ?? "CC"})`,
-                from: "Projects — stock reference",
+                from: "Projects, stock reference",
               });
               router.push("/studio/thumbnail");
             }}
@@ -301,7 +301,7 @@ function StockDetail({ payload: s }: { payload: StockReferencePayload }) {
         )}
       </p>
       <p className="text-xs">
-        This is a saved reference — the file stays on the provider&apos;s site; the Studio
+        This is a saved reference, the file stays on the provider&apos;s site; the Studio
         does not host a copy.
       </p>
     </div>
@@ -410,14 +410,14 @@ export default function StudioProjectsPage() {
         purpose="Everything you save from the Studio tools, kept on this device."
         points={[
           "Saved niche reports, ideas, scripts, decks and more in one list",
-          "Tag items — tag “meme” to collect them in the Meme Library",
+          "Tag items, tag “meme” to collect them in the Meme Library",
           "Stored only in this browser, on this device",
         ]}
       />
       <div className={studioCardClass}>
         <p className="flex gap-1.5 text-[13px] text-muted-foreground">
           <Info className="w-4 h-4 shrink-0 mt-px" />
-          At this tier, saved Studio work is stored in this browser on this device only —
+          At this tier, saved Studio work is stored in this browser on this device only,
           it is not synced to your account or backed up. Clearing browser data removes it.
         </p>
         {storageError && (
@@ -431,9 +431,9 @@ export default function StudioProjectsPage() {
         <div className={cn(studioCardClass, "text-center")}>
           <p className="text-sm font-medium">Nothing saved yet</p>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Use any Studio tool — Niche Finder, Ideas, Script Builder, Transcript
+            Use any Studio tool, Niche Finder, Ideas, Script Builder, Transcript
             Tools, Voiceover Studio, Thumbnail Editor, Presentations, the Stock
-            Libraries or SEO Workspace — then choose “Save to Projects”; it will
+            Libraries or SEO Workspace, then choose “Save to Projects”; it will
             appear here. Tag anything “meme” and it also shows in the Meme Library.
           </p>
         </div>
@@ -451,9 +451,9 @@ export default function StudioProjectsPage() {
                     aria-expanded={open}
                   >
                     {open ? (
-                      <ChevronDown className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
+                      <CaretDown className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
                     ) : (
-                      <ChevronRight className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
+                      <CaretRight className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
                     )}
                     <span className="min-w-0">
                       <span className="block text-sm font-medium truncate">{project.title}</span>
@@ -475,7 +475,7 @@ export default function StudioProjectsPage() {
                     className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                     title="Delete from this device"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                    <Trash className="w-3.5 h-3.5" /> Delete
                   </button>
                 </div>
                 {open && (

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { LegalLayout } from '@/components/legal/LegalLayout';
-import { CheckCircle, Clock, SearchX, AlertTriangle, HelpCircle } from 'lucide-react';
+import { CheckCircle, Clock, FileX, Warning, Question } from '@/components/phosphor';
 import { createServiceClient } from '@/lib/supabase/service';
 import { findDeletionRequestByCode, type DeletionRequestRow } from '@/lib/meta/accountData';
 
@@ -62,7 +62,7 @@ export default async function DataDeletionStatusPage({ searchParams }: StatusPag
       {result.kind === 'no-code' && (
         <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2">
           <div className="flex items-center gap-2 font-semibold text-base text-foreground">
-            <HelpCircle className="w-5 h-5 shrink-0" />
+            <Question className="w-5 h-5 shrink-0" />
             <span>No confirmation code provided</span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -81,7 +81,7 @@ export default async function DataDeletionStatusPage({ searchParams }: StatusPag
       {result.kind === 'unknown' && (
         <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2">
           <div className="flex items-center gap-2 font-semibold text-base text-foreground">
-            <SearchX className="w-5 h-5 shrink-0" />
+            <FileX className="w-5 h-5 shrink-0" />
             <span>Request not found</span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -98,7 +98,7 @@ export default async function DataDeletionStatusPage({ searchParams }: StatusPag
       {result.kind === 'unavailable' && (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
           <div className="flex items-center gap-2 font-semibold text-base text-foreground">
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+            <Warning className="w-5 h-5 text-amber-500 shrink-0" />
             <span>Status temporarily unavailable</span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -142,7 +142,7 @@ export default async function DataDeletionStatusPage({ searchParams }: StatusPag
       {result.kind === 'found' && result.row.status === 'not_found' && (
         <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-2">
           <div className="flex items-center gap-2 font-semibold text-base text-foreground">
-            <SearchX className="w-5 h-5 shrink-0" />
+            <FileX className="w-5 h-5 shrink-0" />
             <span>No data found</span>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -155,7 +155,7 @@ export default async function DataDeletionStatusPage({ searchParams }: StatusPag
       {result.kind === 'found' && result.row.status === 'failed' && (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-2">
           <div className="flex items-center gap-2 font-semibold text-base text-foreground">
-            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+            <Warning className="w-5 h-5 text-amber-500 shrink-0" />
             <span>Processing issue</span>
           </div>
           <p className="text-sm text-muted-foreground">

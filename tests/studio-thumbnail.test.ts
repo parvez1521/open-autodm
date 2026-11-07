@@ -31,11 +31,14 @@ import {
 } from "@/lib/studio/thumbnail";
 
 describe("document operations", () => {
-  it("creates a 1280x720 gradient doc with no layers", () => {
+  it("creates a 1280x720 doc with the solid ink default background and no layers", () => {
     const doc = createThumbnailDoc();
     expect(doc.width).toBe(1280);
     expect(doc.height).toBe(720);
-    expect(doc.background.type).toBe("gradient");
+    // Default background is a solid deep ink since the owner's design
+    // ban (2026-11-07) prohibited the old blue-to-purple gradient.
+    expect(doc.background.type).toBe("solid");
+    expect(doc.background.color).toBe("#111827");
     expect(doc.layers).toEqual([]);
     expect(THUMB_FONT_STACKS.length).toBeGreaterThanOrEqual(5);
   });
@@ -85,7 +88,8 @@ describe("document operations", () => {
     const next = setBackground(doc, { type: "solid", color: "#123456" });
     expect(next.background.type).toBe("solid");
     expect(next.background.color).toBe("#123456");
-    expect(doc.background.type).toBe("gradient");
+    expect(doc.background.type).toBe("solid");
+    expect(doc.background.color).toBe("#111827");
   });
 });
 

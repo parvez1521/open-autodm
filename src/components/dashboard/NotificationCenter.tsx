@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Check, CheckCircle2, ShieldAlert, X } from 'lucide-react';
+import { Bell, Check, CheckCircle, ShieldWarning, X } from '@/components/phosphor';
 import { useActiveAccount } from '@/hooks/useActiveAccount';
 import { useTrafficGuard } from '@/hooks/useTrafficGuard';
 import { cn } from '@/lib/utils';
@@ -77,7 +77,7 @@ export function NotificationCenter() {
           <div className="max-h-80 overflow-y-auto divide-y divide-border">
             {notifications.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground text-[13px]">
-                <CheckCircle2 className="w-5 h-5 mx-auto mb-2 text-muted-foreground/60" />
+                <CheckCircle className="w-5 h-5 mx-auto mb-2 text-muted-foreground/60" />
                 No traffic alerts. All systems running normally.
               </div>
             ) : (
@@ -91,9 +91,9 @@ export function NotificationCenter() {
                 >
                   <div className="mt-0.5 shrink-0">
                     {notif.type === 'high_traffic' ? (
-                      <ShieldAlert className="w-4 h-4 text-rose-500" />
+                      <ShieldWarning className="w-4 h-4 text-rose-500" />
                     ) : (
-                      <CheckCircle2 className="w-4 h-4 text-sky-500" />
+                      <CheckCircle className="w-4 h-4 text-sky-500" />
                     )}
                   </div>
 

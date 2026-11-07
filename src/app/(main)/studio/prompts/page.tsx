@@ -10,7 +10,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LibraryBig, ArrowUpRight } from "lucide-react";
+import { Books, ArrowUpRight } from "@/components/phosphor";
 import { PROMPT_CATEGORIES, searchPrompts } from "@/lib/studio/prompts";
 import { getBrowserHandoffStore } from "@/lib/studio/handoff";
 import type { PromptCategory } from "@/lib/studio/types";
@@ -54,24 +54,24 @@ export default function PromptLibraryPage() {
   return (
     <div className="space-y-5">
       <StudioToolHeader
-        icon={LibraryBig}
+        icon={Books}
         title="Prompt Library"
         purpose="Ready-to-use prompts for hooks, scripts, thumbnails, SEO and brand outreach."
         points={[
           "Search the library and filter by category",
-          "One-click copy — just fill in the [bracketed] parts",
+          "One-click copy, just fill in the [bracketed] parts",
           "Copy & open hand-off into the matching Studio tool",
         ]}
       />
       <div className={studioCardClass}>
         <p className="text-[13px] text-muted-foreground">
           Prompts written for creator work. Fill in the [bracketed] parts, then paste into
-          any AI chat tool — or use the hand-off to open the matching Studio tool.
+          any AI chat tool, or use the hand-off to open the matching Studio tool.
         </p>
         <div className="mt-4">
           <input
             className={studioInputClass}
-            placeholder="Search prompts — try “hook”, “thumbnail”, “brand”…"
+            placeholder="Search prompts, try “hook”, “thumbnail”, “brand”…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search prompts"

@@ -24,7 +24,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Building2, Check, ChevronsUpDown, Settings2 } from "lucide-react";
+import { Buildings, Check, CaretUpDown, GearSix } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "./WorkspaceProvider";
 
@@ -117,7 +117,7 @@ export function WorkspaceSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                 )}
                 title={isCollapsed ? (selectedWorkspace?.name ?? "Workspaces") : undefined}
             >
-                <Building2 className="w-4 h-4 shrink-0 text-muted-foreground" />
+                <Buildings className="w-4 h-4 shrink-0 text-muted-foreground" />
                 {!isCollapsed && (
                     <>
                         <div className="flex flex-col min-w-0 flex-1 text-left">
@@ -138,7 +138,7 @@ export function WorkspaceSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                                 {selectedWorkspace.role}
                             </span>
                         )}
-                        <ChevronsUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <CaretUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     </>
                 )}
             </button>
@@ -198,7 +198,7 @@ export function WorkspaceSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                             onClick={() => setOpen(false)}
                             className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12.5px] font-medium text-foreground hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
-                            <Settings2 className="w-3.5 h-3.5" />
+                            <GearSix className="w-3.5 h-3.5" />
                             Workspace settings
                         </Link>
                     </div>

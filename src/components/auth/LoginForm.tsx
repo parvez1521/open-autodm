@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, LogIn } from "lucide-react";
+import { CircleNotch, SignIn } from "@/components/phosphor";
 import { createBrowserClient } from "@/lib/supabase";
 import { LogoMark } from "@/components/ui/Logo";
 
@@ -42,16 +42,13 @@ export function LoginForm() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut", delay: 0.15 }}
-            className="w-full max-w-sm bg-card border border-border rounded-xl shadow-xl shadow-black/5 dark:shadow-black/40 overflow-hidden"
+            className="w-full max-w-sm bg-card border border-border rounded-xl overflow-hidden"
         >
-            {/* The warm thread */}
-            <div className="h-[2px] w-full ig-thread" />
-
             <div className="p-8">
                 <div className="flex flex-col mb-7">
                     <LogoMark className="w-9 h-9 mb-5" />
-                    {/* h2, not h1 (P27): the landing page's h1 is the hero
-                        headline; this card heading sits under it. */}
+                    {/* h2, not h1 (P27): the page's own h1 sits above
+                        this card; the card heading stays an h2. */}
                     <h2 className="text-lg font-heading font-semibold tracking-tight text-foreground mb-1">
                         Welcome back
                     </h2>
@@ -99,14 +96,14 @@ export function LoginForm() {
                         disabled={isLoading}
                         className="flex items-center justify-center gap-2 w-full h-10 mt-1 text-[13.5px] font-semibold bg-foreground text-background rounded-lg hover:opacity-90 disabled:opacity-60 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
-                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
+                        {isLoading ? <CircleNotch className="w-4 h-4 animate-spin" /> : <SignIn className="w-4 h-4" />}
                         {isLoading ? "Signing in…" : "Sign in"}
                     </button>
                 </form>
 
                 <div className="mt-6 pt-5 border-t border-border">
                     <p className="text-[11.5px] text-muted-foreground leading-relaxed">
-                        No account? Access is invite-only - the instance owner creates users in the
+                        No account? Access is invite-only, the instance owner creates users in the
                         Supabase dashboard <span className="text-foreground/70 font-medium">(Authentication → Users → Add user)</span>.
                     </p>
                 </div>

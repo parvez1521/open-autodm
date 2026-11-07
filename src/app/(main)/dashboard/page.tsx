@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Wrench, CheckCircle2, Circle, ArrowRight, Plus, PenLine, Clock } from "lucide-react";
+import { Wrench, CheckCircle, Circle, ArrowRight, Plus, PencilLine, Clock } from "@/components/phosphor";
 import { useAutomations } from "@/hooks/useAutomations";
 import { useContacts } from "@/hooks/useContacts";
 import { useAnalytics } from "@/hooks/useAnalytics";
@@ -64,7 +64,7 @@ export default function DashboardPage() {
             <div className="flex items-end justify-between gap-4">
                 <div>
                     <h1 className="text-xl font-heading font-semibold tracking-tight text-foreground">
-                        {connectedAccount ? <>Welcome back, <span className="text-transparent bg-clip-text ig-thread">@{connectedAccount.username}</span></> : "Welcome"}
+                        {connectedAccount ? <>Welcome back, <span className="text-primary">@{connectedAccount.username}</span></> : "Welcome"}
                     </h1>
                     <p className="text-[13px] text-muted-foreground mt-1">
                         Your self-hosted Instagram automation console.
@@ -161,7 +161,7 @@ export default function DashboardPage() {
                     <div className="flex items-start justify-between gap-4">
                         <div className="flex items-start gap-3.5 min-w-0">
                             <span className="w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                                <PenLine className="w-5 h-5 text-muted-foreground" strokeWidth={1.5} />
+                                <PencilLine className="w-5 h-5 text-muted-foreground" />
                             </span>
                             <div className="min-w-0">
                                 <h2 className="text-[14px] font-heading font-semibold text-foreground">Viral Script Writer</h2>
@@ -170,7 +170,7 @@ export default function DashboardPage() {
                                 </p>
                             </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+                        <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0 mt-1" />
                     </div>
                 </div>
             </Link>
@@ -196,7 +196,7 @@ export default function DashboardPage() {
                                 )}>
                                     <div className="flex items-center gap-2.5 min-w-0">
                                         {item.done
-                                            ? <CheckCircle2 className="w-4 h-4 text-secondary shrink-0" />
+                                            ? <CheckCircle className="w-4 h-4 text-secondary shrink-0" />
                                             : <Circle className="w-4 h-4 text-muted-foreground/40 shrink-0" />}
                                         <span className={cn(
                                             "text-[13px] truncate",
@@ -206,7 +206,7 @@ export default function DashboardPage() {
                                         </span>
                                     </div>
                                     {!item.done && (
-                                        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
+                                        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
                                     )}
                                 </div>
                             </Link>

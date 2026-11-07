@@ -19,18 +19,18 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  BookmarkPlus,
+  BookmarkSimple,
   Check,
-  ChevronLeft,
-  ChevronRight,
-  ExternalLink,
+  CaretLeft,
+  CaretRight,
+  ArrowSquareOut,
   Image as ImageIcon,
-  Laugh,
-  Library,
-  Loader2,
-  Music4,
-  Search,
-} from "lucide-react";
+  Smiley,
+  Images,
+  CircleNotch,
+  MusicNote,
+  MagnifyingGlass,
+} from "@/components/phosphor";
 import {
   getBrowserProjectStore,
   STUDIO_PROJECTS_SAVE_FAILED_MESSAGE,
@@ -79,24 +79,24 @@ function formatDuration(totalSec: number): string {
 
 const PEXELS_NOTES: Partial<Record<StockDegradation, string>> = {
   quota_reached:
-    "Pexels has reached its free quota for now, so search is paused. The quota is shared across the whole app — try again later.",
-  rate_limited: "Too many searches in a minute — wait a moment and try again.",
+    "Pexels has reached its free quota for now, so search is paused. The quota is shared across the whole app, try again later.",
+  rate_limited: "Too many searches in a minute, wait a moment and try again.",
   daily_quota_reached: "You have reached today's per-user search limit. Try again tomorrow.",
   provider_unavailable: "Pexels did not respond just now. Try again in a moment.",
-  signed_out: "Sign in again to search stock — anything you saved to Projects on this device is unaffected.",
+  signed_out: "Sign in again to search stock, anything you saved to Projects on this device is unaffected.",
 };
 
 const AUDIO_NOTES: Partial<Record<StockDegradation, string>> = {
   quota_reached:
     "The free stock-audio quota is used up for today. The free tier is one small shared pool (about 200 requests a day), so search pauses until it resets. Try again tomorrow.",
-  rate_limited: "Too many searches in a minute — wait a moment and try again.",
+  rate_limited: "Too many searches in a minute, wait a moment and try again.",
   daily_quota_reached: "You have reached today's per-user search limit. Try again tomorrow.",
   provider_unavailable: "Openverse did not respond just now. Try again in a moment.",
-  signed_out: "Sign in again to search stock audio — anything you saved to Projects on this device is unaffected.",
+  signed_out: "Sign in again to search stock audio, anything you saved to Projects on this device is unaffected.",
 };
 
 const NOT_CONFIGURED_TEXT =
-  "This tab searches Pexels. It needs a free Pexels API key, which the workspace owner adds as PEXELS_API_KEY. Until then the tab can't search — and no placeholder photos are shown, because presenting other images as stock results would be misleading.";
+  "This tab searches Pexels. It needs a free Pexels API key, which the workspace owner adds as PEXELS_API_KEY. Until then the tab can't search, and no placeholder photos are shown, because presenting other images as stock results would be misleading.";
 
 // ── Pexels (images / videos) ───────────────────────────────────────
 
@@ -184,8 +184,8 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
           rel="noreferrer"
         >
           Pexels
-        </a>{" "}
-        — free to use under the{" "}
+        </a>
+        {", free to use under the "}
         <a
           className="font-medium text-primary hover:underline"
           href={PEXELS_LICENSE_URL}
@@ -199,11 +199,11 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
 
       <div className={studioCardClass}>
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Search className="w-4.5 h-4.5" /> Stock {media === "image" ? "Images" : "Videos"}
+          <MagnifyingGlass className="w-4.5 h-4.5" /> Stock {media === "image" ? "Images" : "Videos"}
         </h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Search Pexels stock {media === "image" ? "photos" : "videos"}. Results are used as
-          references in your projects — save a reference to Projects or use an image in the
+          references in your projects, save a reference to Projects or use an image in the
           Thumbnail Editor. The Studio does not host copies of the files; they stay on
           Pexels.
         </p>
@@ -229,7 +229,7 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
             className={cn(studioPrimaryButtonClass, "shrink-0")}
             disabled={!input.trim() || loading}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ? <CircleNotch className="w-4 h-4 animate-spin" /> : <MagnifyingGlass className="w-4 h-4" />}
             Search
           </button>
         </form>
@@ -240,14 +240,14 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
           <p className="text-sm font-medium">Search to see stock {media === "image" ? "photos" : "videos"}</p>
           <p className="mt-1 text-[13px] text-muted-foreground">
             Type a search above. Every result keeps its photographer credit and its link back
-            to Pexels, and anything you save is stored as a reference — not as a hosted copy.
+            to Pexels, and anything you save is stored as a reference, not as a hosted copy.
           </p>
         </div>
       )}
 
       {loading && (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" /> Searching Pexels…
+          <CircleNotch className="w-4 h-4 animate-spin" /> Searching Pexels…
         </p>
       )}
 
@@ -270,7 +270,7 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
 
       {!loading && status === "ok" && items.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No results for “{query}” — try a different search.
+          No results for “{query}”, try a different search.
         </p>
       )}
 
@@ -313,7 +313,7 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    View on Pexels <ExternalLink className="w-3 h-3" />
+                    View on Pexels <ArrowSquareOut className="w-3 h-3" />
                   </a>
                 </p>
                 <div className="mt-auto flex flex-wrap gap-2 pt-3">
@@ -335,7 +335,7 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
                     {savedIds.has(item.id) ? (
                       <Check className="w-3.5 h-3.5" />
                     ) : (
-                      <BookmarkPlus className="w-3.5 h-3.5" />
+                      <BookmarkSimple className="w-3.5 h-3.5" />
                     )}
                     {savedIds.has(item.id) ? "Saved" : "Save reference"}
                   </button>
@@ -350,7 +350,7 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
               onClick={() => void runSearch(query, page - 1)}
               className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
             >
-              <ChevronLeft className="w-3.5 h-3.5" /> Prev
+              <CaretLeft className="w-3.5 h-3.5" /> Prev
             </button>
             <span className="text-xs text-muted-foreground">Page {page}</span>
             <button
@@ -359,7 +359,7 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
               onClick={() => void runSearch(query, page + 1)}
               className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
             >
-              Next <ChevronRight className="w-3.5 h-3.5" />
+              Next <CaretRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -439,19 +439,19 @@ function AudioPanel() {
           rel="noreferrer"
         >
           Openverse
-        </a>{" "}
-        — every result is filtered to licences that allow commercial use, and each keeps its
+        </a>
+        {", every result is filtered to licences that allow commercial use, and each keeps its "}
         own credit and licence.
       </div>
 
       <div className={studioCardClass}>
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Music4 className="w-4.5 h-4.5" /> Stock Audio
+          <MusicNote className="w-4.5 h-4.5" /> Stock Audio
         </h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Search openly licensed audio for beds, stingers and background tracks. Openverse
           does not verify the rights on each item, so check the licence on the item's page
-          before publishing — the credit and licence shown here travel with anything you
+          before publishing, the credit and licence shown here travel with anything you
           save.
         </p>
         <form
@@ -474,7 +474,7 @@ function AudioPanel() {
             className={cn(studioPrimaryButtonClass, "shrink-0")}
             disabled={!input.trim() || loading}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ? <CircleNotch className="w-4 h-4 animate-spin" /> : <MagnifyingGlass className="w-4 h-4" />}
             Search
           </button>
         </form>
@@ -484,7 +484,7 @@ function AudioPanel() {
         <div className={cn(studioCardClass, "text-center")}>
           <p className="text-sm font-medium">Search to see stock audio</p>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Type a search above. Only licences that allow commercial use are shown — anything
+            Type a search above. Only licences that allow commercial use are shown, anything
             with a NonCommercial condition is excluded before it reaches this list.
           </p>
         </div>
@@ -492,7 +492,7 @@ function AudioPanel() {
 
       {loading && (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" /> Searching Openverse…
+          <CircleNotch className="w-4 h-4 animate-spin" /> Searching Openverse…
         </p>
       )}
 
@@ -508,7 +508,7 @@ function AudioPanel() {
 
       {!loading && status === "ok" && items.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          No commercially usable results for “{query}” — try a different search.
+          No commercially usable results for “{query}”, try a different search.
         </p>
       )}
 
@@ -564,7 +564,7 @@ function AudioPanel() {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    View on Openverse <ExternalLink className="w-3 h-3" />
+                    View on Openverse <ArrowSquareOut className="w-3 h-3" />
                   </a>
                   <span className="flex-1" />
                   <button
@@ -576,7 +576,7 @@ function AudioPanel() {
                     {savedIds.has(item.id) ? (
                       <Check className="w-3.5 h-3.5" />
                     ) : (
-                      <BookmarkPlus className="w-3.5 h-3.5" />
+                      <BookmarkSimple className="w-3.5 h-3.5" />
                     )}
                     {savedIds.has(item.id) ? "Saved" : "Save reference"}
                   </button>
@@ -591,7 +591,7 @@ function AudioPanel() {
               onClick={() => void runSearch(query, page - 1)}
               className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
             >
-              <ChevronLeft className="w-3.5 h-3.5" /> Prev
+              <CaretLeft className="w-3.5 h-3.5" /> Prev
             </button>
             <span className="text-xs text-muted-foreground">
               Page {page} of {pageCount}
@@ -602,7 +602,7 @@ function AudioPanel() {
               onClick={() => void runSearch(query, page + 1)}
               className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
             >
-              Next <ChevronRight className="w-3.5 h-3.5" />
+              Next <CaretRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -651,7 +651,7 @@ function MemesPanel() {
     <div className="space-y-5">
       <div className={studioCardClass}>
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Laugh className="w-4.5 h-4.5" /> Your meme collection — add items from your projects
+          <Smiley className="w-4.5 h-4.5" /> Your meme collection, add items from your projects
           and uploads.
         </h2>
         <p className="mt-1 text-[13px] text-muted-foreground leading-relaxed">
@@ -669,7 +669,7 @@ function MemesPanel() {
         <div className={cn(studioCardClass, "text-center")}>
           <p className="text-sm font-medium">No memes collected yet</p>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Open any project in Projects, expand it, and add the tag &lsquo;meme&rsquo; — or use
+            Open any project in Projects, expand it, and add the tag &lsquo;meme&rsquo;, or use
             its &lsquo;+ meme&rsquo; shortcut. Tagged items will collect here automatically.
           </p>
           <p className="mt-2">
@@ -747,13 +747,13 @@ function LibraryContent() {
   return (
     <div className="space-y-5">
       <StudioToolHeader
-        icon={Library}
+        icon={Images}
         title="Stock Libraries"
         purpose="Free stock images, videos and audio with their credits attached, plus your own meme collection."
         points={[
           "Pexels images and videos, photographer credit on every result",
           "Commercial-use audio from Openverse, licence kept on every item",
-          "Save references to Projects — the files stay with the provider",
+          "Save references to Projects, the files stay with the provider",
         ]}
       />
       <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Stock libraries">
@@ -789,7 +789,7 @@ export default function StudioLibraryPage() {
     <Suspense
       fallback={
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading the library…
+          <CircleNotch className="w-4 h-4 animate-spin" /> Loading the library…
         </p>
       }
     >

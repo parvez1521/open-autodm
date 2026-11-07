@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/phosphor";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 
 export const metadata: Metadata = {
-    title: "Sign in — open-autoDM",
+    title: "Sign in | open-autoDM",
     description: "Sign in to your open-autoDM console.",
 };
 
@@ -16,16 +16,6 @@ export const metadata: Metadata = {
 export default function LoginPage() {
     return (
         <div className="relative flex min-h-screen flex-col bg-background text-foreground">
-            {/* Quiet dot grid, the console's own motif */}
-            <div
-                className="pointer-events-none fixed inset-0 opacity-[0.07] dark:opacity-[0.16]"
-                style={{
-                    backgroundImage:
-                        "radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)",
-                    backgroundSize: "32px 32px",
-                }}
-            />
-
             {/* Header */}
             <header className="relative z-10">
                 <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-6 lg:px-10">

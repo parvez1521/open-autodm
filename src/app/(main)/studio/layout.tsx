@@ -16,7 +16,7 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       <div className="mb-6 border-b border-border pb-5">
         <h1 className="text-xl font-semibold tracking-tight">Creator Studio</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Plan, write and package your next video — niche to publish — with built-in
+          Plan, write and package your next video, from niche to publish, with built-in
           tools that work offline and free AI where it is configured.
         </p>
       </div>

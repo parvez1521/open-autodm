@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageCircle, Send, Image as ImageIcon, Clock, Sparkles, Pencil, Layers, Instagram, AlertTriangle, Trash2, X, MousePointerClick } from "lucide-react";
+import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Stack, InstagramLogo, Warning, Trash, X, CursorClick } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; className: string }> = {
-    comment_dm: { label: "Comment → DM", icon: MessageCircle, className: "bg-[#F97316]/10 text-[#F97316]" },
-    dm_reply: { label: "DM Reply", icon: Send, className: "bg-blue-500/10 text-blue-500" },
+    comment_dm: { label: "Comment → DM", icon: ChatCircle, className: "bg-[#F97316]/10 text-[#F97316]" },
+    dm_reply: { label: "DM Reply", icon: PaperPlaneTilt, className: "bg-blue-500/10 text-blue-500" },
     story_reply: { label: "Story Reply", icon: ImageIcon, className: "bg-emerald-500/10 text-emerald-500" },
 };
 
@@ -46,7 +46,7 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
         return (
             <div className="flex flex-col items-center justify-center p-14 text-center border border-border border-dashed rounded-xl">
                 <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center mb-4">
-                    <Sparkles className="w-5 h-5 text-muted-foreground" />
+                    <Lightning className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <h3 className="text-[15px] font-heading font-semibold mb-1 text-foreground">No automations yet</h3>
                 <p className="text-[13px] text-muted-foreground max-w-xs">
@@ -60,14 +60,14 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
         <div className="flex flex-col space-y-2 w-full">
             {deleteError && (
                 <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-destructive/10 text-[13px] text-destructive font-medium">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <Warning className="w-3.5 h-3.5 shrink-0" />
                     {deleteError}
                 </div>
             )}
 
             {automations.map((automation, idx) => {
                 const isActive = automation.is_active;
-                const typeConfig = TYPE_CONFIG[automation.type] ?? { label: automation.type, icon: MessageCircle, className: "bg-muted text-muted-foreground" };
+                const typeConfig = TYPE_CONFIG[automation.type] ?? { label: automation.type, icon: ChatCircle, className: "bg-muted text-muted-foreground" };
                 const TypeIcon = typeConfig.icon;
                 const isConfirmingDelete = confirmDeleteId === automation.id;
                 const hasPost = !!automation.post_id;
@@ -98,11 +98,11 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                         </div>
                                     ) : hasPost ? (
                                         <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                            <Instagram className="w-4 h-4 text-muted-foreground/60" />
+                                            <InstagramLogo className="w-4 h-4 text-muted-foreground/60" />
                                         </div>
                                     ) : (
                                         <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                            <Layers className="w-4 h-4 text-muted-foreground/60" />
+                                            <Stack className="w-4 h-4 text-muted-foreground/60" />
                                         </div>
                                     )}
                                 </div>
@@ -118,7 +118,7 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                     </div>
                                     <div className="flex items-center text-[12px] text-muted-foreground gap-3 min-w-0">
                                         <span className="flex items-center gap-1 truncate">
-                                            <MousePointerClick className="w-3 h-3 opacity-60 shrink-0" />
+                                            <CursorClick className="w-3 h-3 opacity-60 shrink-0" />
                                             {triggerDescription(automation)}
                                         </span>
                                         {automation.type === "comment_dm" && (
@@ -179,7 +179,7 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                         className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                                         title="Delete automation"
                                     >
-                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <Trash className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
                             </div>
@@ -210,7 +210,7 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                                 onClick={() => { setConfirmDeleteId(null); onDelete(automation.id); }}
                                                 className="inline-flex items-center gap-1 h-7 px-2.5 text-[12px] font-semibold text-white bg-destructive hover:bg-destructive/90 rounded-md transition-colors"
                                             >
-                                                <Trash2 className="w-3 h-3" /> Delete
+                                                <Trash className="w-3 h-3" /> Delete
                                             </button>
                                         </div>
                                     </div>

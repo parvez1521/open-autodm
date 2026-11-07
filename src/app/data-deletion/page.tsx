@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { LegalLayout } from '@/components/legal/LegalLayout';
 import { DeletionStatusBanner } from '@/components/legal/DeletionStatusBanner';
 import Link from 'next/link';
-import { Trash2, AlertTriangle, CheckCircle, Mail } from 'lucide-react';
+import { Trash, Warning, CheckCircle, Envelope } from '@/components/phosphor';
 import { getDashboardLink } from '@/lib/env';
 
 export const metadata: Metadata = {
@@ -178,7 +178,7 @@ export default async function DataDeletionPage({ searchParams }: DataDeletionPag
 
           {/* Security Alert */}
           <div className="flex items-start gap-3 p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-foreground text-[13px] leading-relaxed">
-            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            <Warning className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div>
               <strong className="text-amber-600 dark:text-amber-400">Security Warning:</strong> Never send passwords,
               private encryption keys, or API secrets via email. We will never ask you for your Instagram or Supabase

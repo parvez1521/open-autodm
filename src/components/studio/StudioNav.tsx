@@ -16,19 +16,19 @@ import {
   Compass,
   Crosshair,
   Lightbulb,
-  PenLine,
-  AudioLines,
+  PencilLine,
+  Waveform,
   FileText,
   Image as ImageIcon,
   Presentation,
-  SearchCheck,
-  LibraryBig,
+  FileMagnifyingGlass,
+  Books,
   FolderOpen,
   Images,
-  Clapperboard,
-  Music4,
-  Laugh,
-} from "lucide-react";
+  FilmSlate,
+  MusicNote,
+  Smiley,
+} from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 
 interface NavEntry {
@@ -52,8 +52,8 @@ const GROUPS: NavGroup[] = [
     entries: [
       { name: "Niche Finder", href: "/studio/niche", icon: Crosshair },
       { name: "Next Video Ideas", href: "/studio/ideas", icon: Lightbulb },
-      { name: "Script Builder", href: "/studio/script", icon: PenLine },
-      { name: "Voiceover Studio", href: "/studio/voiceover", icon: AudioLines },
+      { name: "Script Builder", href: "/studio/script", icon: PencilLine },
+      { name: "Voiceover Studio", href: "/studio/voiceover", icon: Waveform },
       { name: "Transcript Tools", href: "/studio/transcript", icon: FileText },
       { name: "Thumbnail Editor", href: "/studio/thumbnail", icon: ImageIcon },
       { name: "Presentations", href: "/studio/presentations", icon: Presentation },
@@ -62,17 +62,17 @@ const GROUPS: NavGroup[] = [
   {
     label: "Grow",
     entries: [
-      { name: "SEO Workspace", href: "/studio/seo", icon: SearchCheck },
-      { name: "Prompt Library", href: "/studio/prompts", icon: LibraryBig },
+      { name: "SEO Workspace", href: "/studio/seo", icon: FileMagnifyingGlass },
+      { name: "Prompt Library", href: "/studio/prompts", icon: Books },
     ],
   },
   {
     label: "Library",
     entries: [
       { name: "Stock Images", href: "/studio/library?tab=images", icon: Images },
-      { name: "Stock Videos", href: "/studio/library?tab=videos", icon: Clapperboard },
-      { name: "Stock Audio", href: "/studio/library?tab=audio", icon: Music4 },
-      { name: "Meme Library", href: "/studio/library?tab=memes", icon: Laugh },
+      { name: "Stock Videos", href: "/studio/library?tab=videos", icon: FilmSlate },
+      { name: "Stock Audio", href: "/studio/library?tab=audio", icon: MusicNote },
+      { name: "Meme Library", href: "/studio/library?tab=memes", icon: Smiley },
       { name: "Projects", href: "/studio/projects", icon: FolderOpen },
     ],
   },

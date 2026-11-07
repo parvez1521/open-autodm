@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Instagram, CheckCircle2, XCircle, Loader2, Unlink, AlertTriangle, RefreshCw, Wrench, PauseCircle } from "lucide-react";
+import { InstagramLogo, CheckCircle, XCircle, CircleNotch, LinkBreak, Warning, ArrowsClockwise, Wrench, PauseCircle } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase";
 import { apiClient, ApiError } from "@/lib/api/client";
@@ -13,7 +13,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export default function SettingsPage() {
     return (
-        <Suspense fallback={<div className="w-full max-w-3xl mx-auto py-24 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>}>
+        <Suspense fallback={<div className="w-full max-w-3xl mx-auto py-24 flex justify-center"><CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" /></div>}>
             <SettingsContent />
         </Suspense>
     );
@@ -161,7 +161,7 @@ function SettingsContent() {
                         : "bg-destructive/10 text-destructive"
                 )}>
                     {banner.type === "success"
-                        ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        ? <CheckCircle className="w-4 h-4 shrink-0" />
                         : <XCircle className="w-4 h-4 shrink-0" />}
                     <span className="min-w-0">{banner.message}</span>
                 </div>
@@ -205,7 +205,7 @@ function SettingsContent() {
                         disabled={connectingIG}
                         className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 disabled:opacity-60 transition-opacity shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
-                        {connectingIG ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Instagram className="w-3.5 h-3.5" />}
+                        {connectingIG ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <InstagramLogo className="w-3.5 h-3.5" />}
                         {connectingIG ? "Connecting…" : "Connect"}
                     </button>
                 </div>
@@ -239,7 +239,7 @@ function SettingsContent() {
                                             : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                                     )}>
                                         <div className="flex items-center gap-2 min-w-0">
-                                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                            <Warning className="w-3.5 h-3.5 shrink-0" />
                                             <span className="truncate">
                                                 {account.token_status === "expired"
                                                     ? "Token expired - automations paused. Reconnect to resume."
@@ -252,7 +252,7 @@ function SettingsContent() {
                                                 disabled={refreshingId === account.id}
                                                 className="inline-flex items-center gap-1 font-semibold shrink-0 hover:opacity-80"
                                             >
-                                                {refreshingId === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                                {refreshingId === account.id ? <CircleNotch className="w-3 h-3 animate-spin" /> : <ArrowsClockwise className="w-3 h-3" />}
                                                 Refresh
                                             </button>
                                         ) : (
@@ -269,12 +269,12 @@ function SettingsContent() {
 
                                 <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className="relative w-9 h-9 rounded-full ig-ring p-[1.5px] shrink-0">
+                                        <div className="relative w-9 h-9 rounded-full border border-border shrink-0">
                                             <div className="w-full h-full rounded-full bg-background overflow-hidden flex items-center justify-center">
                                                 {account.profile_picture_url ? (
                                                     <img src={account.profile_picture_url} alt={account.username} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <Instagram className="w-4 h-4 text-muted-foreground" />
+                                                    <InstagramLogo className="w-4 h-4 text-muted-foreground" />
                                                 )}
                                             </div>
                                         </div>
@@ -282,8 +282,8 @@ function SettingsContent() {
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[13px] font-semibold text-foreground truncate">@{account.username}</span>
                                                 {account.token_status === "ok" && !account.is_paused
-                                                    ? <CheckCircle2 className="w-3.5 h-3.5 text-secondary shrink-0" />
-                                                    : <AlertTriangle className={cn("w-3.5 h-3.5 shrink-0", account.token_status === "expired" ? "text-destructive" : "text-amber-500")} />}
+                                                    ? <CheckCircle className="w-3.5 h-3.5 text-secondary shrink-0" />
+                                                    : <Warning className={cn("w-3.5 h-3.5 shrink-0", account.token_status === "expired" ? "text-destructive" : "text-amber-500")} />}
                                             </div>
                                             <span className="text-[11px] text-muted-foreground">
                                                 Connected {new Date(account.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -298,7 +298,7 @@ function SettingsContent() {
                                             title="Check which webhook fields Meta has active for this account"
                                             className="inline-flex items-center gap-1 h-7 px-2 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                                         >
-                                            {checkingSubId === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                            {checkingSubId === account.id ? <CircleNotch className="w-3 h-3 animate-spin" /> : null}
                                             {checkingSubId === account.id ? "Checking…" : "Check status"}
                                         </button>
                                         <button
@@ -307,7 +307,7 @@ function SettingsContent() {
                                             title="Re-sync the webhook subscription"
                                             className="inline-flex items-center gap-1 h-7 px-2 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                                         >
-                                            {resubscribingId === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                                            {resubscribingId === account.id ? <CircleNotch className="w-3 h-3 animate-spin" /> : <ArrowsClockwise className="w-3 h-3" />}
                                             {resubscribingId === account.id ? "Syncing…" : "Fix webhooks"}
                                         </button>
                                         <button
@@ -315,7 +315,7 @@ function SettingsContent() {
                                             disabled={disconnectingId === account.id}
                                             className="inline-flex items-center gap-1 h-7 px-2 text-[12px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                                         >
-                                            {disconnectingId === account.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Unlink className="w-3 h-3" />}
+                                            {disconnectingId === account.id ? <CircleNotch className="w-3 h-3 animate-spin" /> : <LinkBreak className="w-3 h-3" />}
                                             Disconnect
                                         </button>
                                     </div>
@@ -354,7 +354,7 @@ function SettingsContent() {
                         ))
                     ) : (
                         <div className="text-center py-8 text-[13px] text-muted-foreground">
-                            <Instagram className="w-6 h-6 mx-auto mb-2 opacity-30" />
+                            <InstagramLogo className="w-6 h-6 mx-auto mb-2 opacity-30" />
                             <p>No accounts connected yet.</p>
                         </div>
                     )}

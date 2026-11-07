@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { AutomationsList } from "@/components/automations/AutomationsList";
 import { ContactsList } from "@/components/automations/ContactsList";

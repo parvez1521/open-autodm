@@ -11,7 +11,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { apiClient } from "@/lib/api/client";
-import { ChevronDown, ChevronUp, Trash2, RefreshCw, Circle } from "lucide-react";
+import { CaretDown, CaretUp, Trash, ArrowsClockwise, Circle } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 
 interface DebugEvent {
@@ -39,7 +39,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const SERVICE_COLORS: Record<string, string> = {
-  webhook:   "text-purple-400",
+  webhook:   "text-primary",
   worker:    "text-cyan-400",
   instagram: "text-pink-400",
 };
@@ -60,7 +60,7 @@ function MetadataBlock({ metadata }: { metadata: Record<string, unknown> }) {
         onClick={() => setOpen(v => !v)}
         className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-0.5"
       >
-        {open ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+        {open ? <CaretUp className="w-2.5 h-2.5" /> : <CaretDown className="w-2.5 h-2.5" />}
         {open ? "hide" : `${keys.length} field${keys.length !== 1 ? "s" : ""}`}
       </button>
       {open && (
@@ -151,8 +151,8 @@ function DebugPanelInner(): React.ReactElement {
             className="flex items-center gap-2 text-zinc-300 hover:text-white transition-colors"
           >
             {isCollapsed
-              ? <ChevronDown className="w-3.5 h-3.5" />
-              : <ChevronUp   className="w-3.5 h-3.5" />
+              ? <CaretDown className="w-3.5 h-3.5" />
+              : <CaretUp   className="w-3.5 h-3.5" />
             }
             <span className="text-xs font-bold tracking-widest uppercase text-zinc-400">
               Automation Debug Log
@@ -190,7 +190,7 @@ function DebugPanelInner(): React.ReactElement {
               className="p-1.5 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/40 rounded-lg transition-colors"
               title="Refresh now"
             >
-              <RefreshCw className="w-3.5 h-3.5" />
+              <ArrowsClockwise className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => { void handleClear(); }}
@@ -198,7 +198,7 @@ function DebugPanelInner(): React.ReactElement {
               className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors disabled:opacity-30"
               title="Clear all events"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash className="w-3.5 h-3.5" />
             </button>
           </div>
         )}

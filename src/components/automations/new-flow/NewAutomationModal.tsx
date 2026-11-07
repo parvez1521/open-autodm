@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ArrowLeft, Check, AlertTriangle, Loader2 } from "lucide-react";
+import { X, ArrowLeft, Check, Warning, CircleNotch } from "@/components/phosphor";
 import { useState, useEffect, useCallback } from "react";
 
 import { SelectTypeStep } from "./steps/SelectTypeStep";
@@ -308,7 +308,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        className="absolute inset-0 bg-black/50"
                         onClick={handleClose}
                     />
 
@@ -320,9 +320,6 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                         transition={{ type: "spring", damping: 30, stiffness: 300 }}
                         className="relative w-full h-full max-w-[96vw] lg:max-w-6xl max-h-[92vh] bg-background border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden z-10"
                     >
-                        {/* The warm thread - top edge */}
-                        <div className="h-[2px] w-full ig-thread shrink-0" />
-
                         {/* Header */}
                         <div className="h-12 shrink-0 border-b border-border flex items-center justify-between px-4 gap-3">
                             <span className="text-[13px] font-semibold text-foreground truncate">{stepTitle}</span>
@@ -338,7 +335,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                                     <>
                                         {activateError && (
                                             <span className="text-[12px] text-destructive font-medium max-w-[240px] truncate flex items-center gap-1">
-                                                <AlertTriangle className="w-3 h-3 shrink-0" />{activateError}
+                                                <Warning className="w-3 h-3 shrink-0" />{activateError}
                                             </span>
                                         )}
                                         <button
@@ -346,7 +343,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                                             onClick={() => handleSave(false)}
                                             className="inline-flex items-center gap-1.5 h-8 px-3 text-[13px] font-medium text-foreground border border-border hover:bg-muted disabled:opacity-50 rounded-lg transition-colors"
                                         >
-                                            {isSaving && <Loader2 className="w-3 h-3 animate-spin" />}
+                                            {isSaving && <CircleNotch className="w-3 h-3 animate-spin" />}
                                             {isSaving ? "Saving…" : "Save"}
                                         </button>
                                         <button
@@ -354,7 +351,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                                             onClick={() => handleSave(true)}
                                             className="inline-flex items-center gap-1.5 h-8 px-3 text-[13px] font-semibold bg-foreground text-background hover:opacity-90 disabled:opacity-50 rounded-lg transition-opacity"
                                         >
-                                            {isActivating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                                            {isActivating ? <CircleNotch className="w-3 h-3 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                                             {isActivating ? "Activating…" : "Activate"}
                                         </button>
                                     </>
@@ -413,7 +410,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
-                                    className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm"
+                                    className="absolute inset-0 z-20 flex items-center justify-center bg-black/50"
                                 >
                                     <motion.div
                                         initial={{ scale: 0.97, y: 6 }}
@@ -423,7 +420,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                                     >
                                         <div className="flex items-center gap-3 mb-4">
                                             <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
-                                                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                                                <Warning className="w-4 h-4 text-amber-500" />
                                             </div>
                                             <div>
                                                 <p className="text-[13.5px] font-semibold text-foreground">Unsaved changes</p>
