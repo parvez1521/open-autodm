@@ -50,11 +50,16 @@ describe('B-1 — landing footer reaches the legal routes', () => {
   });
 
   it('every in-page anchor used on the landing page resolves to an element id', () => {
-    for (const anchor of ['id="signin"', 'id="how"', 'id="script-writer"']) {
+    // Owner redesign (2026-11-07): the login form no longer lives on the
+    // landing page — sign-in is the dedicated /login route, and the
+    // landing carries platform/automation/creator-studio anchors instead.
+    for (const anchor of ['id="platform"', 'id="automation"', 'id="how"', 'id="script-writer"', 'id="creator-studio"']) {
       expect(pageSrc).toContain(anchor);
     }
-    expect(pageSrc).toContain('href="#signin"');
-    expect(pageSrc).toContain('href="#how"');
+    expect(pageSrc).toContain('href="/login"');
+    // The header nav carries its anchors in a data array (rendered
+    // dynamically), same convention as the FEATURES cards below.
+    expect(pageSrc).toContain('href: "#how"');
     // The Script Writer feature card carries its anchor in the
     // FEATURES data (rendered as href={f.href}).
     expect(pageSrc).toContain('href: "#script-writer"');

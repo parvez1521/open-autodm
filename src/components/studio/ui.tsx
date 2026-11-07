@@ -3,7 +3,7 @@
 /** Small shared building blocks for Creator Studio pages (Programme S1). */
 
 import { useState } from "react";
-import { Check, Copy, Sparkles, Cpu } from "lucide-react";
+import { Check, Copy, Sparkles, Cpu, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EngineLabel } from "@/lib/studio/types";
 
@@ -59,3 +59,50 @@ export const studioPrimaryButtonClass =
   "inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50";
 
 export const studioCardClass = "rounded-xl border border-border bg-card p-5";
+
+/**
+ * Shared page header for every Creator Studio tool (Studio restructure).
+ *
+ * One dedicated header per tool page: an icon tile, the tool's name, a
+ * one-line purpose, and up to three short "what you get" points.
+ * Server-safe — no hooks, presentation only.
+ */
+export function StudioToolHeader({
+  icon: Icon,
+  title,
+  purpose,
+  points,
+}: {
+  icon: LucideIcon;
+  title: string;
+  purpose: string;
+  points?: string[];
+}) {
+  const shown = points?.slice(0, 3) ?? [];
+  return (
+    <header>
+      <div className="flex items-start gap-3.5">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="w-5 h-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{purpose}</p>
+        </div>
+      </div>
+      {shown.length > 0 && (
+        <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {shown.map((point) => (
+            <li
+              key={point}
+              className="flex items-start gap-2 rounded-lg bg-muted/50 px-3 py-2 text-[13px] text-muted-foreground"
+            >
+              <Check className="mt-0.5 w-3.5 h-3.5 shrink-0 text-primary" />
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </header>
+  );
+}

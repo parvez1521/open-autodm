@@ -68,6 +68,7 @@ import type {
   ThumbnailProjectPayload,
 } from "@/lib/studio/types";
 import {
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioLabelClass,
@@ -560,11 +561,18 @@ export default function ThumbnailEditorPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={ImageIcon}
+        title="Thumbnail Editor"
+        purpose="Compose a 1280×720 thumbnail on a canvas editor with templates and your own images."
+        points={[
+          "Layer-based canvas with drag, resize and rotate",
+          "Templates, text, shapes, backgrounds and your own images",
+          "Exports a PNG at exactly 1280×720; optional AI images on the free tier",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <ImageIcon className="w-4.5 h-4.5" /> Thumbnail Editor
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Design a thumbnail on a 1280×720 canvas and export it as a PNG at exactly that size.
           Everything edits locally in your browser; AI images are an optional extra.
         </p>

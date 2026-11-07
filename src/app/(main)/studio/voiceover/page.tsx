@@ -46,6 +46,7 @@ import {
 import { KokoroEngineError, generateVoiceoverWav } from "@/lib/studio/kokoroEngine";
 import type { VoiceLanguage, VoiceoverProjectPayload } from "@/lib/studio/types";
 import {
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioLabelClass,
@@ -229,11 +230,18 @@ export default function VoiceoverStudioPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={AudioLines}
+        title="Voiceover Studio"
+        purpose="Turn the script into narration in the browser — no uploads, no paid voices."
+        points={[
+          "Instant preview with your browser's built-in voice",
+          "Export a real WAV with Kokoro-82M running on your device",
+          "Your text never leaves the device for either engine",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <AudioLines className="w-4.5 h-4.5" /> Voiceover Studio
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Turn a script into narration without uploading anything. Preview instantly with
           your browser's built-in voice, or export a real audio file with the Kokoro-82M
           voice model running on this device. Both are free; neither sends your text to a

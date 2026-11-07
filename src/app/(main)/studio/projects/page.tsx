@@ -39,7 +39,7 @@ import type {
   TranscriptProjectPayload,
   VoiceoverProjectPayload,
 } from "@/lib/studio/types";
-import { studioCardClass } from "@/components/studio/ui";
+import { StudioToolHeader, studioCardClass } from "@/components/studio/ui";
 import { cn } from "@/lib/utils";
 
 const KIND_LABELS: Record<StudioProject["kind"], string> = {
@@ -404,11 +404,18 @@ export default function StudioProjectsPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={FolderOpen}
+        title="Projects"
+        purpose="Everything you save from the Studio tools, kept on this device."
+        points={[
+          "Saved niche reports, ideas, scripts, decks and more in one list",
+          "Tag items — tag “meme” to collect them in the Meme Library",
+          "Stored only in this browser, on this device",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <FolderOpen className="w-4.5 h-4.5" /> Projects
-        </h2>
-        <p className="mt-1 flex gap-1.5 text-[13px] text-muted-foreground">
+        <p className="flex gap-1.5 text-[13px] text-muted-foreground">
           <Info className="w-4 h-4 shrink-0 mt-px" />
           At this tier, saved Studio work is stored in this browser on this device only —
           it is not synced to your account or backed up. Clearing browser data removes it.

@@ -20,6 +20,7 @@ import {
 import {
   CopyButton,
   EngineBadge,
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioLabelClass,
@@ -59,11 +60,18 @@ export default function SeoWorkspacePage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={SearchCheck}
+        title="SEO Workspace"
+        purpose="Titles, a structured description and a right-sized tag list, ready to paste."
+        points={[
+          "Title options with character counts",
+          "A structured description, ready to paste",
+          "Tags sized to YouTube's ~500-character budget",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <SearchCheck className="w-4.5 h-4.5" /> SEO Workspace
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Turn a topic into a publish-ready pack: titles, a description and tags sized to
           platform limits. Works fully offline.
         </p>

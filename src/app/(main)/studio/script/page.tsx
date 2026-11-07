@@ -45,6 +45,7 @@ import type { ScriptDraft, ScriptFormat, ScriptTone } from "@/lib/studio/types";
 import {
   EngineBadge,
   CopyButton,
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioLabelClass,
@@ -212,11 +213,18 @@ export default function ScriptBuilderPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={PenLine}
+        title="Script Builder"
+        purpose="Build a structured script with a hook, sections and a closing call to action."
+        points={[
+          "Hook, timed sections and a closing call to action",
+          "Three formats and four tones — every section editable",
+          "Copy, download, save to Projects, or send to Voiceover Studio",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <PenLine className="w-4.5 h-4.5" /> Script Builder
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Turn a topic into a complete, ready-to-read script. The built-in engine builds it
           instantly and works fully offline; free AI can polish individual sections afterwards.
         </p>

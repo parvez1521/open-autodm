@@ -17,6 +17,7 @@ import {
   STUDIO_PROJECTS_SAVE_FAILED_MESSAGE,
 } from "@/lib/studio/projects";
 import {
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioLabelClass,
@@ -80,11 +81,18 @@ export default function NicheFinderPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={Crosshair}
+        title="Niche Finder"
+        purpose="Score a topic before you commit to it — demand, competition, ease and earning potential."
+        points={[
+          "Scores for demand, competition, ease of starting and earning potential",
+          "Audience size and indicative CPM bands for the niche",
+          "Save the report to Projects to compare niches later",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Crosshair className="w-4.5 h-4.5" /> Niche Finder
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Describe the niche you are considering. The Studio scores it against its
           built-in dataset of creator niches.
         </p>

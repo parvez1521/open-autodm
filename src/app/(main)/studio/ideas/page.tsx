@@ -28,6 +28,7 @@ import {
 } from "@/lib/studio/projects";
 import {
   EngineBadge,
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioLabelClass,
@@ -109,11 +110,18 @@ export default function VideoIdeasPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={Lightbulb}
+        title="Next Video Ideas"
+        purpose="Generate video ideas in proven formats, audience questions and trending angles."
+        points={[
+          "Three idea styles — proven formats, audience questions, trending angles",
+          "Optional Free AI enhancement, always labelled by engine",
+          "Save ideas to Projects, or write the script in one click",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Lightbulb className="w-4.5 h-4.5" /> Next Video Ideas
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Pick a topic and a style. The built-in engine answers instantly; free AI can
           enhance the list when it is configured on this instance.
         </p>

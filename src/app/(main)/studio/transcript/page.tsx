@@ -33,6 +33,7 @@ import {
 import { getBrowserHandoffStore } from "@/lib/studio/handoff";
 import {
   CopyButton,
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioLabelClass,
@@ -133,11 +134,18 @@ export default function TranscriptToolsPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={FileText}
+        title="Transcript Tools"
+        purpose="Clean, format and reuse transcripts — paste or upload, no fetching."
+        points={[
+          "Paste text or upload .srt, .vtt or .txt caption files",
+          "Timestamped and clean-text views, with word and timing stats",
+          "Download clean text or SRT, or send it to the Script Builder",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <FileText className="w-4.5 h-4.5" /> Transcript Tools
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Bring in a transcript, tidy it up, and reuse it: check the timing and speaking
           rate, read it with timestamps or as clean text, download it, save it to Projects,
           or send the clean text straight into the Script Builder.

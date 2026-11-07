@@ -48,6 +48,7 @@ import {
 import type { Deck, ScriptTone } from "@/lib/studio/types";
 import {
   EngineBadge,
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioLabelClass,
@@ -269,11 +270,18 @@ export default function PresentationsPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={Presentation}
+        title="Presentations"
+        purpose="Turn a topic into a slide deck — present in the browser or export it."
+        points={[
+          "A complete deck from a topic and audience in seconds",
+          "Edit, reorder and present fullscreen in the browser",
+          "Export a standalone HTML deck, or print one slide per page to PDF",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <Presentation className="w-4.5 h-4.5" /> Presentations
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Turn a topic into a complete slide deck you can present, export, and reuse.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">

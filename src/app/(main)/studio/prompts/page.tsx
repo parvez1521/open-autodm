@@ -14,7 +14,12 @@ import { LibraryBig, ArrowUpRight } from "lucide-react";
 import { PROMPT_CATEGORIES, searchPrompts } from "@/lib/studio/prompts";
 import { getBrowserHandoffStore } from "@/lib/studio/handoff";
 import type { PromptCategory } from "@/lib/studio/types";
-import { CopyButton, studioCardClass, studioInputClass } from "@/components/studio/ui";
+import {
+  CopyButton,
+  StudioToolHeader,
+  studioCardClass,
+  studioInputClass,
+} from "@/components/studio/ui";
 import { cn } from "@/lib/utils";
 
 type Filter = PromptCategory | "All";
@@ -48,11 +53,18 @@ export default function PromptLibraryPage() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={LibraryBig}
+        title="Prompt Library"
+        purpose="Ready-to-use prompts for hooks, scripts, thumbnails, SEO and brand outreach."
+        points={[
+          "Search the library and filter by category",
+          "One-click copy — just fill in the [bracketed] parts",
+          "Copy & open hand-off into the matching Studio tool",
+        ]}
+      />
       <div className={studioCardClass}>
-        <h2 className="flex items-center gap-2 text-base font-semibold">
-          <LibraryBig className="w-4.5 h-4.5" /> Prompt Library
-        </h2>
-        <p className="mt-1 text-[13px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Prompts written for creator work. Fill in the [bracketed] parts, then paste into
           any AI chat tool — or use the hand-off to open the matching Studio tool.
         </p>

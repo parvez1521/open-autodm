@@ -26,6 +26,7 @@ import {
   ExternalLink,
   Image as ImageIcon,
   Laugh,
+  Library,
   Loader2,
   Music4,
   Search,
@@ -49,6 +50,7 @@ import type {
   ThumbnailProjectPayload,
 } from "@/lib/studio/types";
 import {
+  StudioToolHeader,
   studioCardClass,
   studioInputClass,
   studioPrimaryButtonClass,
@@ -744,6 +746,16 @@ function LibraryContent() {
 
   return (
     <div className="space-y-5">
+      <StudioToolHeader
+        icon={Library}
+        title="Stock Libraries"
+        purpose="Free stock images, videos and audio with their credits attached, plus your own meme collection."
+        points={[
+          "Pexels images and videos, photographer credit on every result",
+          "Commercial-use audio from Openverse, licence kept on every item",
+          "Save references to Projects — the files stay with the provider",
+        ]}
+      />
       <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Stock libraries">
         {TABS.map((t) => (
           <button

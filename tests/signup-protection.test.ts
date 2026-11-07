@@ -434,7 +434,7 @@ describe('S-02 (7): middleware treats a gated-out identity as unauthenticated', 
     mocks.cookieGetUser.mockResolvedValue({ data: { user: ANONYMOUS }, error: null });
     const anonRes = await middleware(new NextRequest('https://app.opendm.in/dashboard'));
     expect(anonRes.status).toBe(307);
-    expect(anonRes.headers.get('location')).toBe('https://app.opendm.in/');
+    expect(anonRes.headers.get('location')).toBe('https://app.opendm.in/login');
 
     mocks.cookieGetUser.mockResolvedValue({ data: { user: INVITED }, error: null });
     const invitedRes = await middleware(new NextRequest('https://app.opendm.in/dashboard'));
@@ -444,7 +444,7 @@ describe('S-02 (7): middleware treats a gated-out identity as unauthenticated', 
     mocks.cookieGetUser.mockResolvedValue({ data: { user: STRANGER }, error: null });
     const strangerRes = await middleware(new NextRequest('https://app.opendm.in/dashboard'));
     expect(strangerRes.status).toBe(307);
-    expect(strangerRes.headers.get('location')).toBe('https://app.opendm.in/');
+    expect(strangerRes.headers.get('location')).toBe('https://app.opendm.in/login');
   });
 
   it('middleware source routes its decision through the shared gate', () => {
