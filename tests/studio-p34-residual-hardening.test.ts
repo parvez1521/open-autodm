@@ -253,11 +253,17 @@ describe('Programme 34 §2 — structural checks precede serialization for objec
     // applied to history state solely when one was actually carried
     // over; a rejected/absent document leaves state untouched.
     expect(page).toContain('if (used) setHistory(createHistory(next));');
+    // Owner decision (2026-11-07): the Thumbnail Editor is PAUSED on
+    // the preview — hidden from navigation, directory and landing, its
+    // route redirected by middleware, and the Projects hand-off button
+    // removed. The Projects page must therefore not reference the
+    // editor route at all while paused; the hand-off store itself
+    // (lib/studio/handoff.ts) is untouched and returns with the
+    // editor. When the editor is restored, this half reverts to
+    // pinning the guarded hand-off ('if (doc) {' + setThumbnail).
     const projectsPage = readSrc('src/app/(main)/studio/projects/page.tsx');
-    // The Projects page hands a saved document to the editor only
-    // when the payload actually carries one.
-    expect(projectsPage).toContain('if (doc) {');
-    expect(projectsPage).toContain('getBrowserHandoffStore().setThumbnail({ doc, from: "Projects" })');
+    expect(projectsPage).not.toContain('/studio/thumbnail');
+    expect(readSrc('src/lib/studio/handoff.ts')).toContain('setThumbnail');
   });
 });
 

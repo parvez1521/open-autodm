@@ -66,6 +66,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // Thumbnail Editor paused (owner decision, 2026-11-07): the tool is
+  // hidden from the Studio navigation, the Studio directory and the
+  // landing page, and its route redirects to the Studio home. The
+  // editor's code stays in the tree untouched — removing this block
+  // (and restoring the hidden entries) brings it back.
+  if (
+    user &&
+    (pathname === '/studio/thumbnail' || pathname.startsWith('/studio/thumbnail/'))
+  ) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = '/studio';
+    return NextResponse.redirect(redirectUrl);
+  }
+
   if (pathname === '/' && user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/dashboard';

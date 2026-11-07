@@ -12,7 +12,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Books, ArrowUpRight } from "@/components/phosphor";
 import { PROMPT_CATEGORIES, searchPrompts } from "@/lib/studio/prompts";
-import { getBrowserHandoffStore } from "@/lib/studio/handoff";
 import type { PromptCategory } from "@/lib/studio/types";
 import {
   CopyButton,
@@ -30,25 +29,25 @@ export default function PromptLibraryPage() {
   const [filter, setFilter] = useState<Filter>("All");
   const results = useMemo(() => searchPrompts(query, filter), [query, filter]);
 
-  const HANDOFF_TARGETS = {
+  // Hand-off targets name live Studio tools. The 'thumbnail' target is
+  // suspended while the Thumbnail Editor is paused (owner decision,
+  // 2026-11-07): thumbnail prompts keep their Copy button and lose
+  // only the copy-&-open hand-off until the editor returns.
+  const HANDOFF_TARGETS: Partial<Record<string, { href: string; label: string }>> = {
     ideas: { href: "/studio/ideas", label: "Next Video Ideas" },
     seo: { href: "/studio/seo", label: "SEO Workspace" },
     script: { href: "/studio/script", label: "Script Builder" },
-    thumbnail: { href: "/studio/thumbnail", label: "Thumbnail Editor" },
-  } as const;
+  };
 
-  const copyAndOpen = async (promptText: string, target: keyof typeof HANDOFF_TARGETS) => {
+  const copyAndOpen = async (promptText: string, target: string) => {
+    const t = HANDOFF_TARGETS[target];
+    if (!t) return;
     try {
       await navigator.clipboard.writeText(promptText);
     } catch {
       // Clipboard unavailable — still navigate; the prompt stays visible here.
     }
-    if (target === "thumbnail") {
-      // The editor prefills its AI-image prompt from the hand-off, so
-      // the "image-generation prompt" workflow lands ready to refine.
-      getBrowserHandoffStore().setThumbnail({ promptText, from: "Prompt Library" });
-    }
-    router.push(HANDOFF_TARGETS[target].href);
+    router.push(t.href);
   };
 
   return (
@@ -115,13 +114,13 @@ export default function PromptLibraryPage() {
             <p className="mt-1.5 flex-1 text-[13px] leading-relaxed text-muted-foreground whitespace-pre-wrap">
               {p.prompt}
             </p>
-            {p.useIn && (
+            {p.useIn && HANDOFF_TARGETS[p.useIn] && (
               <button
                 type="button"
                 onClick={() => copyAndOpen(p.prompt, p.useIn!)}
                 className="mt-3 inline-flex items-center gap-1 self-start text-xs font-medium text-primary hover:underline"
               >
-                Copy & open {HANDOFF_TARGETS[p.useIn].label}
+                Copy & open {HANDOFF_TARGETS[p.useIn]!.label}
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </button>
             )}

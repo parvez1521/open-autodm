@@ -10,7 +10,6 @@ import {
     FileText,
     FilmStrip,
     FolderOpen,
-    Image as ImageIcon,
     Images,
     Lightbulb,
     Lightning,
@@ -75,7 +74,7 @@ const PILLARS = [
         icon: FilmStrip,
         title: "Create",
         href: "#creator-studio",
-        body: "Creator Studio covers the whole production line: niche, ideas, scripts, voiceover, thumbnails and SEO.",
+        body: "Creator Studio covers the whole production line: niche, ideas, scripts, voiceover and SEO.",
     },
     {
         icon: TrendUp,
@@ -130,12 +129,6 @@ const STUDIO_GROUPS = [
         label: "Package",
         tools: [
             {
-                icon: ImageIcon,
-                name: "Thumbnail Editor",
-                does: "Design thumbnails on a proper 1280×720 canvas.",
-                get: "templates, layers and your own images in one editor.",
-            },
-            {
                 icon: PresentationChart,
                 name: "Presentations",
                 does: "Turn a topic into a slide deck.",
@@ -183,7 +176,7 @@ const NAV_LINKS = [
 ] as const;
 
 export default function LandingPage() {
-    // Continuous numbering for the Creator Studio index (01-11 across groups).
+    // Continuous numbering for the Creator Studio index (01-10 across groups).
     let toolNumber = 0;
 
     return (

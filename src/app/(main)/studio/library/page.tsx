@@ -24,7 +24,6 @@ import {
   CaretLeft,
   CaretRight,
   ArrowSquareOut,
-  Image as ImageIcon,
   Smiley,
   Images,
   CircleNotch,
@@ -35,7 +34,6 @@ import {
   getBrowserProjectStore,
   STUDIO_PROJECTS_SAVE_FAILED_MESSAGE,
 } from "@/lib/studio/projects";
-import { getBrowserHandoffStore } from "@/lib/studio/handoff";
 import { filterMemeProjects } from "@/lib/studio/memes";
 import { PEXELS_LICENSE_URL, PEXELS_PROVIDER_URL, type StockSearchItem } from "@/lib/studio/pexels";
 import type { StockAudioItem } from "@/lib/studio/openverse";
@@ -101,7 +99,6 @@ const NOT_CONFIGURED_TEXT =
 // ── Pexels (images / videos) ───────────────────────────────────────
 
 function PexelsPanel({ media }: { media: "image" | "video" }) {
-  const router = useRouter();
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -162,15 +159,6 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
     }
   };
 
-  const useInThumbnail = (item: StockSearchItem) => {
-    getBrowserHandoffStore().setThumbnail({
-      imageUrl: item.assetUrl,
-      imageCredit: `Photo by ${item.creator} on Pexels`,
-      from: "Stock Images",
-    });
-    router.push("/studio/thumbnail");
-  };
-
   const creditPrefix = media === "image" ? "Photo by" : "Video by";
 
   return (
@@ -203,9 +191,8 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
         </h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Search Pexels stock {media === "image" ? "photos" : "videos"}. Results are used as
-          references in your projects, save a reference to Projects or use an image in the
-          Thumbnail Editor. The Studio does not host copies of the files; they stay on
-          Pexels.
+          references in your projects: save a reference to Projects. The Studio does not
+          host copies of the files; they stay on Pexels.
         </p>
         <form
           className="mt-4 flex gap-2"
@@ -317,15 +304,6 @@ function PexelsPanel({ media }: { media: "image" | "video" }) {
                   </a>
                 </p>
                 <div className="mt-auto flex flex-wrap gap-2 pt-3">
-                  {media === "image" && (
-                    <button
-                      type="button"
-                      onClick={() => useInThumbnail(item)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                    >
-                      <ImageIcon className="w-3.5 h-3.5" /> Use in Thumbnail
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => saveReference(item)}
@@ -626,7 +604,6 @@ const KIND_LABELS: Record<StudioProject["kind"], string> = {
 };
 
 function MemesPanel() {
-  const router = useRouter();
   const [projects, setProjects] = useState<StudioProject[]>([]);
 
   useEffect(() => {
@@ -634,18 +611,6 @@ function MemesPanel() {
   }, []);
 
   const memes = filterMemeProjects(projects);
-
-  const useStockInThumbnail = (payload: StockReferencePayload) => {
-    getBrowserHandoffStore().setThumbnail({
-      imageUrl: payload.assetUrl,
-      imageCredit:
-        payload.source === "pexels"
-          ? `Photo by ${payload.creator} on Pexels`
-          : `${payload.title} by ${payload.creator} (${payload.licenseName ?? "CC"})`,
-      from: "Meme Library",
-    });
-    router.push("/studio/thumbnail");
-  };
 
   return (
     <div className="space-y-5">
@@ -710,15 +675,6 @@ function MemesPanel() {
                     timeStyle: "short",
                   })}
                 </p>
-                {stockPayload && stockPayload.media === "image" && (
-                  <button
-                    type="button"
-                    onClick={() => useStockInThumbnail(stockPayload)}
-                    className="mt-3 inline-flex items-center gap-1.5 self-start rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                  >
-                    <ImageIcon className="w-3.5 h-3.5" /> Use in Thumbnail
-                  </button>
-                )}
               </li>
             );
           })}

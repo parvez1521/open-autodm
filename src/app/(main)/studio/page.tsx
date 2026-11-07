@@ -5,7 +5,6 @@ import {
   PencilLine,
   Waveform,
   FileText,
-  Image as ImageIcon,
   Presentation,
   FileMagnifyingGlass,
   Books,
@@ -19,9 +18,12 @@ import { cn } from "@/lib/utils";
  * Creator Studio — landing page (Programmes S1 + S2 + S3; landing
  * layout from the Studio restructure).
  *
- * An intro band, the six-step workflow as a numbered journey, and a
+ * An intro band, the five-step workflow as a numbered journey, and a
  * full directory of the Studio's tools grouped by category — every
- * tool lives on its own dedicated page.
+ * tool lives on its own dedicated page. (The thumbnail tool is
+ * paused by owner decision, 2026-11-07: out of the workflow and the
+ * directory, its route redirected by middleware; the editor code is
+ * untouched.)
  */
 
 const STEPS = [
@@ -59,14 +61,6 @@ const STEPS = [
   },
   {
     n: 5,
-    name: "Design the thumbnail",
-    blurb: "Compose a 1280×720 thumbnail on a canvas editor with templates and your own images.",
-    href: "/studio/thumbnail",
-    icon: ImageIcon,
-    status: "live" as const,
-  },
-  {
-    n: 6,
     name: "Publish with SEO",
     blurb: "Titles, a structured description and a right-sized tag list, ready to paste.",
     href: "/studio/seo",
@@ -108,12 +102,6 @@ const DIRECTORY = [
         blurb: "Clean, format and reuse transcripts, paste or upload, no fetching.",
         href: "/studio/transcript",
         icon: FileText,
-      },
-      {
-        name: "Thumbnail Editor",
-        blurb: "Compose a 1280×720 thumbnail on a canvas editor with templates and your own images.",
-        href: "/studio/thumbnail",
-        icon: ImageIcon,
       },
       {
         name: "Presentations",
@@ -170,9 +158,9 @@ export default function StudioHomePage() {
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
           The Creator Studio is a set of dedicated tools that take a video from a
           rough topic to a publish-ready package: score the niche, pick the idea,
-          write the script, add a voiceover, design the thumbnail and finish with
+          write the script, add a voiceover and finish with
           SEO, each tool on its own page, with stock libraries and your saved
-          projects alongside. Follow the six-step workflow below, or jump straight
+          projects alongside. Follow the five-step workflow below, or jump straight
           to the tool you need from the directory.
         </p>
       </section>

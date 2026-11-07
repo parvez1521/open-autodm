@@ -9,7 +9,6 @@
  */
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   FolderOpen,
   Trash,
@@ -18,7 +17,6 @@ import {
   Info,
   Tag,
   X,
-  Image as ImageIcon,
   DownloadSimple,
 } from "@/components/phosphor";
 import {
@@ -26,7 +24,6 @@ import {
   normalizeTags,
   STUDIO_PROJECTS_SAVE_FAILED_MESSAGE,
 } from "@/lib/studio/projects";
-import { getBrowserHandoffStore } from "@/lib/studio/handoff";
 import { deckToStandaloneHtml } from "@/lib/studio/deckEngine";
 import type {
   DeckProjectPayload,
@@ -209,7 +206,6 @@ function ThumbnailDetail({
   project: StudioProject;
   payload: ThumbnailProjectPayload;
 }) {
-  const router = useRouter();
   const doc = payload.doc;
   return (
     <div className="text-[13px] text-muted-foreground space-y-2">
@@ -225,24 +221,15 @@ function ThumbnailDetail({
         {doc?.width ?? 1280}×{doc?.height ?? 720} · {doc?.layers?.length ?? 0} layers ·{" "}
         {doc?.background?.type ?? "solid"} background
       </p>
-      <button
-        type="button"
-        onClick={() => {
-          if (doc) {
-            getBrowserHandoffStore().setThumbnail({ doc, from: "Projects" });
-            router.push("/studio/thumbnail");
-          }
-        }}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-      >
-        <ImageIcon className="w-3.5 h-3.5" /> Open in Thumbnail Editor
-      </button>
+      {/* The Thumbnail Editor is paused (owner decision, 2026-11-07),
+          so the reopen-in-editor button is hidden; saved thumbnail
+          projects stay viewable here and the button returns with the
+          editor. */}
     </div>
   );
 }
 
 function StockDetail({ payload: s }: { payload: StockReferencePayload }) {
-  const router = useRouter();
   return (
     <div className="text-[13px] text-muted-foreground space-y-1.5">
       <p>
@@ -280,25 +267,6 @@ function StockDetail({ payload: s }: { payload: StockReferencePayload }) {
         >
           View on {s.source === "pexels" ? "Pexels" : "Openverse"}
         </a>
-        {s.media === "image" && (
-          <button
-            type="button"
-            className="text-primary hover:underline"
-            onClick={() => {
-              getBrowserHandoffStore().setThumbnail({
-                imageUrl: s.assetUrl,
-                imageCredit:
-                  s.source === "pexels"
-                    ? `Photo by ${s.creator} on Pexels`
-                    : `${s.title} by ${s.creator} (${s.licenseName ?? "CC"})`,
-                from: "Projects, stock reference",
-              });
-              router.push("/studio/thumbnail");
-            }}
-          >
-            Use in Thumbnail Editor
-          </button>
-        )}
       </p>
       <p className="text-xs">
         This is a saved reference, the file stays on the provider&apos;s site; the Studio
@@ -432,7 +400,7 @@ export default function StudioProjectsPage() {
           <p className="text-sm font-medium">Nothing saved yet</p>
           <p className="mt-1 text-[13px] text-muted-foreground">
             Use any Studio tool, Niche Finder, Ideas, Script Builder, Transcript
-            Tools, Voiceover Studio, Thumbnail Editor, Presentations, the Stock
+            Tools, Voiceover Studio, Presentations, the Stock
             Libraries or SEO Workspace, then choose “Save to Projects”; it will
             appear here. Tag anything “meme” and it also shows in the Meme Library.
           </p>
