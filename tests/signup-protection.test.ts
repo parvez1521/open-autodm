@@ -259,7 +259,12 @@ describe('S-02 (1): no signup path exists anywhere in src/', () => {
     expect(src).toContain('signInWithPassword');
     for (const { re } of USER_CREATION_PATTERNS) expect(src).not.toMatch(re);
     expect(src.toLowerCase()).toContain('invite-only');
-    // No link/route to a registration page.
+    // Launch prep (2026-11-07): the invite-only footer copy is
+    // flag-gated — it renders only in the closed posture (signupOpen
+    // false); with signup open the footer points at the page's own
+    // create-account link instead. The form itself never links out:
+    // no link/route to a registration page.
+    expect(src).toContain('signupOpen');
     expect(src).not.toMatch(/href=["'][^"']*(sign[-_]?up|register)/i);
   });
 

@@ -49,7 +49,7 @@ export default function LoginPage() {
                 </p>
 
                 <div className="mt-10 flex w-full justify-center">
-                    <LoginForm />
+                    <LoginForm signupOpen={signupEnabled} />
                 </div>
 
                 {signupEnabled && (

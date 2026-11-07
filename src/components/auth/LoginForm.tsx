@@ -7,11 +7,15 @@ import { createBrowserClient } from "@/lib/supabase";
 import { LogoMark } from "@/components/ui/Logo";
 
 /**
- * Sign-in only - there is deliberately NO registration flow.
- * Accounts are created by the instance owner in the Supabase dashboard
- * (Authentication → Users → Add user), with public signups disabled.
+ * Sign-in only — in BOTH signup postures. When the owner opens public
+ * signup (PUBLIC_SIGNUP_ENABLED, launch preparation 2026-11-07),
+ * registration lives on /get-started (components/auth/SignupForm.tsx)
+ * and the login page links to it; this form still never creates
+ * users. Its footer copy is posture-aware via the signupOpen prop:
+ * invite-only wording when signup is closed, an open-signup note when
+ * it is not (the S-02 pin keeps the invite-only wording in source).
  */
-export function LoginForm() {
+export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -102,10 +106,16 @@ export function LoginForm() {
                 </form>
 
                 <div className="mt-6 pt-5 border-t border-border">
-                    <p className="text-[11.5px] text-muted-foreground leading-relaxed">
-                        No account? Access is invite-only, the instance owner creates users in the
-                        Supabase dashboard <span className="text-foreground/70 font-medium">(Authentication → Users → Add user)</span>.
-                    </p>
+                    {signupOpen ? (
+                        <p className="text-[11.5px] text-muted-foreground leading-relaxed">
+                            No account? Sign-up is open — create one with the link below.
+                        </p>
+                    ) : (
+                        <p className="text-[11.5px] text-muted-foreground leading-relaxed">
+                            No account? Access is invite-only, the instance owner creates users in the
+                            Supabase dashboard <span className="text-foreground/70 font-medium">(Authentication → Users → Add user)</span>.
+                        </p>
+                    )}
                 </div>
             </div>
         </motion.div>
