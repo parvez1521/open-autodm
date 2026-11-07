@@ -37,9 +37,12 @@ type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 const WORKERS_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
 
-/* Groq free-tier models, best first. The catalogue rotates; a model
-   that no longer exists answers 404/model_not_found and we move on. */
-const GROQ_MODELS = ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"];
+/* Groq free-tier models, best first. This mirrors the model list the
+   Creator Studio Groq client (lib/studio/groq.ts) runs against the
+   same account: the older llama names were retired by Groq and answer
+   404/model_not_found. A model that no longer exists is skipped the
+   same way, so keep the two lists in step when the catalogue rotates. */
+const GROQ_MODELS = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"];
 
 export function providerStatus(): { workersAiRest: boolean; groq: boolean } {
   return {
@@ -63,8 +66,10 @@ async function tryWorkersAiBinding(messages: ChatMessage[]): Promise<AiResult | 
       | { run: (model: string, input: { messages: ChatMessage[]; max_tokens?: number }) => Promise<{ response?: string }> }
       | undefined;
     if (!ai || typeof ai.run !== "function") return null;
-    const out = await ai.run(WORKERS_AI_MODEL, { messages, max_tokens: 1800 });
-    const text = typeof out?.response === "string" ? out.response : "";
+    const out = await ai.run(WORKERS_AI_MODEL, { messages, max_tokens: 3000 });
+    const rawResponse: unknown = (out as { response?: unknown } | undefined)?.response;
+    const text =
+      typeof rawResponse === "string" ? rawResponse : rawResponse ? JSON.stringify(rawResponse) : "";
     if (!text) return null;
     return { text, provider: "workers-ai", model: WORKERS_AI_MODEL };
   } catch {
@@ -81,7 +86,7 @@ async function tryWorkersAiRest(messages: ChatMessage[]): Promise<AiResult | nul
     {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, max_tokens: 1800 }),
+      body: JSON.stringify({ messages, max_tokens: 3000 }),
     },
   );
   if (!res.ok) {
@@ -89,8 +94,10 @@ async function tryWorkersAiRest(messages: ChatMessage[]): Promise<AiResult | nul
     logger.warn({ status: res.status, body: body.slice(0, 300) }, "Workers AI REST call failed");
     return null;
   }
-  const json = (await res.json()) as { result?: { response?: string } };
-  const text = json?.result?.response ?? "";
+  const json = (await res.json()) as { result?: { response?: unknown } };
+  const rawResponse: unknown = json?.result?.response;
+  const text =
+    typeof rawResponse === "string" ? rawResponse : rawResponse ? JSON.stringify(rawResponse) : "";
   if (!text) return null;
   return { text, provider: "workers-ai", model: WORKERS_AI_MODEL };
 }
@@ -105,9 +112,13 @@ async function tryGroq(messages: ChatMessage[]): Promise<AiResult | null> {
       body: JSON.stringify({
         model,
         messages,
-        max_tokens: 1800,
+        // No response_format: Groq's json_object mode makes the
+        // gpt-oss models fail with a 400 json_validate_failed before
+        // their content can be used. The system prompt already demands
+        // a bare JSON object and parseGeneratedScript tolerates fences
+        // and surrounding prose. Same pattern as lib/studio/groq.ts.
+        max_tokens: 3000,
         temperature: 0.8,
-        response_format: { type: "json_object" },
       }),
     });
     if (!res.ok) {

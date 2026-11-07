@@ -78,9 +78,23 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "ai_unavailable", message: NO_PROVIDER_MESSAGE }, { status: 503 });
   }
 
-  const script = parseGeneratedScript(result.text);
+  let used = result;
+  let script = parseGeneratedScript(result.text);
+  if (!script && parsed.data.provider === "auto") {
+    // "Auto" promises a fallback chain: if the primary provider
+    // answered with output the parser cannot use, give the fallback
+    // provider one chance before reporting bad_model_output.
+    const fallback = await generateWithAi(messages, "groq");
+    if (fallback && fallback.provider !== result.provider) {
+      const retry = parseGeneratedScript(fallback.text);
+      if (retry) {
+        used = fallback;
+        script = retry;
+      }
+    }
+  }
   if (!script) {
-    logger.warn({ provider: result.provider, model: result.model }, "Model returned unparseable output");
+    logger.warn({ provider: used.provider, model: used.model }, "Model returned unparseable output");
     return Response.json(
       {
         error: "bad_model_output",
@@ -95,5 +109,5 @@ export async function POST(request: Request): Promise<Response> {
   // so a drifting model can never break the automation connection.
   script.ctaKeyword = parsed.data.ctaKeyword;
 
-  return Response.json({ script, provider: result.provider, model: result.model });
+  return Response.json({ script, provider: used.provider, model: used.model });
 }
