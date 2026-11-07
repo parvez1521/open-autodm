@@ -80,3 +80,41 @@ describe("design pass round 2 — login split panel + mobile hero", () => {
     expect(page).toContain("The DM lands in their inbox");
   });
 });
+
+describe("design pass round 3 — FlowBuilder, CountUp, hero loop chip", () => {
+  const builder = read("components/home/FlowBuilder.tsx");
+
+  it("the builder is wired into the landing at #builder with all three controls", () => {
+    const page = read("app/page.tsx");
+    expect(page).toContain("FlowBuilder");
+    expect(page).toContain('id="builder"');
+    expect(builder).toContain("Trigger keyword");
+    expect(builder).toContain("Public reply style");
+    expect(builder).toContain("What the DM carries");
+    expect(builder).toContain('role="switch"');
+  });
+
+  it("the builder's texts stay template-true (three styles, three payloads, caps line)", () => {
+    for (const label of ["Friendly", "Short", "Hinglish", "Send a link", "Send pricing", "Book a demo"]) {
+      expect(builder).toContain(label);
+    }
+    expect(builder).toContain("180 DMs/hour, 24-hour window");
+  });
+
+  it("the safety figures animate via CountUp and stay the shipped caps", () => {
+    const page = read("app/page.tsx");
+    const counter = read("components/home/CountUp.tsx");
+    expect(page).toContain("CountUp");
+    expect(page).toContain("count: 180");
+    expect(page).toContain('suffix: "h"');
+    expect(counter).toContain("prefers-reduced-motion");
+    expect(counter).toContain("IntersectionObserver");
+  });
+
+  it("the hero carries the cycling loop chip, reduced-motion aware", () => {
+    const page = read("app/page.tsx");
+    expect(page).toContain("HeroLoopChip");
+    expect(page).toContain("comment 'PRICE'");
+    expect(page).toContain("prefers-reduced-motion");
+  });
+});

@@ -29,6 +29,10 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
 import { PipelineShowcase } from "@/components/home/PipelineShowcase";
 import { DemoShowcase } from "@/components/home/DemoShowcase";
+import { FlowBuilder } from "@/components/home/FlowBuilder";
+import { CountUp } from "@/components/home/CountUp";
+import { useEffect, useState, type ComponentType } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { FaqSection } from "@/components/home/FaqSection";
 import { ScriptSampleShowcase } from "@/components/home/ScriptSampleShowcase";
 import { WaitlistForm } from "@/components/home/WaitlistForm";
@@ -59,12 +63,18 @@ const FEATURES = [
     },
 ] as const;
 
-const SAFETY = [
-    { icon: Timer, label: "180 DMs per hour, hard cap" },
-    { icon: Clock, label: "24-hour window checked before every send" },
-    { icon: UserCheck, label: "One DM per person, per automation, per day" },
-    { icon: PlugsConnected, label: "Webhooks verified with HMAC-SHA256" },
-] as const;
+const SAFETY: {
+    icon: ComponentType<{ className?: string }>;
+    label: string;
+    value?: string;
+    count?: number;
+    suffix?: string;
+}[] = [
+    { icon: Timer, count: 180, label: "DMs per hour, hard cap" },
+    { icon: Clock, count: 24, suffix: "h", label: "window checked before every send" },
+    { icon: UserCheck, count: 1, label: "DM per person, per automation, per day" },
+    { icon: PlugsConnected, value: "HMAC", label: "SHA-256 signed webhook verification" },
+];
 
 const PILLARS = [
     {
@@ -180,6 +190,39 @@ const NAV_LINKS = [
     { label: "Pricing", href: "/pricing" },
 ] as const;
 
+const HERO_LOOP_LINES = [
+    "comment 'PRICE' → DM with the pricing sent",
+    "comment 'LINK' → DM with the guide sent",
+    "comment 'DEMO' → DM with the booking sent",
+] as const;
+
+/** A small living line under the hero CTAs: the loop, cycling.
+ *  Static under prefers-reduced-motion. */
+function HeroLoopChip() {
+    const [idx, setIdx] = useState(0);
+    useEffect(() => {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        const t = setInterval(() => setIdx((i) => (i + 1) % HERO_LOOP_LINES.length), 2600);
+        return () => clearInterval(t);
+    }, []);
+    return (
+        <p className="mt-4 flex items-center gap-2 font-mono text-[12px] text-muted-foreground" aria-live="off">
+            <Lightning className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <AnimatePresence mode="wait">
+                <motion.span
+                    key={idx}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    {HERO_LOOP_LINES[idx]}
+                </motion.span>
+            </AnimatePresence>
+        </p>
+    );
+}
+
 export default function LandingPage() {
     // Continuous numbering for the Creator Studio index (01-10 across groups).
     let toolNumber = 0;
@@ -262,6 +305,7 @@ export default function LandingPage() {
                         <p className="mt-6 text-[13px] text-muted-foreground">
                             MIT licensed · Self-hosted · Your data stays on your instance
                         </p>
+                        <HeroLoopChip />
                     </div>
 
                     {/* The product, doing its thing: drag the hub */}
@@ -408,6 +452,24 @@ export default function LandingPage() {
                     </div>
                 </section>
 
+                {/* ── Flow builder ─────────────────────────────────── */}
+                <section id="builder" className="scroll-mt-16 border-t border-border">
+                    <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
+                        <p className="micro-label">Try it yourself</p>
+                        <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                            Now build your own
+                        </h2>
+                        <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+                            Type a keyword, pick a reply style and choose what the DM
+                            carries — the preview updates live, with the exact texts
+                            your automation would send.
+                        </p>
+                        <div className="mt-10">
+                            <FlowBuilder />
+                        </div>
+                    </div>
+                </section>
+
                 {/* ── How it works ─────────────────────────────────── */}
                 <section id="how" className="scroll-mt-16 border-t border-border">
                     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
@@ -421,9 +483,18 @@ export default function LandingPage() {
 
                         <div className="mt-4 grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
                             {SAFETY.map((s) => (
-                                <div key={s.label} className="flex items-center gap-3 bg-card px-5 py-4">
-                                    <s.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                    <span className="text-[13px] leading-snug text-foreground">{s.label}</span>
+                                <div key={s.label} className="bg-card px-5 py-4">
+                                    <p className="flex items-center gap-2 font-heading text-xl font-semibold text-foreground">
+                                        <s.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                        {s.count !== undefined ? (
+                                            <CountUp end={s.count} suffix={s.suffix ?? ""} />
+                                        ) : (
+                                            s.value
+                                        )}
+                                    </p>
+                                    <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
+                                        {s.label}
+                                    </p>
                                 </div>
                             ))}
                         </div>
