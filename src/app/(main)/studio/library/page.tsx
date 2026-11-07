@@ -29,6 +29,8 @@ import {
   CircleNotch,
   MusicNote,
   MagnifyingGlass,
+  Play,
+  Waveform,
 } from "@/components/phosphor";
 import {
   getBrowserProjectStore,
@@ -42,6 +44,11 @@ import {
   searchPexels,
   type StockDegradation,
 } from "@/lib/studio/stockClient";
+import {
+  SOUND_EFFECT_CATEGORIES,
+  filterSoundEffects,
+  myinstantsSearchUrl,
+} from "@/lib/studio/soundEffects";
 import type {
   StockReferencePayload,
   StudioProject,
@@ -55,17 +62,18 @@ import {
 } from "@/components/studio/ui";
 import { cn } from "@/lib/utils";
 
-type LibraryTab = "images" | "videos" | "audio" | "memes";
+type LibraryTab = "images" | "videos" | "audio" | "sounds" | "memes";
 
 const TABS: { id: LibraryTab; label: string }[] = [
   { id: "images", label: "Stock Images" },
   { id: "videos", label: "Stock Videos" },
   { id: "audio", label: "Stock Audio" },
+  { id: "sounds", label: "Sound Effects" },
   { id: "memes", label: "Meme Library" },
 ];
 
 function parseTab(raw: string | null): LibraryTab {
-  if (raw === "videos" || raw === "audio" || raw === "memes") return raw;
+  if (raw === "videos" || raw === "audio" || raw === "sounds" || raw === "memes") return raw;
   return "images";
 }
 
@@ -684,6 +692,152 @@ function MemesPanel() {
   );
 }
 
+// ── Sound effects (MyInstants, linked — nothing hosted here) ──────
+//
+// Owner's chosen route (2026-11-07): the sounds stay on MyInstants.
+// Cards link out to each sound's MyInstants page, and Play loads the
+// official embed player MyInstants offers for every sound — no audio
+// file is copied, proxied or hotlinked by this app.
+
+function SoundEffectsPanel() {
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<string>("All");
+  const [playing, setPlaying] = useState<string | null>(null);
+  const results = filterSoundEffects(query, category);
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-[13px] text-muted-foreground">
+        Hosted by{" "}
+        <a
+          href="https://www.myinstants.com"
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-primary hover:underline"
+        >
+          MyInstants
+        </a>{" "}
+        — sounds play through their official embed player and are never copied or
+        re-hosted here. To download a sound, open its MyInstants page.
+      </div>
+
+      <div className={studioCardClass}>
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <Waveform className="w-4.5 h-4.5" /> Sound Effects
+        </h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          The meme sounds every editor reaches for — vine boom, bruh, sad violin —
+          linked from MyInstants and playable right here.
+        </p>
+        <div className="mt-4">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search the board — try 'boom'"
+            aria-label="Search sound effects"
+            className={studioInputClass}
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Sound effect categories">
+          {SOUND_EFFECT_CATEGORIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategory(c)}
+              aria-pressed={category === c}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs transition-colors",
+                category === c
+                  ? "border-primary/50 bg-primary/10 font-medium text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/60",
+              )}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {results.length === 0 ? (
+        <div className={cn(studioCardClass, "text-center")}>
+          <p className="text-sm font-medium">No sound on this board matches</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Try a shorter word, or search all of MyInstants instead.
+          </p>
+          <a
+            href={myinstantsSearchUrl(query || "meme")}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+          >
+            Search MyInstants <ArrowSquareOut className="h-4 w-4" />
+          </a>
+        </div>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {results.map((s) => (
+            <li key={s.pageUrl} className={cn(studioCardClass, "flex flex-col p-4")}>
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-semibold leading-snug">{s.name}</p>
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {s.category}
+                </span>
+              </div>
+              <p className="mt-1 flex-1 text-[13px] leading-relaxed text-muted-foreground">
+                {s.use}
+              </p>
+              {playing === s.pageUrl ? (
+                <div className="mt-3 flex justify-center rounded-lg border border-border bg-muted/40 py-2">
+                  <iframe
+                    src={s.embedUrl}
+                    width={110}
+                    height={200}
+                    title={`${s.name} — MyInstants player`}
+                    loading="lazy"
+                    className="h-[200px] w-[110px] border-0"
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPlaying(s.pageUrl)}
+                  className={cn(studioPrimaryButtonClass, "mt-3 inline-flex items-center justify-center gap-2")}
+                >
+                  <Play className="h-4 w-4" /> Play
+                </button>
+              )}
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+                <span>{s.favorites.toLocaleString("en-IN")} favorites on MyInstants</span>
+                <a
+                  href={s.pageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline"
+                >
+                  Open <ArrowSquareOut className="h-3.5 w-3.5" />
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="text-center text-[13px] text-muted-foreground">
+        Need something else?{" "}
+        <a
+          href={myinstantsSearchUrl(query || "meme")}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-primary hover:underline"
+        >
+          Search all of MyInstants
+        </a>{" "}
+        — thousands more sounds, on their site.
+      </p>
+    </div>
+  );
+}
+
 // ── Page shell (tabs driven by ?tab=) ──────────────────────────────
 
 function LibraryContent() {
@@ -705,7 +859,7 @@ function LibraryContent() {
       <StudioToolHeader
         icon={Images}
         title="Stock Libraries"
-        purpose="Free stock images, videos and audio with their credits attached, plus your own meme collection."
+        purpose="Free stock images, videos and audio with their credits attached, meme sound effects, plus your own meme collection."
         points={[
           "Pexels images and videos, photographer credit on every result",
           "Commercial-use audio from Openverse, licence kept on every item",
@@ -735,6 +889,7 @@ function LibraryContent() {
       {tab === "images" && <PexelsPanel key="images" media="image" />}
       {tab === "videos" && <PexelsPanel key="videos" media="video" />}
       {tab === "audio" && <AudioPanel />}
+      {tab === "sounds" && <SoundEffectsPanel key="sounds" />}
       {tab === "memes" && <MemesPanel />}
     </div>
   );
