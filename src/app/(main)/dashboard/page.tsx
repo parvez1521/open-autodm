@@ -2,13 +2,25 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { Wrench, CheckCircle2, Circle, ArrowRight, Plus, PenLine } from "lucide-react";
+import { Wrench, CheckCircle2, Circle, ArrowRight, Plus, PenLine, Clock } from "lucide-react";
 import { useAutomations } from "@/hooks/useAutomations";
 import { useContacts } from "@/hooks/useContacts";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useSetupStatus } from "@/hooks/useSetup";
+import { useActivity } from "@/hooks/useActivity";
+import { TrafficGuardCard } from "@/components/dashboard/TrafficGuardCard";
 import { cn } from "@/lib/utils";
+
+function formatRelativeTime(dateStr: string): string {
+    const timestamp = new Date(dateStr).getTime();
+    if (isNaN(timestamp)) return "Recent";
+    const diffSec = Math.floor((Date.now() - timestamp) / 1000);
+    if (diffSec < 60) return "Just now";
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    return `${Math.floor(diffSec / 86400)}d ago`;
+}
 
 export default function DashboardPage() {
     const { account: connectedAccount, accountId } = useActiveAccount();
@@ -25,6 +37,7 @@ export default function DashboardPage() {
         };
     }, []);
     const { data: analytics } = useAnalytics({ ...analyticsRange, automationId: "all", accountId });
+    const { data: activities, isLoading: isActivityLoading } = useActivity(accountId, 15);
 
     const activeCount = automations?.filter(a => a.is_active).length ?? 0;
     const totalDms = automations?.reduce((sum, a) => sum + a.total_dms_sent, 0) ?? 0;
@@ -77,6 +90,70 @@ export default function DashboardPage() {
                     </div>
                 ))}
             </div>
+
+            {/* Smart Comment Traffic Guard (only with a connected account) */}
+            {accountId && <TrafficGuardCard accountId={accountId} />}
+
+            {/* Recent Activity Feed (release-prep row 22; content-sanitised,
+                owner-scoped via /api/activity — metadata only, no message bodies) */}
+            {accountId && (
+                <div className="bg-card border border-border rounded-xl p-5 space-y-3" data-testid="recent-activity-feed">
+                    <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                        <h2 className="text-[14px] font-heading font-semibold text-foreground flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-muted-foreground" />
+                            Recent Activity
+                        </h2>
+                        <span className="text-[11px] text-muted-foreground font-medium">Real Event Trail</span>
+                    </div>
+
+                    {isActivityLoading ? (
+                        <div className="py-8 text-center text-[12.5px] text-muted-foreground">Loading activity…</div>
+                    ) : (activities?.length ?? 0) > 0 ? (
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                            {activities?.map((act) => (
+                                <div
+                                    key={act.id}
+                                    className="p-2.5 rounded-lg border border-border/60 bg-muted/20 text-[12px] space-y-1"
+                                    data-testid="activity-item"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-semibold text-foreground truncate">{act.automationName}</span>
+                                        <span className={cn(
+                                            "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider shrink-0",
+                                            act.status === "sent" ? "bg-secondary/15 text-secondary" :
+                                            act.status === "scheduled" ? "bg-primary/15 text-primary" :
+                                            act.status === "held" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
+                                            act.status === "waiting_response" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
+                                            act.status === "failed" ? "bg-destructive/15 text-destructive" :
+                                            "bg-muted text-muted-foreground"
+                                        )}>
+                                            {act.status}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                        <span className="capitalize">{act.type.replace(/_/g, " ")}</span>
+                                        <span>{formatRelativeTime(act.timestamp)}</span>
+                                    </div>
+                                    {act.errorMessage && (
+                                        <p className="text-[10.5px] text-destructive truncate">{act.errorMessage}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="py-8 text-center space-y-2">
+                            <p className="text-[12.5px] font-medium text-foreground">No recent events</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Triggered DMs, comments, and scheduled follow-ups will be listed here in real time.
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+                        Private message contents are sanitized to protect privacy.
+                    </div>
+                </div>
+            )}
 
             {/* Viral Script Writer promo */}
             <Link href="/script-writer" className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-xl">

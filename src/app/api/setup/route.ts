@@ -7,12 +7,20 @@
  *        before it touches the DB). Generates a webhook verify token on
  *        first save and PRESERVES it on later saves so Meta's existing
  *        webhook subscription keeps validating.
+ *
+ * OWNER GUARD (security audit finding #12): while setup is incomplete, any
+ * authenticated user may complete it (first run). Once setup_completed is
+ * true, only the instance owner (OWNER_USER_ID / OWNER_EMAIL - see
+ * src/lib/owner.ts) may POST changes, and the live webhook verify token is
+ * only returned to the owner. When no owner is configured the guard fails
+ * closed: a completed setup cannot be modified through this API at all.
  */
 
 import { z } from 'zod';
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import { getMetaSettings, saveMetaSettings } from '@/lib/settings';
+import { isInstanceOwner } from '@/lib/owner';
 import { randomToken } from '@/lib/crypto';
 import { getAppUrl, getEnv } from '@/lib/env';
 
@@ -66,10 +74,17 @@ export async function GET(request: Request): Promise<Response> {
     .eq('id', 1)
     .maybeSingle();
 
+  // The verify token is a live credential for the webhook subscription.
+  // Before setup completes it is part of the first-run wizard flow; after
+  // completion only the instance owner may see it. Everyone else gets the
+  // same response shape with the token redacted.
+  const setupCompleted = (row?.setup_completed as boolean | null) ?? false;
+  const maySeeToken = !setupCompleted || isInstanceOwner(user);
+
   return Response.json({
     configured: !!settings,
     metaAppId: (row?.meta_app_id as string | null) ?? null,
-    webhookVerifyToken: (row?.webhook_verify_token as string | null) ?? null,
+    webhookVerifyToken: maySeeToken ? ((row?.webhook_verify_token as string | null) ?? null) : null,
     webhookUrl: `${appUrl}/api/webhook`,
     oauthRedirectUri: `${appUrl}/api/instagram/callback`,
     appUrl,
@@ -104,9 +119,24 @@ export async function POST(request: Request): Promise<Response> {
     const db = createServiceClient();
     const { data: existing } = await db
       .from('app_settings')
-      .select('webhook_verify_token')
+      .select('webhook_verify_token, setup_completed')
       .eq('id', 1)
       .maybeSingle();
+
+    // Owner guard: re-running setup overwrites the instance's Meta App ID
+    // and secrets. Permitted during first run (setup not yet completed);
+    // afterwards owner-only. Fails closed when no owner is configured -
+    // isInstanceOwner() is then false for every caller.
+    if (existing?.setup_completed && !isInstanceOwner(user)) {
+      return Response.json(
+        {
+          error:
+            'Setup is already complete - only the instance owner can change the Meta app configuration. ' +
+            'If you are the owner, set OWNER_USER_ID or OWNER_EMAIL in the deployment environment to your account.',
+        },
+        { status: 403 }
+      );
+    }
 
     const verifyToken = (existing?.webhook_verify_token as string | null) ?? randomToken(16);
 

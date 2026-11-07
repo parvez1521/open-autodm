@@ -50,20 +50,27 @@ export function LoginForm() {
             <div className="p-8">
                 <div className="flex flex-col mb-7">
                     <LogoMark className="w-9 h-9 mb-5" />
-                    <h1 className="text-lg font-heading font-semibold tracking-tight text-foreground mb-1">
+                    {/* h2, not h1 (P27): the landing page's h1 is the hero
+                        headline; this card heading sits under it. */}
+                    <h2 className="text-lg font-heading font-semibold tracking-tight text-foreground mb-1">
                         Welcome back
-                    </h1>
+                    </h2>
                     <p className="text-[13px] text-muted-foreground">
                         Sign in to your automation console.
                     </p>
                 </div>
 
                 <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col space-y-3">
-                    {error && <p className="text-[12.5px] text-destructive font-medium">{error}</p>}
+                    {error && (
+                        <p role="alert" className="text-[12.5px] text-destructive font-medium">
+                            {error}
+                        </p>
+                    )}
 
                     <div>
-                        <label className="micro-label block mb-1">Email</label>
+                        <label htmlFor="login-email" className="micro-label block mb-1">Email</label>
                         <input
+                            id="login-email"
                             type="email"
                             required
                             autoComplete="email"
@@ -74,8 +81,9 @@ export function LoginForm() {
                         />
                     </div>
                     <div>
-                        <label className="micro-label block mb-1">Password</label>
+                        <label htmlFor="login-password" className="micro-label block mb-1">Password</label>
                         <input
+                            id="login-password"
                             type="password"
                             required
                             autoComplete="current-password"

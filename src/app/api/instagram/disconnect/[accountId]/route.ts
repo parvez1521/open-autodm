@@ -6,6 +6,10 @@
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createLogger } from '@/lib/logger';
+import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
+import { resolveRouteWorkspaceContext, requireCapability } from '@/lib/tenancy/routeContext';
+import { createTenantRepository } from '@/lib/tenancy/repository';
+import { WorkspaceAccessError } from '@/lib/tenancy/context';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,6 +21,10 @@ type RouteContext = { params: Promise<{ accountId: string }> };
 export async function DELETE(request: Request, context: RouteContext): Promise<Response> {
   const user = await getAuthenticatedUser(request);
   if (!user) return unauthorized();
+  // Programme 18 Phase D: workspace mode branches here; flag OFF ⇒ legacy.
+  if (readWorkspaceFlags(process.env).workspaceRuntimeEnabled) {
+    return p18Disconnect(request, user, context);
+  }
 
   const { accountId } = await context.params;
   const db = createServiceClient();
@@ -44,5 +52,67 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   }
 
   logger.info({ userId: user.id, username: account.username }, 'Instagram account disconnected');
+  return Response.json({ success: true });
+}
+
+// ── Programme 18 Phase D — workspace mode ───────────────────────────────
+// Selector convention: `x-workspace-id` header wins over `?workspace=`
+// query param; the selector is never proof (per-request re-resolution,
+// fail closed, no legacy fallback). Disconnect is ACCOUNT ADMINISTRATION:
+// it requires the 'accountAdmin' capability (owner/admin — a member or
+// viewer is denied with 403) AND the account bound to the ctx workspace
+// (verified through the repository's getByIdInWorkspace; foreign or
+// unbound ⇒ 404, zero mutation). The delete itself goes through the
+// repository's scoped deleteById.
+async function p18Disconnect(
+  request: Request,
+  user: { id: string },
+  context: RouteContext,
+): Promise<Response> {
+  const { accountId } = await context.params;
+  const db = createServiceClient();
+  const header = request.headers.get('x-workspace-id');
+  const selector =
+    header && header.trim().length > 0
+      ? header
+      : new URL(request.url).searchParams.get('workspace');
+  const resolved = await resolveRouteWorkspaceContext(db, user.id, selector);
+  if (!resolved.ok) {
+    return Response.json({ error: resolved.message, code: resolved.code }, { status: resolved.status });
+  }
+  try {
+    requireCapability(resolved.ctx, 'accountAdmin');
+  } catch (err) {
+    if (err instanceof WorkspaceAccessError) {
+      return Response.json({ error: err.message, code: err.code }, { status: 403 });
+    }
+    return Response.json({ error: 'Workspace authorization failed' }, { status: 500 });
+  }
+  const repo = createTenantRepository(db, resolved.ctx, 'write');
+
+  let account: Awaited<ReturnType<typeof repo.instagramAccounts.getByIdInWorkspace>> = null;
+  try {
+    account = await repo.instagramAccounts.getByIdInWorkspace(accountId);
+  } catch {
+    account = null;
+  }
+  if (!account) {
+    return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+  }
+
+  try {
+    const deleted = await repo.instagramAccounts.deleteById(accountId);
+    if (!deleted) {
+      return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+    }
+  } catch (err) {
+    if (err instanceof WorkspaceAccessError) {
+      return Response.json({ error: err.message, code: err.code }, { status: 403 });
+    }
+    logger.error({ err, accountId }, 'Failed to disconnect account (workspace mode)');
+    return Response.json({ error: 'Failed to disconnect account' }, { status: 500 });
+  }
+
+  logger.info({ userId: user.id, username: account['username'] }, 'Instagram account disconnected (workspace mode)');
   return Response.json({ success: true });
 }

@@ -10,8 +10,11 @@
  * dedupe, then the two-step public reply + Private Reply flow.
  *
  * Auto-plays only while on screen; pauses on hover; a visitor can click
- * any step to inspect it. With prefers-reduced-motion the panel stays
- * on the first step and only responds to clicks.
+ * any step to inspect it. P27: an explicit Pause/Play control stops the
+ * loop persistently (hover-pause alone is unavailable to touch and
+ * keyboard users), and clicking a step to inspect it also pauses.
+ * With prefers-reduced-motion the panel stays on the first step and
+ * only responds to clicks.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -22,6 +25,8 @@ import {
     Gauge,
     Lock,
     MessageCircle,
+    Pause,
+    Play,
     Send,
     ShieldCheck,
     UserCheck,
@@ -242,6 +247,13 @@ export function PipelineShowcase() {
     const [hovering, setHovering] = useState(false);
     const [inView, setInView] = useState(false);
     const [reduced, setReduced] = useState(false);
+    // P27: an explicit, persistent pause. Before this, auto-advance
+    // could only be suspended by hovering — unavailable to touch and
+    // keyboard users — and clicking a step to inspect it did not stop
+    // the advance, so the inspected step was replaced seconds later.
+    // Now: the Pause control stops the loop until Play is pressed,
+    // and clicking a step to inspect it also pauses.
+    const [userPaused, setUserPaused] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -262,7 +274,7 @@ export function PipelineShowcase() {
         return () => io.disconnect();
     }, []);
 
-    const playing = inView && !hovering && !reduced;
+    const playing = inView && !hovering && !reduced && !userPaused;
     useEffect(() => {
         if (!playing) return;
         const id = setTimeout(() => setStep((s) => (s + 1) % STEPS.length), STEP_MS[step]!);
@@ -295,6 +307,18 @@ export function PipelineShowcase() {
                     </span>
                     Traffic Guard Active
                 </span>
+                {!reduced && (
+                    <button
+                        type="button"
+                        onClick={() => setUserPaused((p) => !p)}
+                        aria-pressed={userPaused}
+                        aria-label={userPaused ? "Play the pipeline animation" : "Pause the pipeline animation"}
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
+                        {userPaused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
+                        {userPaused ? "Play" : "Pause"}
+                    </button>
+                )}
             </div>
 
             {/* Step rail */}
@@ -306,7 +330,10 @@ export function PipelineShowcase() {
                         <button
                             key={s.label}
                             type="button"
-                            onClick={() => setStep(i)}
+                            onClick={() => {
+                                setStep(i);
+                                setUserPaused(true);
+                            }}
                             aria-current={isActive ? "step" : undefined}
                             className={`relative px-5 py-4 text-left transition-colors ${
                                 i > 0 ? "border-l border-border" : ""

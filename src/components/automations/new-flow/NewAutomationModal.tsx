@@ -55,6 +55,9 @@ export type AutomationFlowData = {
     askToFollowVisitProfileButton: string;
     askToFollowConfirmButton: string;
     dmResponses: DMResponse[];
+    followUpEnabled: boolean;
+    followUpDelayMinutes: number;
+    followUpMessage: string;
 };
 
 const DB_TYPE_TO_FLOW: Record<string, string> = {
@@ -87,11 +90,18 @@ const defaultFlowData = (): AutomationFlowData => ({
     askToFollowVisitProfileButton: "Visit Profile",
     askToFollowConfirmButton: "I'm following ✅",
     dmResponses: [],
+    followUpEnabled: false,
+    followUpDelayMinutes: 60,
+    followUpMessage: "",
 });
 
 function automationToFlowData(automation: AutomationFromDB): AutomationFlowData {
     const defaults = defaultFlowData();
-    const keywords = automation.keywords ?? [];
+    const rawKeywords = automation.keywords ?? [];
+    // '*ANY*' is the explicit wildcard token (hardened matcher) — it is a
+    // mode, not a keyword, so it never appears in the keyword chips.
+    const hasWildcardToken = rawKeywords.some(k => k.trim().toUpperCase() === "*ANY*");
+    const keywords = rawKeywords.filter(k => k.trim().toUpperCase() !== "*ANY*");
     return {
         name: automation.name,
         type: DB_TYPE_TO_FLOW[automation.type] ?? automation.type,
@@ -99,7 +109,7 @@ function automationToFlowData(automation: AutomationFromDB): AutomationFlowData 
         postThumbnailUrl: automation.post_thumbnail_url ?? null,
         postCaption: automation.post_caption ?? "",
         keywords,
-        keywordsAnyMode: keywords.length === 0,
+        keywordsAnyMode: hasWildcardToken || rawKeywords.length === 0,
         customReplies: automation.comment_reply_options.length > 0
             ? automation.comment_reply_options
             : defaults.customReplies,
@@ -112,6 +122,9 @@ function automationToFlowData(automation: AutomationFromDB): AutomationFlowData 
         askToFollowVisitProfileButton: automation.ask_to_follow_visit_profile_button || defaults.askToFollowVisitProfileButton,
         askToFollowConfirmButton: automation.ask_to_follow_confirm_button || defaults.askToFollowConfirmButton,
         dmResponses: automation.dm_responses as DMResponse[],
+        followUpEnabled: automation.follow_up_enabled ?? defaults.followUpEnabled,
+        followUpDelayMinutes: automation.follow_up_delay_minutes ?? defaults.followUpDelayMinutes,
+        followUpMessage: automation.follow_up_message ?? defaults.followUpMessage,
     };
 }
 
@@ -195,9 +208,18 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
             postId: !isComment || flowData.postId === "all" ? null : flowData.postId,
             postThumbnailUrl: isComment ? flowData.postThumbnailUrl ?? null : null,
             postCaption: isComment ? flowData.postCaption ?? null : null,
-            keywords: !flowData.keywordsAnyMode && flowData.keywords.length > 0 ? flowData.keywords : null,
-            // Public comment replies only exist for comment automations
+            // Hardened matcher: "any" mode must be EXPLICIT — stored as the
+            // '*ANY*' token. A null/empty keyword list now never triggers.
+            keywords: flowData.keywordsAnyMode ? ["*ANY*"] : (flowData.keywords.length > 0 ? flowData.keywords : null),
+            // Public comment replies only exist for comment automations.
+            // The engine's public_reply_enabled gate is derived from whether
+            // replies are configured, preserving this builder's promise.
             commentReplyOptions: isComment ? flowData.customReplies : [],
+            publicReplyEnabled: isComment && flowData.customReplies.length > 0,
+            publicReplyOptions: isComment ? flowData.customReplies : [],
+            followUpEnabled: flowData.followUpEnabled,
+            followUpDelayMinutes: flowData.followUpDelayMinutes,
+            followUpMessage: flowData.followUpMessage,
             dmOpeningMessageEnabled: flowData.isAutoDmEnabled && flowData.dmOpeningMessageEnabled,
             dmOpeningMessage: flowData.dmOpeningMessage,
             dmOpeningMessageButtonTitle: flowData.dmOpeningMessageButtonTitle || null,
@@ -217,13 +239,19 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
         if (isEditMode && editAutomation) {
             const { name, commentReplyOptions, dmOpeningMessageEnabled, dmOpeningMessage, dmOpeningMessageButtonTitle,
                 askToFollowEnabled, askToFollowMessage, askToFollowVisitProfileButton,
-                askToFollowConfirmButton, dmResponses, keywords, postThumbnailUrl, postCaption } = buildPayload(null);
+                askToFollowConfirmButton, dmResponses, keywords, postThumbnailUrl, postCaption,
+                publicReplyEnabled, publicReplyOptions, followUpEnabled, followUpDelayMinutes, followUpMessage } = buildPayload(null);
             updateMutation.mutate({
                 id: editAutomation.id,
                 is_active: activate ? true : editAutomation.is_active,
                 name,
                 keywords,
                 comment_reply_options: commentReplyOptions,
+                public_reply_enabled: publicReplyEnabled,
+                public_reply_options: publicReplyOptions,
+                follow_up_enabled: followUpEnabled,
+                follow_up_delay_minutes: followUpDelayMinutes,
+                follow_up_message: followUpMessage,
                 dm_opening_message_enabled: dmOpeningMessageEnabled,
                 dm_opening_message: dmOpeningMessage,
                 dm_opening_message_button_title: dmOpeningMessageButtonTitle ?? null,

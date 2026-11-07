@@ -10,7 +10,7 @@
 
 import { createLogger } from '@/lib/logger';
 import { debugLog } from '@/lib/debugLog';
-import { claimDueJobs, markJobDone, markJobFailed, rescheduleJob, retryBackoffMs } from '@/lib/automation/queue';
+import { claimDueJobs, markJobDone, markJobFailed, markJobHeld, rescheduleJob, retryBackoffMs } from '@/lib/automation/queue';
 import {
   processAutoDmJob,
   processFollowUpDmJob,
@@ -18,7 +18,8 @@ import {
   RateLimitDelay,
   AccountOnPause,
 } from '@/lib/automation/processJob';
-import { AccountPausedMetaError, NonRetryableMetaError, MetaApiError, META_RATE_LIMIT_CODES } from '@/lib/instagram/errors';
+import { AccountOnTrafficGuardPause } from '@/lib/automation/trafficGuardError';
+import { AccountPausedMetaError, NonRetryableMetaError, AmbiguousDeliveryError, MetaApiError, META_RATE_LIMIT_CODES } from '@/lib/instagram/errors';
 import type { JobQueueRow } from '@/lib/types';
 
 const logger = createLogger('engine');
@@ -28,6 +29,7 @@ export interface DrainResult {
   done: number;
   rescheduled: number;
   failed: number;
+  held: number;
 }
 
 /**
@@ -41,7 +43,7 @@ const DEFAULT_DRAIN_BUDGET_MS = 40_000;
 export async function processDueJobs(limit: number, budgetMs = DEFAULT_DRAIN_BUDGET_MS): Promise<DrainResult> {
   const deadline = Date.now() + budgetMs;
   const jobs = await claimDueJobs(limit);
-  const result: DrainResult = { claimed: jobs.length, done: 0, rescheduled: 0, failed: 0 };
+  const result: DrainResult = { claimed: jobs.length, done: 0, rescheduled: 0, failed: 0, held: 0 };
 
   // Sequential on purpose: preserves jitter spacing between sends and keeps a
   // single invocation from bursting DMs to Meta in parallel.
@@ -62,6 +64,32 @@ export async function processDueJobs(limit: number, budgetMs = DEFAULT_DRAIN_BUD
 }
 
 async function runJob(job: JobQueueRow, result: DrainResult): Promise<void> {
+  // ── Phase F (Programme 18): claim-time workspace cross-check ────────────
+  // The job_queue row's workspace_id column and the payload's workspaceId
+  // were both stamped at enqueue from the verified binding. If they now
+  // DISAGREE, the row/payload pair was tampered with or rebound
+  // inconsistently — fail the job closed without processing it (the
+  // processors would refuse on the account-binding check anyway; this
+  // stops the work one layer earlier and leaves an audit event). When
+  // only the column carries a workspace, it is adopted into the payload —
+  // still only an assertion, re-derived by processJob before any send.
+  const rowWorkspaceId =
+    typeof job.workspace_id === 'string' && job.workspace_id.length > 0 ? job.workspace_id : null;
+  if (rowWorkspaceId && job.payload.workspaceId && rowWorkspaceId !== job.payload.workspaceId) {
+    debugLog('worker', 'error', 'tenant_context_mismatch', 'error',
+      'Claimed job row workspace does not match its payload workspace - failing closed', {
+        jobId: job.id,
+        rowWorkspaceId,
+        payloadWorkspaceId: job.payload.workspaceId,
+      });
+    await markJobFailed(job.id, 'Tenant context mismatch: job row workspace does not match payload workspace');
+    result.failed += 1;
+    return;
+  }
+  if (rowWorkspaceId && !job.payload.workspaceId) {
+    job.payload.workspaceId = rowWorkspaceId;
+  }
+
   try {
     if (job.job_type === 'follow_up') {
       await processFollowUpDmJob(job.payload);
@@ -75,6 +103,14 @@ async function runJob(job: JobQueueRow, result: DrainResult): Promise<void> {
       // Hourly window full - wait it out. Not a failure, no attempt counted.
       await rescheduleJob(job, err.retryAfterMs, null, false);
       result.rescheduled += 1;
+      return;
+    }
+
+    if (err instanceof AccountOnTrafficGuardPause) {
+      // Traffic Guard pause — park the job as HELD (not failed, not dropped,
+      // no attempt counted). The resume RPC returns held jobs to 'pending'.
+      await markJobHeld(job.id, 'Held by Traffic Guard pause');
+      result.held += 1;
       return;
     }
 
@@ -103,6 +139,18 @@ async function runJob(job: JobQueueRow, result: DrainResult): Promise<void> {
       debugLog('worker', 'error', 'job_failed', 'error',
         `Non-retryable Meta error - code ${err.code}: ${err.message}`,
         { jobId: job.id, metaCode: err.code, hint: 'Code 190 = expired token, 10 = permission denied, 100 = invalid param' });
+      await markJobFailed(job.id, err.message);
+      result.failed += 1;
+      return;
+    }
+
+    if (err instanceof AmbiguousDeliveryError) {
+      // Phase 6 (release-prep parity): the send may have reached Meta and
+      // the reservation has already been failed closed — retrying could
+      // deliver a duplicate. Fail the job terminally, never reschedule.
+      debugLog('worker', 'error', 'job_failed', 'error',
+        `Ambiguous delivery error - failing closed to prevent duplicate private reply: ${err.message}`,
+        { jobId: job.id });
       await markJobFailed(job.id, err.message);
       result.failed += 1;
       return;

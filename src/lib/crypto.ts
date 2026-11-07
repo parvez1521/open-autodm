@@ -13,6 +13,14 @@ const IV_LENGTH = 12; // 96-bit IV - recommended for GCM
 const AUTH_TAG_LENGTH = 16;
 
 function keyFromHex(encryptionKeyHex: string): Buffer {
+  // Validate the string itself, not just the decoded length: Buffer.from
+  // with 'hex' silently stops at the first non-hex pair, so a valid 64-hex
+  // prefix with trailing garbage used to decode to 32 bytes and be accepted,
+  // and a missing (undefined) key surfaced as a raw TypeError instead of
+  // this error. Fail closed with the one key error for every malformed key.
+  if (typeof encryptionKeyHex !== 'string' || !/^[0-9a-fA-F]{64}$/.test(encryptionKeyHex)) {
+    throw new Error('Encryption key must be exactly 32 bytes (64 hex characters)');
+  }
   const key = Buffer.from(encryptionKeyHex, 'hex');
   if (key.length !== 32) {
     throw new Error('Encryption key must be exactly 32 bytes (64 hex characters)');

@@ -1,0 +1,400 @@
+/**
+ * Creator Studio — Groq free-tier text provider (Programme S1).
+ *
+ * Zero-cost architecture (saas/STUDIO_FREE_PROVIDERS_RESEARCH.md):
+ *  - Groq's free tier is the Studio's only hosted text-AI option. The
+ *    three published free chat models are ROTATED within their published
+ *    per-model limits (200K tokens/day each) — rotation within terms,
+ *    never multi-account evasion.
+ *  - Outputs are cached aggressively (identical inputs → cached output).
+ *  - Callers must rate-limit per user (see createPerUserRateLimiter) and
+ *    degrade to the built-in offline engines when this provider reports
+ *    quota/unavailable. Gemini is never used here (free tier trains on
+ *    inputs and is region-restricted).
+ *
+ * Plain fetch only — no SDK, no new dependencies. The client is built
+ * with injected fetch/clock so it is fully unit-testable.
+ */
+
+import type { IdeaItem, IdeaMode, StudioCategory } from "./types";
+import { IDEA_MODE_LABELS } from "./ideaEngine";
+import { stableHash } from "./nicheEngine";
+
+export const GROQ_MODELS = [
+  "openai/gpt-oss-120b",
+  "qwen/qwen3.8-27b",
+  "openai/gpt-oss-20b",
+] as const;
+
+export const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+
+export type GroqErrorCode = "quota" | "unavailable" | "bad_response";
+
+export class GroqError extends Error {
+  constructor(
+    public readonly code: GroqErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = "GroqError";
+  }
+}
+
+export interface GroqIdeasInput {
+  topic: string;
+  category: StudioCategory;
+  mode: IdeaMode;
+  count: number;
+}
+
+export interface GroqIdeasResult {
+  ideas: IdeaItem[];
+  model: string;
+  cached: boolean;
+}
+
+type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
+
+interface CacheEntry {
+  model: string;
+  ideas: IdeaItem[];
+  at: number;
+}
+
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const CACHE_CAP = 200;
+
+export function createGroqIdeasClient(deps: {
+  apiKey: string;
+  fetchFn?: FetchFn;
+  now?: () => number;
+}) {
+  const fetchFn: FetchFn = deps.fetchFn ?? ((url, init) => fetch(url, init));
+  const now = deps.now ?? Date.now;
+  const cache = new Map<string, CacheEntry>();
+  let rotationCursor = 0;
+
+  function cacheKey(input: GroqIdeasInput): string {
+    return String(
+      stableHash(
+        JSON.stringify({
+          t: input.topic.trim().toLowerCase(),
+          c: input.category,
+          m: input.mode,
+          n: input.count,
+        })
+      )
+    );
+  }
+
+  function readCache(key: string): CacheEntry | null {
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (now() - entry.at > CACHE_TTL_MS) {
+      cache.delete(key);
+      return null;
+    }
+    return entry;
+  }
+
+  function writeCache(key: string, entry: CacheEntry): void {
+    cache.set(key, entry);
+    while (cache.size > CACHE_CAP) {
+      const oldest = cache.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      cache.delete(oldest);
+    }
+  }
+
+  function buildPrompt(input: GroqIdeasInput): { system: string; user: string } {
+    return {
+      system:
+        "You are a video-ideas assistant for content creators. Reply with ONLY a JSON array. " +
+        'Each element is an object with string fields "title", "format" and "whyItWorks" (one short sentence). ' +
+        "No markdown, no commentary, no text outside the JSON array.",
+      user:
+        `Topic: ${input.topic}\nCategory: ${input.category}\nStyle: ${IDEA_MODE_LABELS[input.mode]}\n` +
+        `Write ${input.count} original video ideas a small creator could realistically make. ` +
+        `Titles must be specific to the topic, not generic templates.`,
+    };
+  }
+
+  function parseIdeas(text: string, mode: IdeaMode, count: number): IdeaItem[] {
+    const start = text.indexOf("[");
+    const end = text.lastIndexOf("]");
+    if (start < 0 || end <= start) {
+      throw new GroqError("bad_response", "Groq response did not contain a JSON array");
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text.slice(start, end + 1));
+    } catch {
+      throw new GroqError("bad_response", "Groq response was not valid JSON");
+    }
+    if (!Array.isArray(parsed)) {
+      throw new GroqError("bad_response", "Groq response JSON was not an array");
+    }
+    const ideas: IdeaItem[] = [];
+    const seen = new Set<string>();
+    for (const raw of parsed) {
+      if (typeof raw !== "object" || raw === null) continue;
+      const r = raw as Record<string, unknown>;
+      const title = typeof r["title"] === "string" ? r["title"].trim() : "";
+      if (!title || seen.has(title.toLowerCase())) continue;
+      seen.add(title.toLowerCase());
+      ideas.push({
+        title: title.slice(0, 160),
+        format: typeof r["format"] === "string" && r["format"].trim() ? r["format"].trim().slice(0, 60) : "Idea",
+        whyItWorks:
+          typeof r["whyItWorks"] === "string" && r["whyItWorks"].trim()
+            ? r["whyItWorks"].trim().slice(0, 240)
+            : "Generated by the free AI model for this topic.",
+        mode,
+        engine: "free-ai",
+      });
+      if (ideas.length >= count) break;
+    }
+    if (ideas.length === 0) {
+      throw new GroqError("bad_response", "Groq response contained no usable ideas");
+    }
+    return ideas;
+  }
+
+  async function callModel(model: string, input: GroqIdeasInput): Promise<IdeaItem[]> {
+    const { system, user } = buildPrompt(input);
+    let res: Response;
+    try {
+      res = await fetchFn(GROQ_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${deps.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: user },
+          ],
+          temperature: 0.8,
+          max_tokens: 1200,
+        }),
+      });
+    } catch {
+      throw new GroqError("unavailable", "Groq request failed before a response was received");
+    }
+    if (res.status === 429) {
+      throw new GroqError("quota", `Groq model ${model} is at its free-tier limit`);
+    }
+    if (res.status >= 500) {
+      throw new GroqError("unavailable", `Groq model ${model} returned ${res.status}`);
+    }
+    if (!res.ok) {
+      throw new GroqError("unavailable", `Groq model ${model} returned ${res.status}`);
+    }
+    const body = (await res.json().catch(() => null)) as
+      | { choices?: { message?: { content?: unknown } }[] }
+      | null;
+    const content = body?.choices?.[0]?.message?.content;
+    if (typeof content !== "string") {
+      throw new GroqError("bad_response", "Groq response had no message content");
+    }
+    return parseIdeas(content, input.mode, input.count);
+  }
+
+  return {
+    async generateIdeas(input: GroqIdeasInput): Promise<GroqIdeasResult> {
+      const key = cacheKey(input);
+      const hit = readCache(key);
+      if (hit) return { ideas: hit.ideas, model: hit.model, cached: true };
+
+      let lastError: GroqError | null = null;
+      let sawQuota = false;
+      for (let attempt = 0; attempt < GROQ_MODELS.length; attempt++) {
+        const model = GROQ_MODELS[(rotationCursor + attempt) % GROQ_MODELS.length]!;
+        try {
+          const ideas = await callModel(model, input);
+          rotationCursor = (rotationCursor + attempt + 1) % GROQ_MODELS.length;
+          writeCache(key, { model, ideas, at: now() });
+          return { ideas, model, cached: false };
+        } catch (err) {
+          if (err instanceof GroqError) {
+            lastError = err;
+            if (err.code === "quota") sawQuota = true;
+            continue; // rotate to the next model
+          }
+          throw err;
+        }
+      }
+      // Every model failed. Quota dominates: if any model was at its
+      // limit, the honest state is "free quota reached".
+      if (sawQuota) {
+        throw new GroqError("quota", "All free AI models are at their daily free-tier limit");
+      }
+      throw lastError ?? new GroqError("unavailable", "Free AI is unavailable right now");
+    },
+  };
+}
+
+export interface GroqTextInput {
+  system: string;
+  user: string;
+  /** Caller-supplied cache key parts (the task + its inputs). */
+  cacheKey: string;
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface GroqTextResult {
+  text: string;
+  model: string;
+  cached: boolean;
+}
+
+/**
+ * Generic free-tier chat client (Programme S2) — the same rotation,
+ * caching and error discipline as the ideas client, for free-text
+ * tasks (the Script Builder's section polish). Kept as a sibling
+ * factory rather than a refactor of the ideas client so the S1
+ * behaviour stays exactly as pinned by its tests.
+ */
+export function createGroqTextClient(deps: {
+  apiKey: string;
+  fetchFn?: FetchFn;
+  now?: () => number;
+}) {
+  const fetchFn: FetchFn = deps.fetchFn ?? ((url, init) => fetch(url, init));
+  const now = deps.now ?? Date.now;
+  const cache = new Map<string, { model: string; text: string; at: number }>();
+  let rotationCursor = 0;
+
+  function readCache(key: string): { model: string; text: string } | null {
+    const entry = cache.get(key);
+    if (!entry) return null;
+    if (now() - entry.at > CACHE_TTL_MS) {
+      cache.delete(key);
+      return null;
+    }
+    return entry;
+  }
+
+  function writeCache(key: string, entry: { model: string; text: string }): void {
+    cache.set(key, { ...entry, at: now() });
+    while (cache.size > CACHE_CAP) {
+      const oldest = cache.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      cache.delete(oldest);
+    }
+  }
+
+  async function callModel(model: string, input: GroqTextInput): Promise<string> {
+    let res: Response;
+    try {
+      res = await fetchFn(GROQ_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${deps.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: input.system },
+            { role: "user", content: input.user },
+          ],
+          temperature: input.temperature ?? 0.6,
+          max_tokens: input.maxTokens ?? 900,
+        }),
+      });
+    } catch {
+      throw new GroqError("unavailable", "Groq request failed before a response was received");
+    }
+    if (res.status === 429) {
+      throw new GroqError("quota", `Groq model ${model} is at its free-tier limit`);
+    }
+    if (!res.ok) {
+      throw new GroqError("unavailable", `Groq model ${model} returned ${res.status}`);
+    }
+    const body = (await res.json().catch(() => null)) as
+      | { choices?: { message?: { content?: unknown } }[] }
+      | null;
+    const content = body?.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
+      throw new GroqError("bad_response", "Groq response had no usable message content");
+    }
+    return content.trim();
+  }
+
+  return {
+    async generateText(input: GroqTextInput): Promise<GroqTextResult> {
+      const hit = readCache(input.cacheKey);
+      if (hit) return { text: hit.text, model: hit.model, cached: true };
+
+      let lastError: GroqError | null = null;
+      let sawQuota = false;
+      for (let attempt = 0; attempt < GROQ_MODELS.length; attempt++) {
+        const model = GROQ_MODELS[(rotationCursor + attempt) % GROQ_MODELS.length]!;
+        try {
+          const text = await callModel(model, input);
+          rotationCursor = (rotationCursor + attempt + 1) % GROQ_MODELS.length;
+          writeCache(input.cacheKey, { model, text });
+          return { text, model, cached: false };
+        } catch (err) {
+          if (err instanceof GroqError) {
+            lastError = err;
+            if (err.code === "quota") sawQuota = true;
+            continue; // rotate to the next model
+          }
+          throw err;
+        }
+      }
+      if (sawQuota) {
+        throw new GroqError("quota", "All free AI models are at their daily free-tier limit");
+      }
+      throw lastError ?? new GroqError("unavailable", "Free AI is unavailable right now");
+    },
+  };
+}
+
+/**
+ * Per-user rate limiter for the Studio AI route. In-memory at this tier
+ * (documented limit: counters reset on process restart and are per
+ * instance). Windows: a per-minute burst cap and a per-UTC-day cap,
+ * counted on ATTEMPTS so a failing provider cannot be hammered.
+ */
+export function createPerUserRateLimiter(deps?: {
+  perMinute?: number;
+  perDay?: number;
+  now?: () => number;
+}) {
+  const perMinute = deps?.perMinute ?? 10;
+  const perDay = deps?.perDay ?? 50;
+  const now = deps?.now ?? Date.now;
+  const attempts = new Map<string, number[]>();
+
+  function prune(userId: string, at: number): number[] {
+    const dayStart = new Date(at);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const kept = (attempts.get(userId) ?? []).filter((t) => t >= dayStart.getTime());
+    attempts.set(userId, kept);
+    return kept;
+  }
+
+  return {
+    /** Returns null when allowed, or the typed refusal reason. */
+    check(userId: string): "rate_limited" | "daily_quota_reached" | null {
+      const at = now();
+      const kept = prune(userId, at);
+      if (kept.length >= perDay) return "daily_quota_reached";
+      const lastMinute = kept.filter((t) => at - t < 60_000).length;
+      if (lastMinute >= perMinute) return "rate_limited";
+      return null;
+    },
+    record(userId: string): void {
+      const at = now();
+      const kept = prune(userId, at);
+      kept.push(at);
+      attempts.set(userId, kept);
+    },
+  };
+}

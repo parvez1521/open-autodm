@@ -1,11 +1,27 @@
 // Cloudflare Workers config - used only when deploying via `npm run cf:deploy`.
 // Vercel deployments ignore this file entirely.
+//
+// Phase 10.1 (2026-11-06): aligned to the production worker. The production
+// script is "open-autodm-production" (custom domain app.opendm.in; verified
+// read-only against the deployed v13 version and script settings). Deploying
+// with any other name lands on the wrong, domain-less script.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "open-autodm",
+  "name": "open-autodm-production",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-03-25",
-  "compatibility_flags": ["nodejs_compat"],
+  // nodejs_compat_populate_process_env is REQUIRED at this compatibility
+  // date (process.env population only became the default for dates on or
+  // after 2025-04-01): src/lib/env.ts and src/lib/owner.ts read bindings
+  // through process.env. Production's script settings carried both flags.
+  "compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+  // Keep plain vars that were set outside this file (dashboard/API) across
+  // deploys instead of letting the config silently override/delete them.
+  // Note: this governs plain vars only - secrets set via `wrangler secret
+  // put` are never deleted by a wrangler deployment either way (official
+  // docs). The pre-deploy binding verification in
+  // PRODUCTION-BINDING-RESTORATION.md remains mandatory regardless.
+  "keep_vars": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -15,14 +31,36 @@
   "ai": {
     "binding": "AI"
   },
-  // Set your environment variables with:
+  // Secrets are NEVER stored in this file. The names below are declared so
+  // wrangler can validate that they are configured; supply each value
+  // interactively at deploy time, from the owner's own records only:
   //   npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
   //   npx wrangler secret put TOKEN_ENCRYPTION_KEY
+  //     (the ORIGINAL key only - see phase10-key-recovery-checklist.md;
+  //      never generate, guess, or substitute a replacement)
   //   npx wrangler secret put CRON_SECRET
-  // Public vars can go here:
+  "secrets": {
+    "required": [
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "TOKEN_ENCRYPTION_KEY",
+      "CRON_SECRET"
+    ]
+  },
+  // Instance owner identity (fail-closed gate, src/lib/owner.ts): set
+  // OWNER_USER_ID (recommended) or OWNER_EMAIL at deploy time - as a plain
+  // var here in the owner's deploy checkout, or via `wrangler secret put`.
+  // Deliberately not given a value in this workspace copy.
+  //
+  // Public (non-secret) vars for the production deployment. Values below
+  // were verified read-only against the deployed production version
+  // (Phase 10.1); they are the same values v13 carries as plain_text.
   "vars": {
-    // "NEXT_PUBLIC_SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
-    // "NEXT_PUBLIC_SUPABASE_ANON_KEY": "...",
-    // "NEXT_PUBLIC_APP_URL": "https://open-autodm.YOUR-SUBDOMAIN.workers.dev"
+    "NEXT_PUBLIC_APP_URL": "https://app.opendm.in",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://bprohzkpizicsmyscvtx.supabase.co"
+    // "NEXT_PUBLIC_SUPABASE_ANON_KEY": owner-supplied at deploy. Its
+    // presence on production (plain_text) was verified in Phase 10.1, but
+    // the value is intentionally not transcribed into this workspace copy;
+    // take it from Supabase Dashboard -> Project Settings -> API (the
+    // anon / publishable key) when preparing the deploy checkout.
   }
 }

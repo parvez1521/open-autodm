@@ -18,12 +18,20 @@ export class ApiError extends Error {
 }
 
 export async function apiClient<T>(path: string, options?: RequestInit & { skipAuth?: boolean }): Promise<T> {
-  const headers: Record<string, string> = {
-    // Content-Type only when a body exists - bodyless requests with a JSON
-    // Content-Type can confuse some runtimes into parsing an empty body.
-    ...(options?.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-    ...(options?.headers as Record<string, string> | undefined),
-  };
+  // Headers-normalized construction (Programme 28): `new Headers(...)`
+  // preserves plain-object, Headers-instance and tuple-array inputs
+  // without corruption (the previous Record spread destroyed the
+  // latter two). Observable precedence is preserved:
+  // - Content-Type: the JSON default applies only when a body exists
+  //   and the caller did not supply a Content-Type (caller wins).
+  //   Bodyless requests get no JSON Content-Type — some runtimes
+  //   would otherwise try to parse an empty body.
+  // - Authorization: set after caller headers, so it wins when a
+  //   session token exists and auth is not skipped.
+  const headers = new Headers(options?.headers);
+  if (options?.body !== undefined && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
 
   if (!options?.skipAuth) {
     const supabase = createBrowserClient();
@@ -31,7 +39,7 @@ export async function apiClient<T>(path: string, options?: RequestInit & { skipA
       data: { session },
     } = await supabase.auth.getSession();
     if (session?.access_token) {
-      headers['Authorization'] = `Bearer ${session.access_token}`;
+      headers.set('Authorization', `Bearer ${session.access_token}`);
     }
   }
 

@@ -46,6 +46,21 @@ export class AccountPausedMetaError extends MetaApiError {
   }
 }
 
+/**
+ * The send was initiated to Meta but its outcome is unknown (network
+ * timeout, socket drop, 5xx after acceptance, worker crash window): Meta
+ * may have delivered the message. Ported from release-prep in Phase 6 with
+ * the reservation system — the engine treats this as a terminal failure
+ * (fail closed) and NEVER retries the send, because a retry could deliver
+ * a duplicate private reply.
+ */
+export class AmbiguousDeliveryError extends Error {
+  constructor(message = 'Ambiguous delivery outcome: request may have reached Meta, failing closed to prevent duplicate DM') {
+    super(message);
+    this.name = 'AmbiguousDeliveryError';
+  }
+}
+
 export function classifyMetaError(message: string, code: number | undefined, subcode: number | undefined): MetaApiError {
   if (code !== undefined && (ACCOUNT_PAUSE_CODES as readonly number[]).includes(code)) {
     return new AccountPausedMetaError(message, code, subcode);

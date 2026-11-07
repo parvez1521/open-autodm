@@ -1,13 +1,21 @@
 import { Sidebar, MobileSidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
+import { readWorkspaceFlags } from "@/lib/tenancy/workspaceFlags";
+import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 
 export default function MainLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    // Programme 18 / Phase G: the workspace flag is read server-side and
+    // passed down as a prop. Flag OFF (default) ⇒ the provider is inert
+    // and the sidebar renders exactly as before (no switcher, no nav
+    // changes, no layout shift).
+    const workspaceRuntimeEnabled = readWorkspaceFlags(process.env).workspaceRuntimeEnabled;
     return (
+        <WorkspaceProvider workspaceRuntimeEnabled={workspaceRuntimeEnabled}>
         <div className="h-screen bg-background text-foreground flex overflow-hidden">
 
             {/* Background Seamless Dotted Pattern */}
@@ -20,10 +28,10 @@ export default function MainLayout({
             />
 
             {/* Desktop Sidebar (Collapsible) */}
-            <Sidebar />
+            <Sidebar workspaceRuntimeEnabled={workspaceRuntimeEnabled} />
 
             {/* Mobile drawer (opened by the Topbar hamburger) */}
-            <MobileSidebar />
+            <MobileSidebar workspaceRuntimeEnabled={workspaceRuntimeEnabled} />
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden relative z-10">
@@ -35,5 +43,6 @@ export default function MainLayout({
                 </main>
             </div>
         </div>
+        </WorkspaceProvider>
     );
 }

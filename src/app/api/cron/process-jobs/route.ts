@@ -6,6 +6,14 @@
  *    exact SQL snippet), and/or
  *  - Vercel daily cron (vercel.json) as a safety net.
  *
+ * HEADER-ONLY auth (Phase 10.4, S-03): the secret is accepted ONLY as
+ * `Authorization: Bearer <CRON_SECRET>`. The former `?secret=` query-param
+ * fallback was removed — every in-repo caller already uses the header
+ * (the setup-generated pg_cron snippet sends `Authorization: Bearer …`;
+ * Vercel Cron presents CRON_SECRET as a Bearer header), and a secret in a
+ * URL lands in access/proxy logs and browser history. The query string is
+ * never consulted now, not even when the header is missing or malformed.
+ *
  * Does three things:
  *  1. Drains due queue jobs (rate-limit overflow, retries, stuck jobs).
  *  2. Silently refreshes Instagram tokens expiring within 10 days.
@@ -13,6 +21,8 @@
  */
 
 import { processDueJobs } from '@/lib/automation/engine';
+import { evaluateOpenIncidents } from '@/lib/trafficGuard/tracker';
+import { sweepDueFollowUps } from '@/lib/automation/followUps';
 import { createServiceClient } from '@/lib/supabase/service';
 import { refreshLongLivedToken } from '@/lib/instagram/oauth';
 import { decrypt, encrypt, safeCompare } from '@/lib/crypto';
@@ -28,10 +38,26 @@ export const maxDuration = 60;
 const logger = createLogger('cron');
 
 function isAuthorized(request: Request): boolean {
-  const env = getEnv();
+  // Fail closed when CRON_SECRET is absent/invalid: getEnv() throws on a
+  // missing or too-short secret — that must mean "nobody is authorized"
+  // (401 from handle()), never an unhandled 500 and never an allow.
+  let cronSecret: string;
+  try {
+    cronSecret = getEnv().CRON_SECRET;
+  } catch {
+    return false;
+  }
+  if (!cronSecret) return false;
+
+  // Header-only: an exact `Bearer <token>` Authorization header. Any
+  // other shape (missing header, non-Bearer scheme, empty token) is
+  // rejected; the URL query string is deliberately never read (S-03).
   const header = request.headers.get('authorization') ?? '';
-  const provided = header.startsWith('Bearer ') ? header.slice(7) : new URL(request.url).searchParams.get('secret') ?? '';
-  return provided.length > 0 && safeCompare(provided, env.CRON_SECRET);
+  if (!header.startsWith('Bearer ')) return false;
+  const provided = header.slice(7);
+  // Constant-time comparison; the provided value is never logged or
+  // returned (handle() answers a bare { error: 'Unauthorized' }).
+  return provided.length > 0 && safeCompare(provided, cronSecret);
 }
 
 async function refreshExpiringTokens(): Promise<number> {
@@ -57,7 +83,7 @@ async function refreshExpiringTokens(): Promise<number> {
       if ('error' in result) {
         debugLog('cron', 'warn', 'token_refresh', 'error',
           `Token refresh failed for @${account.username ?? account.id} (${result.error}, HTTP ${result.status})`,
-          { accountId: account.id });
+          { accountId: account.id, userId: account.user_id });
         continue;
       }
       await db
@@ -70,6 +96,7 @@ async function refreshExpiringTokens(): Promise<number> {
       refreshed += 1;
       debugLog('cron', 'info', 'token_refresh', 'ok', `Token auto-refreshed for @${account.username ?? account.id}`, {
         accountId: account.id,
+        userId: account.user_id,
         daysRemaining: Math.floor(result.expires_in / 86400),
       });
     } catch (err) {
@@ -87,6 +114,16 @@ async function handle(request: Request): Promise<Response> {
   const drain = await processDueJobs(25);
   const tokensRefreshed = await refreshExpiringTokens();
 
+  // Traffic Guard: re-evaluate open high-traffic incidents so recovery is
+  // detected even when no new comments arrive.
+  const trafficIncidentsEvaluated = await evaluateOpenIncidents();
+
+  // Scheduled follow-ups: re-enqueue send jobs for due rows whose original
+  // enqueue was lost (dedupe keys make this a no-op when the job exists),
+  // then drain again so freshly requeued follow-ups are not left waiting.
+  const followUpsRequeued = await sweepDueFollowUps(25);
+  const followUpDrain = followUpsRequeued > 0 ? await processDueJobs(25) : null;
+
   const db = createServiceClient();
   const { error: cleanupError } = await db.rpc('cleanup_old_rows');
   if (cleanupError) logger.warn({ err: cleanupError }, 'cleanup_old_rows failed');
@@ -95,6 +132,9 @@ async function handle(request: Request): Promise<Response> {
     ok: true,
     jobs: drain,
     tokensRefreshed,
+    trafficIncidentsEvaluated,
+    followUpsRequeued,
+    followUpJobs: followUpDrain,
     at: new Date().toISOString(),
   });
 }

@@ -10,6 +10,7 @@ import {
     Wrench,
     Github,
     PenLine,
+    Clapperboard,
     ChevronLeft,
     ChevronRight,
     X,
@@ -19,6 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 import { AccountSwitcher } from "@/components/dashboard/AccountSwitcher";
+import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 import { useUiStore } from "@/lib/store";
 
 const NAV = {
@@ -27,6 +29,8 @@ const NAV = {
         { name: "Automations", href: "/automations", icon: Bot, external: false },
         { name: "Analytics", href: "/analytics", icon: ChartNoAxesColumn, external: false },
         { name: "Script Writer", href: "/script-writer", icon: PenLine, external: false },
+        // Creator Studio (Programme S1): in-app section under /studio.
+        { name: "Creator Studio", href: "/studio", icon: Clapperboard, external: false },
     ],
     System: [
         { name: "Setup Wizard", href: "/setup", icon: Wrench, external: false },
@@ -96,7 +100,7 @@ function NavGroups({
     );
 }
 
-export function Sidebar() {
+export function Sidebar({ workspaceRuntimeEnabled = false }: { workspaceRuntimeEnabled?: boolean } = {}) {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     return (
@@ -140,6 +144,15 @@ export function Sidebar() {
                 <NavGroups collapsed={isCollapsed} threadId="nav-thread-desktop" />
             </div>
 
+            {/* Workspace switcher — Programme 18 Phase G, flag-gated:
+                rendered ONLY when the server passed workspaceRuntimeEnabled;
+                flag OFF ⇒ this block contributes nothing. */}
+            {workspaceRuntimeEnabled && (
+                <div className={cn("border-t border-border p-2.5", isCollapsed && "px-2")}>
+                    <WorkspaceSwitcher isCollapsed={isCollapsed} />
+                </div>
+            )}
+
             {/* Account switcher */}
             <div className={cn("border-t border-border p-2.5", isCollapsed && "px-2")}>
                 <AccountSwitcher isCollapsed={isCollapsed} />
@@ -152,7 +165,7 @@ export function Sidebar() {
  * Mobile navigation drawer (< lg). Opened by the Topbar hamburger via
  * useUiStore; closes on backdrop tap, the X button, Escape, or navigation.
  */
-export function MobileSidebar() {
+export function MobileSidebar({ workspaceRuntimeEnabled = false }: { workspaceRuntimeEnabled?: boolean } = {}) {
     const isOpen = useUiStore((s) => s.mobileSidebarOpen);
     const close = useUiStore((s) => s.closeMobileSidebar);
     const pathname = usePathname();
@@ -212,6 +225,13 @@ export function MobileSidebar() {
                         <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none py-4">
                             <NavGroups collapsed={false} threadId="nav-thread-mobile" onNavigate={close} />
                         </div>
+
+                        {/* Workspace switcher — flag-gated, as desktop. */}
+                        {workspaceRuntimeEnabled && (
+                            <div className="border-t border-border p-2.5">
+                                <WorkspaceSwitcher isCollapsed={false} />
+                            </div>
+                        )}
 
                         {/* Account switcher */}
                         <div className="border-t border-border p-2.5">

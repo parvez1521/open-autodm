@@ -2,11 +2,20 @@
  * /auth/callback - Supabase auth code exchange (email confirmation links,
  * OAuth providers if the self-hoster enables any). Sets session cookies and
  * forwards to the dashboard.
+ *
+ * S-02 gate (Phase 10.4): this route is where a confirmation/invite code
+ * becomes a live session, so it is a session-MINTING surface. The exchanged
+ * identity must pass the same signup-protection gate as the API layer
+ * (src/lib/signupProtection.ts) before the session is kept: anonymous
+ * identities, and identities outside the owner's INSTANCE_ALLOWED_*
+ * allowlist when one is configured, are signed straight back out and
+ * forwarded to the login page with an error — never to the dashboard.
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { isIdentityAllowed } from '@/lib/signupProtection';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,9 +46,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
   );
 
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) {
     return NextResponse.redirect(new URL(`/?auth_error=${encodeURIComponent(exchangeError.message)}`, request.url));
+  }
+
+  // Fail closed: no identifiable user, or an identity the instance does
+  // not accept, gets no session — sign out whatever the exchange set and
+  // send the browser back to the (sign-in only) landing page.
+  const exchangedUser = exchangeData.user ?? exchangeData.session?.user ?? null;
+  if (
+    !exchangedUser ||
+    !isIdentityAllowed({
+      id: exchangedUser.id,
+      email: exchangedUser.email,
+      isAnonymous: exchangedUser.is_anonymous,
+    })
+  ) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(
+      new URL(
+        `/?auth_error=${encodeURIComponent('This account is not provisioned for this instance.')}`,
+        request.url
+      )
+    );
   }
   return NextResponse.redirect(new URL('/dashboard', request.url));
 }

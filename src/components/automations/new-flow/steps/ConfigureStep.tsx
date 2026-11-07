@@ -4,9 +4,10 @@ import { useState } from "react";
 import {
     X, Trash2, Plus,
     Image as ImageIcon, ChevronDown, MessageSquare, LayoutGrid,
-    Zap, AlertTriangle,
+    Zap, AlertTriangle, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiClient, ApiError } from "@/lib/api/client";
 import { AutomationFlowData, DMResponse, CardButton } from "../NewAutomationModal";
 import { CommentsPhone, DMConversationPhone, StoryPhone } from "./PhoneComponents";
 import { MAX_DM_RESPONSES } from "@/lib/api/schemas";
@@ -84,6 +85,77 @@ function SectionHeader({ title, action }: { title: string; action?: React.ReactN
             <span className="micro-label text-foreground/80">{title}</span>
             <div className="h-px flex-1 bg-border" />
             {action}
+        </div>
+    );
+}
+
+/* ─── AI drafting control (Phase 7, owner-approved mixed scope) ───
+ * One owner-only drafting call to POST /api/ai/generate. Sends only the
+ * owner's own prompt (+ automation name / post caption where the action
+ * uses them) — no audience data is involved. The generated text is shown
+ * to the owner in the builder and is only used if they save the automation;
+ * generation itself sends nothing anywhere. The prompt input is transient
+ * local state and is never persisted. */
+type AiDraftAction = "opening_variations" | "public_replies" | "response_draft" | "follow_up_draft";
+
+function AiDraftControl({ action, label, placeholder, defaultPrompt, automationName, postCaption, disabled, onResult }: {
+    action: AiDraftAction;
+    label: string;
+    placeholder: string;
+    defaultPrompt: string;
+    automationName: string;
+    postCaption?: string;
+    disabled?: boolean;
+    onResult: (res: { variations?: string[]; draft?: string; status?: string }) => void;
+}) {
+    const [prompt, setPrompt] = useState(defaultPrompt);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
+
+    const generate = async () => {
+        if (busy || disabled) return;
+        setBusy(true);
+        setError("");
+        try {
+            const res = await apiClient<{ success: boolean; variations?: string[]; draft?: string; status?: string; error?: string }>("/ai/generate", {
+                method: "POST",
+                body: JSON.stringify({
+                    action,
+                    prompt: prompt.trim(),
+                    automationName,
+                    ...(postCaption ? { postCaption } : {}),
+                    count: 5,
+                }),
+            });
+            onResult(res);
+        } catch (e) {
+            setError(e instanceof ApiError ? (e.body.error ?? e.body.message ?? e.message) : "Generation failed. Try again.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className="space-y-1.5">
+            <div className="flex gap-1.5">
+                <input
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); generate(); } }}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    className={inputCls}
+                />
+                <button
+                    onClick={generate}
+                    disabled={busy || disabled}
+                    className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-lg text-[12px] font-semibold border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                >
+                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    {busy ? "Generating…" : label}
+                </button>
+            </div>
+            {error && <p className="text-[12px] text-destructive font-medium">{error}</p>}
         </div>
     );
 }
@@ -350,6 +422,8 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
     const [phonePhase, setPhonePhase] = useState<"initial" | "clicked" | "followed">("initial");
     const [repliesSaved, setRepliesSaved] = useState(data.customReplies.length > 0);
     const [commentInput, setCommentInput] = useState("");
+    // AI-drafted opening variations offered as a picker (transient, never persisted).
+    const [openingAiOptions, setOpeningAiOptions] = useState<string[] | null>(null);
 
     const flowType = data.type ?? "comment-dm";
     const isComment = flowType === "comment-dm";
@@ -484,6 +558,22 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                 <Plus className="w-3.5 h-3.5" />
                             </button>
                         </div>
+
+                        <AiDraftControl
+                            action="public_replies"
+                            label="Generate with AI"
+                            placeholder="Describe the vibe for the replies…"
+                            defaultPrompt="Generate warm, natural 1-sentence Instagram comment replies confirming we sent them a DM"
+                            automationName={data.name}
+                            postCaption={data.postCaption}
+                            onResult={res => {
+                                if (res.variations && res.variations.length > 0) {
+                                    onUpdate({ customReplies: res.variations });
+                                    setRepliesSaved(true);
+                                }
+                            }}
+                        />
+                        <p className="text-[11px] text-muted-foreground">AI drafts replacement replies from your prompt — review, edit or delete them before saving.</p>
                     </section>
                 )}
 
@@ -540,6 +630,39 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                                         <p className="text-[10px] text-muted-foreground">
                                                             Tip: <code className="font-mono bg-muted px-1 rounded">{"{username}"}</code> becomes the commenter&apos;s @handle.
                                                         </p>
+                                                    )}
+
+                                                    <AiDraftControl
+                                                        action="opening_variations"
+                                                        label="Generate variations"
+                                                        placeholder="Describe the opening message…"
+                                                        defaultPrompt="Warm, friendly opening DM that thanks them for commenting and offers the link"
+                                                        automationName={data.name}
+                                                        postCaption={data.postCaption}
+                                                        onResult={res => {
+                                                            if (res.variations && res.variations.length > 0) {
+                                                                setOpeningAiOptions(res.variations);
+                                                            }
+                                                        }}
+                                                    />
+                                                    {openingAiOptions && openingAiOptions.length > 0 && (
+                                                        <div className="space-y-1.5">
+                                                            <div className="flex items-center justify-between">
+                                                                <p className="micro-label">AI variations — pick one</p>
+                                                                <button onClick={() => setOpeningAiOptions(null)} className="text-muted-foreground hover:text-foreground">
+                                                                    <X className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </div>
+                                                            {openingAiOptions.map((v, i) => (
+                                                                <button
+                                                                    key={i}
+                                                                    onClick={() => { onUpdate({ dmOpeningMessage: v }); setOpeningAiOptions(null); }}
+                                                                    className="block w-full text-left text-[13px] text-foreground bg-muted/40 hover:bg-muted rounded-lg px-3 py-2 transition-colors"
+                                                                >
+                                                                    {v}
+                                                                </button>
+                                                            ))}
+                                                        </div>
                                                     )}
 
                                                     <div className="rounded-lg border border-border p-2.5 space-y-1.5">
@@ -667,6 +790,87 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                             <LayoutGrid className="w-3.5 h-3.5" /> Card message
                                         </button>
                                     </div>
+
+                                    <AiDraftControl
+                                        action="response_draft"
+                                        label="AI draft"
+                                        placeholder="Describe the response…"
+                                        defaultPrompt="Helpful DM response delivering the requested resource and offering help"
+                                        automationName={data.name}
+                                        postCaption={data.postCaption}
+                                        disabled={!canAddMoreResponses}
+                                        onResult={res => {
+                                            if (res.draft) {
+                                                onUpdate({
+                                                    dmResponses: [
+                                                        ...data.dmResponses,
+                                                        { id: randomId(), type: "text", content: res.draft },
+                                                    ],
+                                                });
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </section>
+
+                {/* Follow-up message (scheduled check-in) */}
+                <section className="space-y-3">
+                    <SectionHeader
+                        title="Follow-up message"
+                        action={<Toggle on={data.followUpEnabled} onChange={() => onUpdate({ followUpEnabled: !data.followUpEnabled })} />}
+                    />
+                    <AnimatePresence>
+                        {data.followUpEnabled && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.18 }}
+                                className="overflow-hidden space-y-3"
+                            >
+                                <p className="text-[12px] text-muted-foreground">
+                                    One check-in DM, sent after the person replies (button tap or a matching DM).
+                                    It is never sent to someone who opted out, and only inside Meta&apos;s 24-hour window.
+                                </p>
+                                <div>
+                                    <label className="micro-label block mb-1">Send after</label>
+                                    <select
+                                        value={data.followUpDelayMinutes}
+                                        onChange={e => onUpdate({ followUpDelayMinutes: Number(e.target.value) })}
+                                        className={inputCls}
+                                    >
+                                        <option value={10}>10 minutes</option>
+                                        <option value={20}>20 minutes</option>
+                                        <option value={60}>1 hour</option>
+                                        <option value={120}>2 hours</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="micro-label block mb-1">Message</label>
+                                    <textarea
+                                        value={data.followUpMessage}
+                                        onChange={e => onUpdate({ followUpMessage: e.target.value })}
+                                        placeholder="e.g. Hey {username}, just checking in — did the guide help?"
+                                        rows={3}
+                                        maxLength={1000}
+                                        className={textareaCls}
+                                    />
+                                    <p className="text-[11px] text-muted-foreground mt-1">Sent exactly as written (with {"{username}"} personalised). No AI rewriting.</p>
+                                    <AiDraftControl
+                                        action="follow_up_draft"
+                                        label="Generate draft"
+                                        placeholder="Describe the check-in…"
+                                        defaultPrompt="Polite check-in asking if they got a chance to look at the link"
+                                        automationName={data.name}
+                                        onResult={res => {
+                                            if (res.draft) {
+                                                onUpdate({ followUpMessage: res.draft });
+                                            }
+                                        }}
+                                    />
                                 </div>
                             </motion.div>
                         )}

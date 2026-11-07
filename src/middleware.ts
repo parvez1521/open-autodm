@@ -9,6 +9,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { isIdentityAllowed } from '@/lib/signupProtection';
 
 const SUPABASE_URL = process.env['NEXT_PUBLIC_SUPABASE_URL']!;
 const SUPABASE_ANON_KEY = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']!;
@@ -32,8 +33,22 @@ export async function middleware(request: NextRequest) {
   // getUser() also refreshes the session token when needed - call it before
   // any redirect decisions.
   const {
-    data: { user },
+    data: { user: verifiedUser },
   } = await supabase.auth.getUser();
+
+  // S-02 gate (Phase 10.4): page protection applies the same
+  // signup-protection decision as the API layer (src/lib/auth.ts) — an
+  // anonymous identity, or one outside the owner's INSTANCE_ALLOWED_*
+  // allowlist when configured, is treated as unauthenticated here too.
+  const user =
+    verifiedUser &&
+    isIdentityAllowed({
+      id: verifiedUser.id,
+      email: verifiedUser.email,
+      isAnonymous: verifiedUser.is_anonymous,
+    })
+      ? verifiedUser
+      : null;
 
   const pathname = request.nextUrl.pathname;
   const isProtectedRoute =
@@ -42,6 +57,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/analytics') ||
     pathname.startsWith('/settings') ||
     pathname.startsWith('/script-writer') ||
+    pathname.startsWith('/studio') ||
     pathname.startsWith('/setup');
 
   if (isProtectedRoute && !user) {

@@ -17,6 +17,7 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
 import { PipelineShowcase } from "@/components/home/PipelineShowcase";
+import { ScriptSampleShowcase } from "@/components/home/ScriptSampleShowcase";
 
 const FEATURES = [
     {
@@ -49,24 +50,6 @@ const SAFETY = [
     { icon: Clock3, label: "24-hour window checked before every send" },
     { icon: UserCheck, label: "One DM per person, per automation, per day" },
     { icon: Webhook, label: "Webhooks verified with HMAC-SHA256" },
-] as const;
-
-const SAMPLE_SECTIONS = [
-    {
-        time: "0–3s",
-        label: "Hook",
-        spoken: "Paid tools pe paise waste karna band karo — ye 3 websites bilkul free hain.",
-    },
-    {
-        time: "8–15s",
-        label: "Value",
-        spoken: "Pehli website tumhare notes ko flashcards aur quiz me badal deti hai. Revision 10x fast, bina extra app ke.",
-    },
-    {
-        time: "27–30s",
-        label: "CTA",
-        spoken: "Teeno ke links chahiye to comment me LINK likho, DM me bhej dunga.",
-    },
 ] as const;
 
 export default function LandingPage() {
@@ -121,10 +104,10 @@ export default function LandingPage() {
                             <div className="mt-8 flex flex-wrap items-center gap-3">
                                 <a
                                     href="#signin"
-                                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                                    className="group inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                                 >
                                     Sign in to your console
-                                    <ArrowRight className="h-4 w-4" />
+                                    <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
                                 </a>
                                 <a
                                     href="#how"
@@ -175,10 +158,10 @@ export default function LandingPage() {
                                     {"href" in f && f.href ? (
                                         <a
                                             href={f.href}
-                                            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+                                            className="group mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
                                         >
                                             {f.linkLabel}
-                                            <ArrowRight className="h-3.5 w-3.5" />
+                                            <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5" />
                                         </a>
                                     ) : null}
                                 </div>
@@ -224,40 +207,11 @@ export default function LandingPage() {
                                 </ul>
                             </div>
 
-                            {/* Example output, built in code like the real result */}
-                            <div className="rounded-xl border border-border bg-card p-6">
-                                <div className="flex items-baseline justify-between gap-3">
-                                    <h3 className="text-sm font-semibold text-foreground">
-                                        3 free AI websites — student edition
-                                    </h3>
-                                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                                        Example output
-                                    </span>
-                                </div>
-                                <div className="mt-5 space-y-4">
-                                    {SAMPLE_SECTIONS.map((s) => (
-                                        <div key={s.time} className="flex gap-3.5">
-                                            <span className="h-fit shrink-0 rounded-md bg-muted px-2 py-1 font-mono text-[11px] font-medium text-foreground">
-                                                {s.time}
-                                            </span>
-                                            <div className="min-w-0">
-                                                <div className="text-xs font-medium text-primary">{s.label}</div>
-                                                <p className="mt-0.5 text-sm leading-relaxed text-foreground">
-                                                    {s.spoken}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-border/60 pt-4">
-                                    <span className="rounded-md border border-border bg-muted/40 px-2.5 py-1.5 font-mono text-xs text-foreground">
-                                        Comment &quot;LINK&quot;
-                                    </span>
-                                    <span className="text-xs text-muted-foreground">
-                                        The keyword becomes the automation trigger
-                                    </span>
-                                </div>
-                            </div>
+                            {/* Example output, built in code like the real result.
+                                P27: the sample now plays back at its own
+                                timestamps (ScriptSampleShowcase) instead of
+                                sitting static — same content, same card. */}
+                            <ScriptSampleShowcase />
                         </div>
                     </div>
                 </section>
@@ -292,7 +246,7 @@ export default function LandingPage() {
                                 open-autoDM · MIT licensed · Self-hosted
                             </span>
                         </div>
-                        <div className="flex items-center gap-5 text-[13px] text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-5 text-[13px] text-muted-foreground">
                             <a
                                 href="https://github.com/parvez1521/open-autodm"
                                 target="_blank"
@@ -300,6 +254,17 @@ export default function LandingPage() {
                                 className="transition-colors hover:text-foreground"
                             >
                                 GitHub
+                            </a>
+                            {/* P27: the legal pages exist as routes but were
+                                not reachable from the landing page at all. */}
+                            <a href="/privacy-policy" className="transition-colors hover:text-foreground">
+                                Privacy Policy
+                            </a>
+                            <a href="/terms" className="transition-colors hover:text-foreground">
+                                Terms
+                            </a>
+                            <a href="/data-deletion" className="transition-colors hover:text-foreground">
+                                Data Deletion
                             </a>
                             <a href="#signin" className="transition-colors hover:text-foreground">
                                 Sign in

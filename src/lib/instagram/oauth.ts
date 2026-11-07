@@ -39,18 +39,34 @@ function stateSecret(): Uint8Array {
   return new TextEncoder().encode(`state:${getEnv().TOKEN_ENCRYPTION_KEY}`);
 }
 
-export async function signOAuthState(userId: string): Promise<string> {
-  return new SignJWT({ userId, nonce: randomToken(8) })
+export async function signOAuthState(userId: string, workspaceId?: string): Promise<string> {
+  // Phase D1: when the connect flow was started for a workspace, the
+  // workspace id rides inside the signed state so the callback can bind
+  // the account to it. The claim is only ever an assertion — the
+  // callback re-verifies membership server-side before honouring it.
+  // Legacy callers omit it and the token is exactly as before.
+  const claims: Record<string, unknown> = { userId, nonce: randomToken(8) };
+  if (workspaceId) claims['workspaceId'] = workspaceId;
+  return new SignJWT(claims)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('10m')
     .sign(stateSecret());
 }
 
-export async function verifyOAuthState(token: string): Promise<{ userId: string }> {
+export async function verifyOAuthState(
+  token: string
+): Promise<{ userId: string; workspaceId?: string }> {
   const { payload } = await jwtVerify(token, stateSecret());
   if (typeof payload['userId'] !== 'string') throw new Error('Invalid state payload');
-  return { userId: payload['userId'] };
+  // Legacy tokens (no workspaceId claim) verify exactly as before.
+  const workspaceId =
+    typeof payload['workspaceId'] === 'string' && payload['workspaceId'].length > 0
+      ? payload['workspaceId']
+      : undefined;
+  return workspaceId
+    ? { userId: payload['userId'], workspaceId }
+    : { userId: payload['userId'] };
 }
 
 // ── OAuth URL + token exchange ──────────────────────────────────────────────

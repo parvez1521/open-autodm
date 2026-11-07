@@ -104,7 +104,9 @@ export async function sendInstagramDm(
     igAccountIgsid,
     recipient: to,
     hasQuickReply: !!quickReply,
-    messagePreview: messageText.slice(0, 80),
+    // Metadata only (Phase 10.3 §8): never persist message content - not
+    // even a preview - in debug_events. Length preserves debuggability.
+    messageLength: messageText.length,
   });
 
   const res = await fetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
@@ -134,9 +136,22 @@ export async function sendInstagramDm(
   return data.message_id;
 }
 
+export interface LinkButtonConfig {
+  title: string;
+  url: string;
+}
+
 /**
- * Sends a DM as a button template with a single tappable web_url LINK button -
- * far cleaner than pasting a raw URL into the text.
+ * Sends a DM as a button template with one or more tappable web_url LINK buttons
+ * (up to Meta's 3-button limit) - far cleaner than pasting a raw URL into the text.
+ *
+ * Supports both:
+ *  - sendInstagramLinkButtonDm(igAccountIgsid, recipient, messageText, buttonTitle, url, accessToken)
+ *  - sendInstagramLinkButtonDm(igAccountIgsid, recipient, messageText, buttonsArray, accessToken)
+ *
+ * The multi-button form is release-prep's production implementation, ported
+ * in Phase 5 for the flow engine (graph send_dm nodes carry up to 3 buttons);
+ * the single-button form behaves exactly as before.
  *
  * IMPORTANT (learned from production tools): Meta occasionally rejects button
  * templates for certain recipients/URL combinations. Callers should catch
@@ -146,11 +161,28 @@ export async function sendInstagramLinkButtonDm(
   igAccountIgsid: string,
   recipient: DmRecipient,
   messageText: string,
-  buttonTitle: string,
-  url: string,
-  accessToken: string
+  buttonOrButtons: string | LinkButtonConfig[],
+  urlOrToken: string,
+  maybeAccessToken?: string
 ): Promise<string> {
+  let buttons: LinkButtonConfig[];
+  let accessToken: string;
+
+  if (Array.isArray(buttonOrButtons)) {
+    buttons = buttonOrButtons;
+    accessToken = urlOrToken;
+  } else {
+    buttons = [{ title: buttonOrButtons, url: urlOrToken }];
+    accessToken = maybeAccessToken!;
+  }
+
   const to = recipientLabel(recipient);
+  const metaButtons = buttons.slice(0, 3).map((b) => ({
+    type: 'web_url',
+    url: b.url,
+    title: b.title.trim().slice(0, 20) || 'Open link',
+  }));
+
   const body = {
     recipient: recipientJson(recipient),
     message: {
@@ -159,7 +191,7 @@ export async function sendInstagramLinkButtonDm(
         payload: {
           template_type: 'button',
           text: messageText.slice(0, 640),
-          buttons: [{ type: 'web_url', url, title: buttonTitle.trim().slice(0, 20) || 'Open link' }],
+          buttons: metaButtons,
         },
       },
     },
@@ -168,7 +200,7 @@ export async function sendInstagramLinkButtonDm(
   debugLog('instagram', 'info', 'link_button_dm_attempt', 'processing', `Sending link-button DM to ${to}`, {
     igAccountIgsid,
     recipient: to,
-    buttonTitle,
+    buttonCount: metaButtons.length,
   });
 
   const res = await fetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
@@ -197,7 +229,8 @@ export async function sendInstagramLinkButtonDm(
 export async function replyToComment(commentId: string, replyText: string, accessToken: string): Promise<void> {
   debugLog('instagram', 'info', 'comment_reply_attempt', 'processing', `Replying to comment ${commentId}`, {
     commentId,
-    replyPreview: replyText.slice(0, 80),
+    // Metadata only (Phase 10.3 §8): no reply content in debug_events.
+    replyLength: replyText.length,
   });
 
   const res = await fetch(`${META_GRAPH_BASE}/${commentId}/replies`, {
@@ -398,7 +431,20 @@ export async function subscribeToWebhookFields(igUserId: string, accessToken: st
   });
   const body = await res.text();
   if (!res.ok) {
-    logger.warn({ igUserId, status: res.status, body }, 'Webhook field subscription failed');
+    // NEW-2 (Phase 10.5): never log the raw upstream body — it is arbitrary
+    // upstream content and the logger scrubber only redacts secret-SHAPED
+    // values. Sanitized metadata only: status, body length, parsed Meta
+    // error code when the body happens to be Meta error JSON.
+    let metaCode: number | undefined;
+    try {
+      metaCode = (JSON.parse(body) as MetaErrorResponse).error?.code;
+    } catch {
+      /* non-JSON upstream body — length + status still logged */
+    }
+    logger.warn(
+      { igUserId, status: res.status, bodyLength: body.length, metaCode },
+      'Webhook field subscription failed'
+    );
   } else {
     debugLog('oauth', 'info', 'webhook_subscribe', 'ok', `Webhook fields subscribed for ${igUserId}`, {
       fields: WEBHOOK_SUBSCRIBED_FIELDS,
