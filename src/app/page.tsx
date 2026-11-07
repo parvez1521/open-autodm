@@ -27,6 +27,8 @@ import { NodeEditor } from "@/components/ui/NodeEditor";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
 import { PipelineShowcase } from "@/components/home/PipelineShowcase";
+import { DemoShowcase } from "@/components/home/DemoShowcase";
+import { FaqSection } from "@/components/home/FaqSection";
 import { ScriptSampleShowcase } from "@/components/home/ScriptSampleShowcase";
 import { WaitlistForm } from "@/components/home/WaitlistForm";
 
@@ -170,8 +172,10 @@ const STUDIO_GROUPS = [
 const NAV_LINKS = [
     { label: "Automation", href: "#automation" },
     { label: "How it works", href: "#how" },
+    { label: "Demo", href: "#demo" },
     { label: "Script Writer", href: "#script-writer" },
     { label: "Creator Studio", href: "#creator-studio" },
+    { label: "FAQ", href: "#faq" },
     { label: "Pricing", href: "/pricing" },
 ] as const;
 
@@ -351,10 +355,29 @@ export default function LandingPage() {
                     </div>
                 </section>
 
+                {/* ── Live demo ────────────────────────────────────── */}
+                <section id="demo" className="scroll-mt-16 border-t border-border">
+                    <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
+                        <p className="micro-label">Live demo</p>
+                        <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                            Watch a comment become a customer
+                        </h2>
+                        <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
+                            This is the whole product in ten seconds. Pick a keyword,
+                            run the flow, and see exactly what your visitor receives —
+                            simulated here, automatic on your own instance.
+                        </p>
+                        <div className="mt-10">
+                            <DemoShowcase />
+                        </div>
+                    </div>
+                </section>
+
                 {/* ── How it works ─────────────────────────────────── */}
                 <section id="how" className="scroll-mt-16 border-t border-border">
                     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
-                        <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                        <p className="micro-label">The pipeline</p>
+                        <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                             How it works
                         </h2>
                         <div className="mt-10">
@@ -377,7 +400,8 @@ export default function LandingPage() {
                     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
                         <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
                             <div>
-                                <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                                <p className="micro-label">Spotlight</p>
+                                <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                                     The script comes first
                                 </h2>
                                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
@@ -421,7 +445,8 @@ export default function LandingPage() {
                 {/* ── Creator Studio ───────────────────────────────── */}
                 <section id="creator-studio" className="scroll-mt-16 border-t border-border">
                     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
-                        <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                        <p className="micro-label">The studio</p>
+                        <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                             Creator Studio
                         </h2>
                         <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
@@ -491,7 +516,8 @@ export default function LandingPage() {
                 <section className="border-t border-border">
                     <div className="mx-auto flex max-w-7xl flex-wrap items-end justify-between gap-6 px-6 py-16 lg:px-10 lg:py-24">
                         <div className="max-w-2xl">
-                            <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                            <p className="micro-label">Pricing</p>
+                            <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                                 Simple, honest pricing
                             </h2>
                             <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
@@ -507,6 +533,19 @@ export default function LandingPage() {
                             See pricing
                             <ArrowRight className="h-4 w-4" />
                         </a>
+                    </div>
+                </section>
+
+                {/* ── FAQ ──────────────────────────────────────────── */}
+                <section id="faq" className="scroll-mt-16 border-t border-border">
+                    <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
+                        <p className="micro-label">Questions</p>
+                        <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
+                            Frequently asked questions
+                        </h2>
+                        <div className="mt-10">
+                            <FaqSection />
+                        </div>
                     </div>
                 </section>
 
@@ -566,6 +605,12 @@ export default function LandingPage() {
                                 className="transition-colors hover:text-foreground"
                             >
                                 GitHub
+                            </a>
+                            <a href="#demo" className="transition-colors hover:text-foreground">
+                                Live demo
+                            </a>
+                            <a href="#faq" className="transition-colors hover:text-foreground">
+                                FAQ
                             </a>
                             {/* P27: the legal pages exist as routes but were
                                 not reachable from the landing page at all. */}
