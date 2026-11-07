@@ -63,3 +63,20 @@ describe("design pass — FaqSection", () => {
     expect(src).toContain("in preparation");
   });
 });
+
+describe("design pass round 2 — login split panel + mobile hero", () => {
+  it("the login page carries the ink fact panel beside the unchanged form column", () => {
+    const login = read("app/login/page.tsx");
+    expect(login).toContain("bg-foreground");
+    expect(login).toContain("Every comment answered. Every DM on time.");
+    expect(login).toContain("180 DMs/hour, 24-hour window");
+    expect(login).toContain("<LoginForm signupOpen={signupEnabled} />");
+  });
+
+  it("the landing hero has a mobile-only three-row loop visual (desktop keeps the NodeEditor)", () => {
+    const page = read("app/page.tsx");
+    expect(page).toContain("lg:hidden");
+    expect(page).toContain("A visitor comments your keyword");
+    expect(page).toContain("The DM lands in their inbox");
+  });
+});

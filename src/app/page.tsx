@@ -15,6 +15,7 @@ import {
     Lightning,
     MagnifyingGlassPlus,
     PencilLine,
+    PaperPlaneTilt,
     PlugsConnected,
     PresentationChart,
     Timer,
@@ -266,6 +267,40 @@ export default function LandingPage() {
                     {/* The product, doing its thing: drag the hub */}
                     <div className="mt-14 hidden lg:block">
                         <NodeEditor />
+                    </div>
+
+                    {/* Mobile hero visual: the loop in three rows (the
+                        full NodeEditor above is desktop-only). */}
+                    <div className="mt-12 lg:hidden">
+                        <ol className="overflow-hidden rounded-xl border border-border">
+                            <li className="flex items-center gap-3.5 border-b border-border bg-card px-4 py-3.5">
+                                <ChatsCircle className="h-5 w-5 shrink-0 text-muted-foreground" />
+                                <span className="text-sm">
+                                    <span className="font-medium">A visitor comments your keyword</span>
+                                    <span className="block text-[13px] text-muted-foreground">
+                                        PRICE, LINK, DEMO — you choose the trigger
+                                    </span>
+                                </span>
+                            </li>
+                            <li className="flex items-center gap-3.5 border-b border-border bg-card px-4 py-3.5">
+                                <Lightning className="h-5 w-5 shrink-0 text-muted-foreground" />
+                                <span className="text-sm">
+                                    <span className="font-medium">The automation matches it</span>
+                                    <span className="block text-[13px] text-muted-foreground">
+                                        A public reply goes out under the comment
+                                    </span>
+                                </span>
+                            </li>
+                            <li className="flex items-center gap-3.5 bg-card px-4 py-3.5">
+                                <PaperPlaneTilt className="h-5 w-5 shrink-0 text-muted-foreground" />
+                                <span className="text-sm">
+                                    <span className="font-medium">The DM lands in their inbox</span>
+                                    <span className="block text-[13px] text-muted-foreground">
+                                        Links, pricing or a booking — inside the 24-hour window
+                                    </span>
+                                </span>
+                            </li>
+                        </ol>
                     </div>
                 </section>
 
