@@ -9,7 +9,9 @@
  * exists in this module; see tests/ai-mixed-scope-negative.test.ts.
  *
  * Uses Cloudflare Workers AI Free Tier (10,000 Neurons/day).
- * Default model: @cf/meta/llama-3.2-3b-instruct
+ * Default model: @cf/meta/llama-3.3-70b-instruct-fp8-fast
+ * (llama-3.2-3b-instruct was deprecated by Cloudflare effective 2026-11-20;
+ *  the 70B model is the same one the Script Writer already uses.)
  *
  * Designed to be 100% resilient:
  *  - Enforces prompt injection sanitization.
@@ -26,7 +28,7 @@ import { createLogger } from '@/lib/logger';
 
 const logger = createLogger('workers-ai');
 
-export const DEFAULT_AI_MODEL = '@cf/meta/llama-3.2-3b-instruct';
+export const DEFAULT_AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 export const AI_REQUEST_TIMEOUT_MS = 5000;
 
 /**
