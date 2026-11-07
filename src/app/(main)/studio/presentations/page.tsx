@@ -15,20 +15,20 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Presentation,
-  ChevronLeft,
-  ChevronRight,
+  CaretLeft,
+  CaretRight,
   ArrowUp,
   ArrowDown,
-  Trash2,
+  Trash,
   Plus,
-  Sparkles,
-  Loader2,
-  Download,
+  Lightning,
+  CircleNotch,
+  DownloadSimple,
   Printer,
-  BookmarkPlus,
+  BookmarkSimple,
   Check,
   MonitorPlay,
-} from "lucide-react";
+} from "@/components/phosphor";
 import { SCRIPT_TONE_OPTIONS } from "@/lib/studio/scriptEngine";
 import {
   DECK_MAX_SLIDES,
@@ -58,15 +58,15 @@ import { cn } from "@/lib/utils";
 
 const POLISH_NOTES: Partial<Record<AiSlidePolishOutcome["status"], string>> = {
   not_configured:
-    "Free AI is not configured on this instance, so the built-in text stays — it is complete as written.",
+    "Free AI is not configured on this instance, so the built-in text stays, it is complete as written.",
   quota_reached:
     "Today's shared free AI quota is used up. Your slide is unchanged and complete as written.",
   daily_quota_reached:
     "You have reached today's per-user free AI limit. Your slide is unchanged.",
   rate_limited:
-    "Too many free AI requests in a minute — wait a moment and try again. Your slide is unchanged.",
+    "Too many free AI requests in a minute, wait a moment and try again. Your slide is unchanged.",
   ai_unavailable: "Free AI did not respond just now. Your slide is unchanged.",
-  signed_out: "Sign in again to use the free AI polish — your built-in deck works either way.",
+  signed_out: "Sign in again to use the free AI polish, your built-in deck works either way.",
 };
 
 const secondaryButtonClass =
@@ -273,7 +273,7 @@ export default function PresentationsPage() {
       <StudioToolHeader
         icon={Presentation}
         title="Presentations"
-        purpose="Turn a topic into a slide deck — present in the browser or export it."
+        purpose="Turn a topic into a slide deck, present in the browser or export it."
         points={[
           "A complete deck from a topic and audience in seconds",
           "Edit, reorder and present fullscreen in the browser",
@@ -374,7 +374,7 @@ export default function PresentationsPage() {
               <span className="text-xs text-muted-foreground">for {deck.audience}</span>
               <span className="flex-1" />
               <button type="button" className={secondaryButtonClass} onClick={downloadHtml}>
-                <Download className="w-3.5 h-3.5" />
+                <DownloadSimple className="w-3.5 h-3.5" />
                 Download HTML deck
               </button>
               <button type="button" className={secondaryButtonClass} onClick={openPrintView}>
@@ -387,7 +387,7 @@ export default function PresentationsPage() {
                 onClick={saveDeck}
                 disabled={saved}
               >
-                {saved ? <Check className="w-3.5 h-3.5" /> : <BookmarkPlus className="w-3.5 h-3.5" />}
+                {saved ? <Check className="w-3.5 h-3.5" /> : <BookmarkSimple className="w-3.5 h-3.5" />}
                 {saved ? "Saved" : "Save to Projects"}
               </button>
             </div>
@@ -397,7 +397,7 @@ export default function PresentationsPage() {
               </p>
             )}
             <p className="mt-2 text-xs text-muted-foreground">
-              The print view lays one slide per page — use your browser's Print → Save as PDF.
+              The print view lays one slide per page. Use your browser's Print → Save as PDF.
             </p>
 
             <div
@@ -434,7 +434,7 @@ export default function PresentationsPage() {
                 onClick={() => setCurrent((c) => Math.max(0, c - 1))}
                 disabled={current === 0}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
+                <CaretLeft className="w-3.5 h-3.5" />
                 Prev
               </button>
               <span className="text-xs text-muted-foreground">
@@ -447,7 +447,7 @@ export default function PresentationsPage() {
                 disabled={current === deck.slides.length - 1}
               >
                 Next
-                <ChevronRight className="w-3.5 h-3.5" />
+                <CaretRight className="w-3.5 h-3.5" />
               </button>
               <span className="flex-1" />
               <button type="button" className={studioPrimaryButtonClass} onClick={present}>
@@ -511,7 +511,7 @@ export default function PresentationsPage() {
                       onClick={() => handleRemove(slide.id)}
                       aria-label={`Delete slide ${i + 1}`}
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash className="w-3 h-3" />
                     </button>
                   </li>
                 ))}
@@ -560,9 +560,9 @@ export default function PresentationsPage() {
                   disabled={polishBusy}
                 >
                   {polishBusy ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <CircleNotch className="w-3.5 h-3.5 animate-spin" />
                   ) : (
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Lightning className="w-3.5 h-3.5" />
                   )}
                   Polish slide with Free AI
                 </button>

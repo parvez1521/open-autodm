@@ -93,6 +93,37 @@ export function cleanAiOutput(text: string): string {
     .trim();
 }
 
+/**
+ * REST-backed stand-in for the Workers AI binding, for runtimes where
+ * no binding exists (e.g. Vercel) when CLOUDFLARE_ACCOUNT_ID +
+ * CLOUDFLARE_API_TOKEN are set. Mirrors the call pattern already used
+ * by lib/script-writer/providers.ts (tryWorkersAiRest) and normalizes
+ * the REST envelope { result: { response } } to the binding's shape.
+ */
+function createWorkersAiRestBinding(accountId: string, token: string): WorkersAiBinding {
+  return {
+    async run(model, options) {
+      const res = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${model}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: options.messages,
+            ...(options.max_tokens !== undefined ? { max_tokens: options.max_tokens } : {}),
+            ...(options.temperature !== undefined ? { temperature: options.temperature } : {}),
+          }),
+        }
+      );
+      if (!res.ok) {
+        throw new Error(`Workers AI REST call failed with status ${res.status}`);
+      }
+      const json = (await res.json()) as { result?: { response?: string } };
+      return { response: json?.result?.response ?? '' };
+    },
+  };
+}
+
 /** Attempts to acquire the Cloudflare AI binding via OpenNext context. */
 export async function getAiBinding(): Promise<WorkersAiBinding | null> {
   if ((globalThis as any).__WORKERS_AI_BINDING) {
@@ -107,6 +138,13 @@ export async function getAiBinding(): Promise<WorkersAiBinding | null> {
     }
   } catch {
     // Expected in Node.js / Vitest / non-Cloudflare environments
+  }
+  // No Workers binding on this runtime (e.g. Vercel): fall back to the
+  // Workers AI REST API when the account credentials are configured.
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const token = process.env.CLOUDFLARE_API_TOKEN?.trim();
+  if (accountId && token) {
+    return createWorkersAiRestBinding(accountId, token);
   }
   return null;
 }
