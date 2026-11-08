@@ -26,7 +26,7 @@ import {
   ArrowClockwise,
 } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 
 type Stage = 0 | 1 | 2 | 3 | 4; // idle, comment, matched, reply, dm(done)
 

@@ -12,7 +12,7 @@
  * <main> is the scroll container (overflow-y-auto inside a 100vh flex
  * shell), so the IntersectionObserver is rooted on <main>, not the
  * viewport. The login page (src/app/page.tsx) is outside this layout
- * and keeps its own Framer Motion entrance - it is never touched.
+ * and keeps its own motion-package entrance - it is never touched.
  *
  * Safety rails (same as SwitchRoute):
  * - The hidden state only exists on elements this component tags from

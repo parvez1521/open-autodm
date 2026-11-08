@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useMotionValue, useMotionTemplate, useTransform } from "framer-motion";
+import { motion, useMotionValue, useMotionTemplate, useTransform } from "motion/react";
 import { FlowArrow, Calendar, ChartBar, PaperPlaneTilt, Stack } from "@/components/phosphor";
 import { useEffect, useState, useRef } from "react";
 

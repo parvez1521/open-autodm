@@ -13,6 +13,7 @@ import {
   ArrowRight,
 } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
+import { Stagger, StaggerItem } from "@/components/motion/primitives";
 
 /**
  * Creator Studio — landing page (Programmes S1 + S2 + S3; landing
@@ -150,7 +151,10 @@ const DIRECTORY = [
 export default function StudioHomePage() {
   let toolIndex = 0;
   return (
-    <div className="space-y-12">
+    // Motion pass (2026-11-08): the home's sections arrive as a
+    // staggered sequence (shared motion system) instead of all at once.
+    <Stagger className="space-y-12">
+      <StaggerItem>
       <section>
         <h2 className="text-lg font-semibold tracking-tight">
           One video, planned and packaged end to end
@@ -164,7 +168,9 @@ export default function StudioHomePage() {
           to the tool you need from the directory.
         </p>
       </section>
+      </StaggerItem>
 
+      <StaggerItem>
       <section>
         <h2 className="text-sm font-medium text-muted-foreground mb-3">
           The workflow, one video, start to finish
@@ -219,7 +225,9 @@ export default function StudioHomePage() {
           })}
         </ol>
       </section>
+      </StaggerItem>
 
+      <StaggerItem>
       <section>
         <h2 className="text-sm font-medium text-muted-foreground mb-3">All tools</h2>
         <div className="space-y-8">
@@ -264,7 +272,9 @@ export default function StudioHomePage() {
           ))}
         </div>
       </section>
+      </StaggerItem>
 
+      <StaggerItem>
       <section className="border-t border-border pt-6">
         <h2 className="text-sm font-medium">How the Studio stays free</h2>
         <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-muted-foreground">
@@ -277,6 +287,7 @@ export default function StudioHomePage() {
           built-in engines keep working.
         </p>
       </section>
-    </div>
+      </StaggerItem>
+    </Stagger>
   );
 }

@@ -10,17 +10,23 @@
  * settles on an editorial ease, header rules grow from the left,
  * photographs drift a few pixels against the scroll (parallax).
  *
- * Motion law still applies: no hover transforms, no glass, no glow.
- * Everything here is transform/opacity only, runs once per element,
- * and collapses to a static render under prefers-reduced-motion
- * (the page also wraps the landing in MotionConfig
- * reducedMotion="user" as a second layer).
+ * Motion law still applies: no glass, no glow. Transform/opacity
+ * only, runs once per element, and collapses to a static render
+ * under prefers-reduced-motion (the root providers also mount
+ * MotionConfig reducedMotion="user" as a second layer).
+ *
+ * Motion pass (owner instruction 2026-11-08 ~17:59 IST): the kit
+ * now draws its ease from the shared motion system
+ * (src/lib/motion/presets.ts) on the `motion` package, and card
+ * hover lift / button press springs are permitted via that system —
+ * the old no-hover-transform rule was superseded by the owner.
  */
 
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform } from "motion/react";
 import { useRef, type ReactNode } from "react";
+import { EASE_OUT } from "@/lib/motion/presets";
 
-const EASE = [0.22, 1, 0.36, 1] as const;
+const EASE = EASE_OUT;
 
 export function Reveal({
   children,

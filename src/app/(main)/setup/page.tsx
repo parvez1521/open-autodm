@@ -10,7 +10,7 @@
  */
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import {
     Wrench, Key, PlugsConnected, Clock, CheckCircle, Copy, Check,
     ArrowSquareOut, CircleNotch, ShieldCheck, Warning, Users

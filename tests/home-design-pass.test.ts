@@ -235,6 +235,9 @@ describe("design pass round 4 — KeywordTicker, images, pricing band", () => {
  *     framer-motion entrances in the demo — ambient/sequence motion
  *     only; the B-A3 ban on hover/focus transforms in p27 still
  *     stands untouched, and reduced motion collapses everything.
+ *     (Superseded in part by round 7 below: the library is now the
+ *     `motion` package and B-A3 was rewritten by the owner's
+ *     2026-11-08 ~17:59 IST instruction.)
  */
 describe("design pass round 5 — motion kit, hero choreography, pipeline packet", () => {
   const page = read("app/page.tsx");
@@ -269,8 +272,12 @@ describe("design pass round 5 — motion kit, hero choreography, pipeline packet
     expect(pipeline).toContain("aria-hidden");
   });
 
-  it("the demo stages its entrances with framer-motion and a progress thread", () => {
-    expect(demo).toContain("framer-motion");
+  it("the demo stages its entrances with the motion package and a progress thread", () => {
+    // Motion pass (owner instruction 2026-11-08 ~17:59 IST): the
+    // site migrated from framer-motion to motion.dev's `motion`
+    // package — the pin now checks the new import source; the
+    // staged-entrance behaviour it guards is unchanged.
+    expect(demo).toContain("motion/react");
     expect(demo).toContain("AnimatePresence");
     expect(demo).toContain("stage / 4");
     // The round-1 pins still hold: timers, in-view auto-run, truth.
@@ -311,5 +318,88 @@ describe("design pass round 5 — approved pricing on the landing band", () => {
     expect(pricing).toContain("no card needed");
     expect(pricing).toContain("Checkout is being switched on");
     expect(pricing).toContain("CATALOGUE_STATUS");
+  });
+});
+
+/**
+ * Design pass round 7 — the site-wide motion system (owner
+ * instruction 2026-11-08 ~17:59 IST).
+ *
+ * The owner said he was very dissatisfied with the site's UI and
+ * motion and ordered motion.dev-style animation across the WHOLE
+ * site with overall design improvement. This round:
+ *  - migrated every animation from framer-motion to the `motion`
+ *    package ("motion/react") and built ONE shared system:
+ *    src/lib/motion/presets.ts (springs/eases/variants) +
+ *    src/components/motion/primitives.tsx (ScrollProgress,
+ *    PageTransition, FadeIn, Stagger/StaggerItem);
+ *  - mounted MotionConfig reducedMotion="user" in the root
+ *    providers so every surface honours the preference;
+ *  - gave both app shells route-content PageTransitions and the
+ *    window-scrolled surfaces a sprung scroll-progress hairline;
+ *  - made /pricing and the billing panel share a segmented period
+ *    toggle (shared layoutId indicator) with price-figure flips
+ *    and layout-animated plan boxes;
+ *  - added press springs on primary CTAs, hover lift on plan
+ *    boxes, and arrow nudges on index rows (superseding the old
+ *    no-hover-transform rule — see the rewritten B-A3 pin in
+ *    p27-homepage-polish.test.ts);
+ *  - animated the FAQ with real height animation and unified the
+ *    app lists' stagger easing on the shared preset.
+ * Everything else — ban list, copy, prices — is untouched.
+ */
+describe("design pass round 7 — shared motion system (motion package)", () => {
+  const presets = read("lib/motion/presets.ts");
+  const primitives = read("components/motion/primitives.tsx");
+  const page = read("app/page.tsx");
+  const pricing = read("app/(saas)/pricing/page.tsx");
+  const providers = read("components/providers/Providers.tsx");
+
+  it("the site depends on the motion package, not framer-motion", () => {
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8"));
+    expect(pkg.dependencies.motion).toBeTruthy();
+    expect(pkg.dependencies["framer-motion"]).toBeUndefined();
+    expect(page).toContain('from "motion/react"');
+    expect(page).not.toContain("framer-motion");
+  });
+
+  it("one shared system: presets carry the springs/eases, primitives the components", () => {
+    for (const name of ["EASE_OUT", "SPRING_SOFT", "SPRING_SNAPPY", "SPRING_PRESS", "staggerParent", "pageVariants"]) {
+      expect(presets).toContain(name);
+    }
+    for (const name of ["ScrollProgress", "PageTransition", "FadeIn", "Stagger", "StaggerItem"]) {
+      expect(primitives).toContain(name);
+    }
+    expect(primitives).toContain("useScroll");
+    expect(primitives).toContain("useReducedMotion");
+  });
+
+  it("reduced motion is honoured globally from the root providers", () => {
+    expect(providers).toContain("MotionConfig");
+    expect(providers).toContain('reducedMotion="user"');
+  });
+
+  it("the landing gained the scroll-progress hairline and press/lift micro-interactions", () => {
+    expect(page).toContain("ScrollProgress");
+    expect(page).toContain("whileTap");
+    expect(page).toContain("whileHover");
+    expect(page).toContain("SPRING_PRESS");
+  });
+
+  it("pricing's period toggle is a shared-indicator segmented control with price flips", () => {
+    expect(pricing).toContain('layoutId="billing-period-pill"');
+    expect(pricing).toContain("AnimatePresence");
+    expect(pricing).toContain("staggerParent");
+    // The catalogue figures and honesty lines did not move.
+    expect(pricing).toContain("Checkout is being switched on");
+    expect(pricing).toContain("OWNER-APPROVED");
+  });
+
+  it("both shells transition route content; the (saas) shell shows scroll progress", () => {
+    const main = read("app/(main)/layout.tsx");
+    const saas = read("app/(saas)/layout.tsx");
+    expect(main).toContain("PageTransition");
+    expect(saas).toContain("PageTransition");
+    expect(saas).toContain("ScrollProgress");
   });
 });

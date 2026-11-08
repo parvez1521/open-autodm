@@ -24,6 +24,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { EASE_OUT, SPRING_SNAPPY, staggerChild, staggerParent } from "@/lib/motion/presets";
 import {
   PLANS,
   TRIAL_DAYS,
@@ -343,42 +345,61 @@ export default function BillingPanel() {
         </div>
       )}
 
-      <div className="flex items-center gap-2" role="group" aria-label="Billing period">
-        <button
-          type="button"
-          aria-pressed={period === "monthly"}
-          onClick={() => setPeriod("monthly")}
-          className={period === "monthly"
-            ? "h-9 rounded-lg bg-foreground px-4 text-sm font-semibold text-background"
-            : "h-9 rounded-lg border border-border px-4 text-sm font-medium text-foreground"}
-        >
-          Monthly
-        </button>
-        <button
-          type="button"
-          aria-pressed={period === "annual"}
-          onClick={() => setPeriod("annual")}
-          className={period === "annual"
-            ? "h-9 rounded-lg bg-foreground px-4 text-sm font-semibold text-background"
-            : "h-9 rounded-lg border border-border px-4 text-sm font-medium text-foreground"}
-        >
-          Annual
-        </button>
+      {/* Motion pass (2026-11-08): same segmented-pill language as
+          /pricing — one shared indicator springs between periods. */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1 rounded-lg border border-border p-1" role="group" aria-label="Billing period">
+          {(["monthly", "annual"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={period === p}
+              onClick={() => setPeriod(p)}
+              className="relative h-8 rounded-md px-4 text-sm font-medium"
+            >
+              {period === p && (
+                <motion.span
+                  layoutId="billing-panel-period-pill"
+                  className="absolute inset-0 rounded-md bg-foreground"
+                  transition={SPRING_SNAPPY}
+                />
+              )}
+              <span className={`relative z-10 ${period === p ? "font-semibold text-background" : "text-foreground"}`}>
+                {p === "monthly" ? "Monthly" : "Annual"}
+              </span>
+            </button>
+          ))}
+        </div>
         <span className="text-[13px] text-muted-foreground">Annual runs about 20% lower.</span>
       </div>
 
-      <div className="space-y-5">
+      <motion.div className="space-y-5" variants={staggerParent} initial="hidden" animate="show">
         {PLANS.map((plan) => {
           const inr = plan.prices.INR;
           const figure = period === "monthly" ? inr.monthlyMinor : inr.annualMonthlyMinor;
           const isCurrent = plan.id === currentPlanId && (paidActive || trialing || plan.id === "free");
           return (
-            <div key={plan.id} className="border border-border p-6" data-testid={`billing-plan-${plan.id}`}>
+            <motion.div layout variants={staggerChild} key={plan.id} className="border border-border p-6" data-testid={`billing-plan-${plan.id}`}>
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="font-heading text-base font-semibold">{plan.name}</h2>
                   <p className="mt-2 font-heading text-2xl font-semibold">
-                    {plan.customPricing ? "Custom pricing" : <>{formatMinor(figure, "INR")}<span className="text-sm font-normal text-muted-foreground"> / mo</span></>}
+                    {plan.customPricing ? "Custom pricing" : (
+                      <span className="relative inline-flex overflow-hidden">
+                        <AnimatePresence mode="popLayout" initial={false}>
+                          <motion.span
+                            key={period}
+                            initial={{ y: 12, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: -12, opacity: 0 }}
+                            transition={{ duration: 0.26, ease: EASE_OUT }}
+                            className="inline-flex items-baseline"
+                          >
+                            {formatMinor(figure, "INR")}<span className="text-sm font-normal text-muted-foreground"> / mo</span>
+                          </motion.span>
+                        </AnimatePresence>
+                      </span>
+                    )}
                   </p>
                   <p className="mt-1 text-[13px] text-muted-foreground">
                     {plan.limits.instagramAccounts} Instagram account(s) · Creator Studio included
@@ -422,10 +443,10 @@ export default function BillingPanel() {
                   )}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {status.recentOrders.length > 0 && (
         <div>

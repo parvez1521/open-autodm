@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { Stagger, StaggerItem } from "@/components/motion/primitives";
 import { Wrench, CheckCircle, Circle, ArrowRight, Plus, PencilLine, Clock } from "@/components/phosphor";
 import { useAutomations } from "@/hooks/useAutomations";
 import { useContacts } from "@/hooks/useContacts";
@@ -85,21 +87,41 @@ export default function DashboardPage() {
                 </Link>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* Stats — motion pass (2026-11-08): cards stagger in and
+                the skeleton crossfades into the value when data lands. */}
+            <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {stats.map((stat) => (
-                    <div key={stat.label} className="bg-card border border-border rounded-xl p-4">
+                    <StaggerItem key={stat.label} className="bg-card border border-border rounded-xl p-4">
                         <div className="flex items-center justify-between">
                             <span className="micro-label">{stat.label}</span>
                         </div>
-                        {statsLoading ? (
-                            <div className="mt-2 h-8 w-16 rounded-md bg-muted/60 animate-pulse" aria-label="Loading" />
-                        ) : (
-                            <p className="text-2xl font-heading font-semibold tracking-tight text-foreground mt-2 tabular-nums">{stat.value}</p>
-                        )}
-                    </div>
+                        <AnimatePresence mode="wait" initial={false}>
+                            {statsLoading ? (
+                                <motion.div
+                                    key="loading"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="mt-2 h-8 w-16 rounded-md bg-muted/60 animate-pulse"
+                                    aria-label="Loading"
+                                />
+                            ) : (
+                                <motion.p
+                                    key="value"
+                                    initial={{ opacity: 0, y: 6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="text-2xl font-heading font-semibold tracking-tight text-foreground mt-2 tabular-nums"
+                                >
+                                    {stat.value}
+                                </motion.p>
+                            )}
+                        </AnimatePresence>
+                    </StaggerItem>
                 ))}
-            </div>
+            </Stagger>
 
             {/* Smart Comment Traffic Guard (only with a connected account) */}
             {accountId && <TrafficGuardCard accountId={accountId} />}
@@ -120,9 +142,12 @@ export default function DashboardPage() {
                         <div className="py-8 text-center text-[12.5px] text-muted-foreground">Loading activity…</div>
                     ) : (activities?.length ?? 0) > 0 ? (
                         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                            {activities?.map((act) => (
-                                <div
+                            {activities?.map((act, idx) => (
+                                <motion.div
                                     key={act.id}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.35, delay: Math.min(idx * 0.03, 0.24), ease: [0.22, 1, 0.36, 1] }}
                                     className="p-2.5 rounded-lg border border-border/60 bg-muted/20 text-[12px] space-y-1"
                                     data-testid="activity-item"
                                 >
@@ -147,7 +172,7 @@ export default function DashboardPage() {
                                     {act.errorMessage && (
                                         <p className="text-[10.5px] text-destructive truncate">{act.errorMessage}</p>
                                     )}
-                                </div>
+                                </motion.div>
                             ))}
                         </div>
                     ) : (

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { SPRING_SOFT } from "@/lib/motion/presets";
 import { CircleNotch, SignIn } from "@/components/phosphor";
 import { createBrowserClient } from "@/lib/supabase";
 import { LogoMark } from "@/components/ui/Logo";
@@ -98,7 +99,7 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.15 }}
+            transition={{ ...SPRING_SOFT, delay: 0.1 }}
             className="w-full max-w-sm bg-card border border-border rounded-xl overflow-hidden"
         >
             <div className="p-8">

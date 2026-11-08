@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { ChatCircle, PlayCircle, Stack, MagnifyingGlass, InstagramLogo, Heart } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useState } from "react";

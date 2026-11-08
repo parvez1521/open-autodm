@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SaasNavAccount } from "@/components/saas/SaasNavAccount";
+import { PageTransition, ScrollProgress } from "@/components/motion/primitives";
 
 /**
  * Phase 13 — ISOLATED SaaS prototype shell.
@@ -15,6 +16,7 @@ import { SaasNavAccount } from "@/components/saas/SaasNavAccount";
 export default function SaasPrototypeLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <ScrollProgress />
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <span className="text-sm font-semibold">
@@ -28,7 +30,9 @@ export default function SaasPrototypeLayout({ children }: { children: React.Reac
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <PageTransition>{children}</PageTransition>
+      </main>
     </div>
   );
 }

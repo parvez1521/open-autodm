@@ -15,6 +15,7 @@
 
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MotionConfig } from 'motion/react';
 import { ThemeProvider } from './ThemeProvider';
 import { createBrowserClient } from '@/lib/supabase';
 import { useAuthStore } from '@/lib/store';
@@ -66,8 +67,12 @@ export function AppProviders({ children }: AppProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <AuthListener />
-        {children}
+        {/* Motion system (2026-11-08): every motion component on the
+            site honours the visitor's reduced-motion preference. */}
+        <MotionConfig reducedMotion="user">
+          <AuthListener />
+          {children}
+        </MotionConfig>
       </ThemeProvider>
     </QueryClientProvider>
   );

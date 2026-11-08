@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { X, ArrowLeft, Check, Warning, CircleNotch } from "@/components/phosphor";
 import { useState, useEffect, useCallback } from "react";
 

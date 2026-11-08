@@ -112,6 +112,20 @@
   }
 }
 
+/* Motion pass (2026-11-08): text selection takes the brand tint,
+   and in-page anchors glide instead of jumping (window-scrolled
+   surfaces: landing + (saas) shell). Reduced motion keeps the
+   instant jump. */
+::selection {
+  background: color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Eyebrow / micro label: IBM Plex Mono, uppercase, letter-spaced.
    The editorial signature: metadata is set like a spec sheet, and
    hierarchy comes from size and color. */

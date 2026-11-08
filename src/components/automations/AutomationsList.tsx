@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
+import { EASE_OUT } from "@/lib/motion/presets";
 import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Stack, InstagramLogo, Warning, Trash, X, CursorClick } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
@@ -120,9 +121,9 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                 return (
                     <motion.div
                         key={automation.id}
-                        initial={{ opacity: 0, y: 8 }}
+                        initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: Math.min(idx * 0.04, 0.3) }}
+                        transition={{ delay: Math.min(idx * 0.04, 0.3), duration: 0.45, ease: EASE_OUT }}
                         className={cn(
                             "group relative bg-card rounded-xl border transition-colors overflow-hidden",
                             isActive ? "border-border hover:border-foreground/20" : "border-border opacity-70"

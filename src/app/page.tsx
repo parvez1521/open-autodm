@@ -32,11 +32,13 @@ import { DemoShowcase } from "@/components/home/DemoShowcase";
 import { FlowBuilder } from "@/components/home/FlowBuilder";
 import { CountUp } from "@/components/home/CountUp";
 import { useEffect, useState, type ComponentType } from "react";
-import { AnimatePresence, MotionConfig, motion, type Variants } from "framer-motion";
+import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
 import { FaqSection } from "@/components/home/FaqSection";
 import { KeywordTicker } from "@/components/home/KeywordTicker";
 import { Reveal, RevealRule, Parallax } from "@/components/home/Reveal";
 import { HERO_CREATOR_IMG, STUDIO_DESK_IMG, INK_TEXTURE_IMG } from "@/lib/landing-images";
+import { ScrollProgress } from "@/components/motion/primitives";
+import { LIFT_HOVER, PRESS_HOVER, PRESS_TAP, SPRING_PRESS, SPRING_SNAPPY } from "@/lib/motion/presets";
 import { PLANS, TRIAL_DAYS } from "@/lib/billing/catalogue";
 import { ScriptSampleShowcase } from "@/components/home/ScriptSampleShowcase";
 import { WaitlistForm } from "@/components/home/WaitlistForm";
@@ -263,6 +265,7 @@ export default function LandingPage() {
         <MotionConfig reducedMotion="user">
         <div className="relative min-h-screen bg-background text-foreground overflow-x-clip">
             <ScrollMorph />
+            <ScrollProgress />
 
             {/* Header */}
             <header className="relative z-10 border-b border-border">
@@ -298,12 +301,15 @@ export default function LandingPage() {
                         >
                             Sign in
                         </a>
-                        <a
+                        <motion.a
                             href="/login"
+                            whileHover={PRESS_HOVER}
+                            whileTap={PRESS_TAP}
+                            transition={SPRING_PRESS}
                             className="inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                         >
                             Get started
-                        </a>
+                        </motion.a>
                     </div>
                 </div>
             </header>
@@ -333,19 +339,25 @@ export default function LandingPage() {
                             no per-seat pricing, and no third party holding your tokens.
                         </motion.p>
                         <motion.div variants={heroItem} className="mt-8 flex flex-wrap items-center gap-3">
-                            <a
+                            <motion.a
                                 href="/login"
+                                whileHover={PRESS_HOVER}
+                                whileTap={PRESS_TAP}
+                                transition={SPRING_PRESS}
                                 className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                             >
                                 Sign in to your console
                                 <ArrowRight className="h-4 w-4" />
-                            </a>
-                            <a
+                            </motion.a>
+                            <motion.a
                                 href="#platform"
+                                whileHover={PRESS_HOVER}
+                                whileTap={PRESS_TAP}
+                                transition={SPRING_PRESS}
                                 className="inline-flex h-11 items-center rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                             >
                                 Explore the platform
-                            </a>
+                            </motion.a>
                         </motion.div>
                         <motion.p variants={heroItem} className="mt-6 text-[13px] text-muted-foreground">
                             MIT licensed · Self-hosted · Your data stays on your instance
@@ -514,22 +526,29 @@ export default function LandingPage() {
                             </Reveal>
                             <div>
                                 {PILLARS.map((p) => (
-                                    <a
+                                    <motion.a
                                         key={p.title}
                                         href={p.href}
+                                        whileHover="hover"
                                         className="-mx-3 flex items-start gap-4 border-b border-border px-3 py-6 transition-colors last:border-b-0 hover:bg-muted/40"
                                     >
                                         <p.icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
                                         <span className="min-w-0 flex-1">
                                             <span className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
                                                 {p.title}
-                                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                                <motion.span
+                                                    className="inline-flex"
+                                                    variants={{ hover: { x: 4 } }}
+                                                    transition={SPRING_SNAPPY}
+                                                >
+                                                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                                </motion.span>
                                             </span>
                                             <span className="mt-1.5 block text-sm leading-relaxed text-muted-foreground">
                                                 {p.body}
                                             </span>
                                         </span>
-                                    </a>
+                                    </motion.a>
                                 ))}
                             </div>
                         </div>
@@ -759,9 +778,10 @@ export default function LandingPage() {
                                             toolNumber += 1;
                                             const n = String(toolNumber).padStart(2, "0");
                                             return (
-                                                <a
+                                                <motion.a
                                                     key={tool.name}
                                                     href="/studio"
+                                                    whileHover="hover"
                                                     className="-mx-3 flex flex-col gap-1.5 border-b border-border px-3 py-5 transition-colors hover:bg-muted/40 sm:grid sm:grid-cols-[3.25rem_minmax(0,1fr)_minmax(0,1.35fr)_auto] sm:items-start sm:gap-6"
                                                 >
                                                     <span className="font-mono text-[13px] text-muted-foreground sm:pt-0.5">
@@ -782,8 +802,14 @@ export default function LandingPage() {
                                                             {tool.get}
                                                         </span>
                                                     </span>
-                                                    <ArrowRight className="hidden h-4 w-4 text-muted-foreground sm:mt-1 sm:block" />
-                                                </a>
+                                                    <motion.span
+                                                        className="hidden shrink-0 sm:mt-1 sm:block"
+                                                        variants={{ hover: { x: 4 } }}
+                                                        transition={SPRING_SNAPPY}
+                                                    >
+                                                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                                    </motion.span>
+                                                </motion.a>
                                             );
                                         })}
                                     </div>
@@ -793,13 +819,16 @@ export default function LandingPage() {
                         </div>
 
                         <div className="mt-12 flex flex-wrap items-center gap-4">
-                            <a
+                            <motion.a
                                 href="/studio"
+                                whileHover={PRESS_HOVER}
+                                whileTap={PRESS_TAP}
+                                transition={SPRING_PRESS}
                                 className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                             >
                                 Open Creator Studio
                                 <ArrowRight className="h-4 w-4" />
-                            </a>
+                            </motion.a>
                             <p className="max-w-xl text-[13px] leading-relaxed text-muted-foreground">
                                 The Studio tools run on built-in engines that work offline.
                                 Where a free AI tier is configured, they can enhance the
@@ -827,13 +856,16 @@ export default function LandingPage() {
                                 </p>
                                 <RevealRule className="mt-6 max-w-24" />
                             </div>
-                            <a
+                            <motion.a
                                 href="/pricing"
+                                whileHover={PRESS_HOVER}
+                                whileTap={PRESS_TAP}
+                                transition={SPRING_PRESS}
                                 className="inline-flex h-11 items-center gap-2 rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                             >
                                 Compare plans in full
                                 <ArrowRight className="h-4 w-4" />
-                            </a>
+                            </motion.a>
                         </Reveal>
 
                         <div className="mt-10 space-y-4">
@@ -843,7 +875,11 @@ export default function LandingPage() {
                                     // "For Business / Agency", Contact Us instead
                                     // of a price — no figure anywhere.
                                     <Reveal key={plan.id} delay={i * 0.05}>
-                                        <div className="grid gap-2 border border-border p-5 sm:px-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]">
+                                        <motion.div
+                                            whileHover={LIFT_HOVER}
+                                            transition={SPRING_SNAPPY}
+                                            className="grid gap-2 border border-border p-5 sm:px-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]"
+                                        >
                                             <span className="font-heading text-[15px] font-semibold text-foreground">
                                                 {plan.name}
                                                 <span className="block font-sans text-[12px] font-normal text-muted-foreground">
@@ -865,12 +901,14 @@ export default function LandingPage() {
                                                 Contact us
                                                 <ArrowRight className="h-3.5 w-3.5" />
                                             </a>
-                                        </div>
+                                        </motion.div>
                                     </Reveal>
                                 ) : (
                                     <Reveal key={plan.id} delay={i * 0.05}>
-                                        <a
+                                        <motion.a
                                             href="/pricing"
+                                            whileHover={LIFT_HOVER}
+                                            transition={SPRING_SNAPPY}
                                             className="grid gap-2 border border-border p-5 sm:px-6 transition-colors hover:bg-muted/40 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]"
                                         >
                                             <span className="flex items-center gap-2.5 font-heading text-[15px] font-semibold text-foreground">
@@ -888,7 +926,7 @@ export default function LandingPage() {
                                                 Creator Studio included
                                             </span>
                                             <ArrowRight className="hidden h-4 w-4 text-muted-foreground lg:block" />
-                                        </a>
+                                        </motion.a>
                                     </Reveal>
                                 ),
                             )}
@@ -942,19 +980,25 @@ export default function LandingPage() {
                                 code is open-source and MIT licensed.
                             </p>
                             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                                <a
+                                <motion.a
                                     href="/login"
+                                    whileHover={PRESS_HOVER}
+                                    whileTap={PRESS_TAP}
+                                    transition={SPRING_PRESS}
                                     className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
                                 >
                                     Get started
                                     <ArrowRight className="h-4 w-4" />
-                                </a>
-                                <a
+                                </motion.a>
+                                <motion.a
                                     href="/login"
+                                    whileHover={PRESS_HOVER}
+                                    whileTap={PRESS_TAP}
+                                    transition={SPRING_PRESS}
                                     className="inline-flex h-11 items-center rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                                 >
                                     Sign in
-                                </a>
+                                </motion.a>
                             </div>
                             <div className="mx-auto mt-12 max-w-md border-t border-border pt-8 text-center">
                                 <p className="micro-label">Waitlist</p>

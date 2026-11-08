@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowLeft } from "@/components/phosphor";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
+import { FadeIn } from "@/components/motion/primitives";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 
 export const metadata: Metadata = {
@@ -37,16 +38,18 @@ export default function ResetPasswordPage() {
             </header>
 
             <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-14">
+                <FadeIn className="flex flex-col items-center">
                 <h1 className="text-center font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                     Reset your password
                 </h1>
                 <p className="mt-3 max-w-md text-center text-[15px] leading-relaxed text-muted-foreground">
                     Choose a new password for your automation console.
                 </p>
+                </FadeIn>
 
-                <div className="mt-10 w-full max-w-sm bg-card border border-border rounded-xl p-8">
+                <FadeIn className="mt-10 w-full max-w-sm bg-card border border-border rounded-xl p-8" delay={0.1}>
                     <ResetPasswordForm />
-                </div>
+                </FadeIn>
             </main>
 
             {/* Footer */}

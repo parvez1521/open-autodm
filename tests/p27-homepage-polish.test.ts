@@ -22,8 +22,17 @@
  *        playback, click-to-jump with pause, reduced-motion static,
  *        segmented pacing rail.
  *   B-A3 SUPERSEDED 2026-11-07 by the owner's design ban (no hover
- *        animations): the pin now asserts the landing page carries
+ *        animations): the pin asserted the landing page carries
  *        NO hover/focus transform micro-interaction at all.
+ *        REWRITTEN 2026-11-08 (~17:59 IST) on the owner's explicit
+ *        instruction: he ordered motion.dev-style animation across
+ *        the whole site, which supersedes the no-hover-transform
+ *        rule for MOTION-SYSTEM springs (whileHover/whileTap from
+ *        the shared presets). The pin's assertions are unchanged —
+ *        CSS-class hover/focus transforms (group-hover:translate,
+ *        transition-transform and friends) remain banned; hover
+ *        feedback may only arrive as a motion spring, never as a
+ *        utility-class transform.
  *
  * No claim, statistic, testimonial, or logo was added anywhere: a pin
  * below asserts the sample copy moved verbatim into the component.
@@ -182,11 +191,16 @@ describe('B-A2 — ScriptSampleShowcase (functional pacing demo)', () => {
   });
 });
 
-describe('B-A3 — superseded by the owner design ban (2026-11-07): no hover animations', () => {
-  it('the landing page carries no hover/focus transform micro-interaction', () => {
-    // The P27 arrow micro-interaction was removed deliberately: the
-    // owner's design ban list prohibits hover animations outright.
-    // Feedback is color/underline only. This pin guards the ban.
+describe('B-A3 — rewritten 2026-11-08 on the owner instruction: hover feedback only via motion springs, never CSS-class transforms', () => {
+  it('the landing page carries no CSS-class hover/focus transform micro-interaction', () => {
+    // History: the P27 arrow micro-interaction was removed in 2026-11-07
+    // when the owner's design ban prohibited hover animations outright.
+    // The owner's 2026-11-08 ~17:59 IST instruction (motion.dev-style
+    // animation across the whole site) supersedes that ban ONLY for
+    // springs from the shared motion system (whileHover / whileTap in
+    // src/lib/motion/presets.ts) — those are asserted present by the
+    // round-7 pins in home-design-pass.test.ts. Utility-class transform
+    // hovers stay banned, so these assertions stand as they were.
     expect(pageSrc).not.toContain('group-hover:translate');
     expect(pageSrc).not.toContain('group-focus-visible:translate');
     expect(pageSrc).not.toContain('transition-transform');

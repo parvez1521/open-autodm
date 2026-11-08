@@ -3,8 +3,9 @@
 /**
  * FaqSection — landing-page FAQ accordion (design pass, 2026-11-07).
  *
- * Real buttons with aria-expanded; the answer panel animates with the
- * grid-rows trick (no JS height measuring). Answers stay strictly
+ * Real buttons with aria-expanded; the answer panel animates its
+ * height with the shared motion system (motion pass, 2026-11-08 —
+ * previously the grid-rows trick). Answers stay strictly
  * product-truthful: self-hosting is free and MIT-licensed, the Meta
  * app is the user's own with exactly three permissions, data lives in
  * the user's own database, sending caps are the shipped ones, and the
@@ -13,8 +14,9 @@
  */
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { CaretDown } from "@/components/phosphor";
-import { cn } from "@/lib/utils";
+import { EASE_OUT, SPRING_SNAPPY } from "@/lib/motion/presets";
 
 const FAQS = [
   {
@@ -59,27 +61,33 @@ export function FaqSection() {
                 <span className="font-heading text-[15px] font-semibold text-foreground">
                   {item.q}
                 </span>
-                <CaretDown
-                  className={cn(
-                    "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300",
-                    isOpen && "rotate-180",
-                  )}
-                />
+                <motion.span
+                  aria-hidden
+                  className="inline-flex shrink-0"
+                  animate={{ rotate: isOpen ? 180 : 0 }}
+                  transition={SPRING_SNAPPY}
+                >
+                  <CaretDown className="h-4 w-4 text-muted-foreground" />
+                </motion.span>
               </button>
             </h3>
-            <div
-              id={`faq-panel-${i}`}
-              className={cn(
-                "grid transition-[grid-template-rows] duration-300 ease-out",
-                isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            <AnimatePresence initial={false}>
+              {isOpen && (
+                <motion.div
+                  key="panel"
+                  id={`faq-panel-${i}`}
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.34, ease: EASE_OUT }}
+                  className="overflow-hidden"
+                >
+                  <p className="max-w-3xl pb-5 text-sm leading-relaxed text-muted-foreground">
+                    {item.a}
+                  </p>
+                </motion.div>
               )}
-            >
-              <div className="overflow-hidden">
-                <p className="max-w-3xl pb-5 text-sm leading-relaxed text-muted-foreground">
-                  {item.a}
-                </p>
-              </div>
-            </div>
+            </AnimatePresence>
           </div>
         );
       })}

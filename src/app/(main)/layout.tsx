@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { Sidebar, MobileSidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
+import { PageTransition } from "@/components/motion/primitives";
 import { readWorkspaceFlags } from "@/lib/tenancy/workspaceFlags";
 import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 import { createServerClient } from "@/lib/supabase";
@@ -53,7 +54,7 @@ export default async function MainLayout({
 
                 <ScrollMorph />
                 <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 scroll-smooth">
-                    {children}
+                    <PageTransition>{children}</PageTransition>
                 </main>
             </div>
         </div>

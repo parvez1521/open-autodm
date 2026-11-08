@@ -18,6 +18,12 @@
  * Round 6 (2026-11-08, owner feedback): each plan row now sits
  * in its own flat outlined box with vertical gaps, so every
  * plan reads as an individual unit; copy and figures unchanged.
+ * Motion pass (2026-11-08, owner instruction ~17:59 IST): the
+ * period toggle is a segmented control with a shared layoutId
+ * indicator, plan boxes stagger in and reflow with `layout`, and
+ * the price figure flips vertically when the period changes —
+ * all from the shared motion system (lib/motion/presets), on the
+ * `motion` package. Figures and copy unchanged.
  * All figures come from lib/billing/catalogue.
  *
  * Single-file on purpose: the customer-journey render harness
@@ -40,6 +46,8 @@
  */
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { EASE_OUT, SPRING_SNAPPY, fadeUp, staggerChild, staggerParent } from "@/lib/motion/presets";
 import {
   PLANS,
   CATALOGUE_STATUS,
@@ -104,7 +112,9 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
     // "For Business / Agency", Contact Us instead of any price,
     // figure or checkout action.
     return (
-      <div
+      <motion.div
+        layout
+        variants={staggerChild}
         className="grid gap-5 border border-border p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12 lg:p-7"
         data-testid={`plan-${plan.id}`}
       >
@@ -133,22 +143,37 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
             priority support.
           </p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div
+    <motion.div
+      layout
+      variants={staggerChild}
       className="grid gap-5 border border-border p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12 lg:p-7"
       data-testid={`plan-${plan.id}`}
     >
       <div>
         <h2 className="font-heading text-base font-semibold">{plan.name}</h2>
         <p className="mt-3 font-heading text-3xl font-semibold">
-          {formatMinor(inrFigure, "INR")}
-          <span className="text-sm font-normal text-muted-foreground"> / mo · </span>
-          {formatMinor(usdFigure, "USD")}
-          <span className="text-sm font-normal text-muted-foreground"> / mo</span>
+          <span className="relative inline-flex overflow-hidden">
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={period}
+                initial={{ y: 14, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -14, opacity: 0 }}
+                transition={{ duration: 0.28, ease: EASE_OUT }}
+                className="inline-flex items-baseline"
+              >
+                {formatMinor(inrFigure, "INR")}
+                <span className="text-sm font-normal text-muted-foreground"> / mo · </span>
+                {formatMinor(usdFigure, "USD")}
+                <span className="text-sm font-normal text-muted-foreground"> / mo</span>
+              </motion.span>
+            </AnimatePresence>
+          </span>
         </p>
         <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
           {period === "monthly"
@@ -203,7 +228,7 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
           ))}
         </ul>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -230,7 +255,7 @@ export default function PricingPrototypePage() {
   }, []);
   return (
     <div className="space-y-6">
-      <div>
+      <motion.div variants={fadeUp} initial="hidden" animate="show">
         <h1 className="font-heading text-2xl font-semibold">Pricing (prototype)</h1>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           Catalogue status: <strong>{CATALOGUE_STATUS}</strong> — these prices were set by the
@@ -238,34 +263,33 @@ export default function PricingPrototypePage() {
           payment is taken on this page yet. The hosted service itself is in preparation —
           self-hosting the open-source release stays free.
         </p>
-      </div>
+      </motion.div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2" role="group" aria-label="Billing period">
-          <button
-            type="button"
-            aria-pressed={period === "monthly"}
-            onClick={() => setPeriod("monthly")}
-            className={
-              period === "monthly"
-                ? "h-9 rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-                : "h-9 rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            }
-          >
-            Monthly
-          </button>
-          <button
-            type="button"
-            aria-pressed={period === "annual"}
-            onClick={() => setPeriod("annual")}
-            className={
-              period === "annual"
-                ? "h-9 rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-                : "h-9 rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-            }
-          >
-            Annual
-          </button>
+        {/* Motion pass (2026-11-08): the period toggle is now a
+            segmented control whose indicator is one shared element
+            (layoutId) that springs between Monthly and Annual. */}
+        <div className="flex items-center gap-1 rounded-lg border border-border p-1" role="group" aria-label="Billing period">
+          {(["monthly", "annual"] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={period === p}
+              onClick={() => setPeriod(p)}
+              className="relative h-8 rounded-md px-4 text-sm font-medium"
+            >
+              {period === p && (
+                <motion.span
+                  layoutId="billing-period-pill"
+                  className="absolute inset-0 rounded-md bg-foreground"
+                  transition={SPRING_SNAPPY}
+                />
+              )}
+              <span className={`relative z-10 ${period === p ? "font-semibold text-background" : "text-foreground"}`}>
+                {p === "monthly" ? "Monthly" : "Annual"}
+              </span>
+            </button>
+          ))}
         </div>
         <p className="text-[13px] text-muted-foreground">
           Annual billing runs about 20% lower on every paid tier. Every paid plan starts with a{" "}
@@ -273,13 +297,19 @@ export default function PricingPrototypePage() {
         </p>
       </div>
 
-      <div className="space-y-5">
+      <motion.div className="space-y-5" variants={staggerParent} initial="hidden" animate="show">
         {PLANS.map((plan) => (
           <PlanRow key={plan.id} plan={plan} period={period} signedIn={signedIn} />
         ))}
-      </div>
+      </motion.div>
 
-      <div className="overflow-x-auto">
+      <motion.div
+        className="overflow-x-auto"
+        variants={fadeUp}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, margin: "-6% 0px -6% 0px" }}
+      >
         <p className="micro-label">Compare every limit</p>
         <table className="mt-4 w-full min-w-[620px] border-collapse text-left text-[13px]">
           <thead>
@@ -309,16 +339,22 @@ export default function PricingPrototypePage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </motion.div>
 
-      <div className="border-t border-border pt-6">
+      <motion.div
+        className="border-t border-border pt-6"
+        variants={fadeUp}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: true, margin: "-6% 0px -6% 0px" }}
+      >
         <p className="micro-label">On every plan, including Free</p>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
           Creator Studio, safety and compliance features, recipient opt-outs, data deletion,
           webhook verification, comment moderation, are included on every tier including Free and
           are never metered.
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { ChatCircle, PaperPlaneTilt, Image, At } from "@/components/phosphor";
 import { AUTOMATION_TYPES } from "../constants";
 import { cn } from "@/lib/utils";

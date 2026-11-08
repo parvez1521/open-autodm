@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
+import { EASE_OUT } from "@/lib/motion/presets";
 import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise, Warning } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
@@ -165,7 +166,7 @@ export function ContactsList() {
                                     key={contact.id}
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: Math.min(i * 0.04, 0.4) }}
+                                    transition={{ delay: Math.min(i * 0.04, 0.4), duration: 0.45, ease: EASE_OUT }}
                                     className="group hover:bg-muted/30 transition-colors"
                                 >
                                     <td className="px-5 py-3">

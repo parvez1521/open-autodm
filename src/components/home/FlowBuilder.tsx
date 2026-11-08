@@ -11,13 +11,13 @@
  * their choices. Every string is a template the real product could
  * send; nothing is personalised with invented data.
  *
- * Motion: framer-motion bubble entrances keyed by the current choice
+ * Motion: motion-package bubble entrances keyed by the current choice
  * (the house animation library, cf. PipelineShowcase). No hover
  * transforms.
  */
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { ChatCircle, Heart, Lightning, PaperPlaneTilt } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 

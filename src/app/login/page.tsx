@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowLeft, FilmStrip, Lightning, Timer } from "@/components/phosphor";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { FadeIn } from "@/components/motion/primitives";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 import { readSaasFlags } from "@/lib/billing/flags";
 
@@ -43,6 +44,7 @@ export default function LoginPage() {
                 form column's content is unchanged. */}
             <main className="relative z-10 grid flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
                 <aside className="relative hidden flex-col justify-between bg-foreground px-10 py-12 text-background lg:flex xl:px-14">
+                    <FadeIn x={-24} y={0}>
                     <div>
                         <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-background/60">
                             The console
@@ -55,6 +57,8 @@ export default function LoginPage() {
                             with the Creator Studio that makes the next video.
                         </p>
                     </div>
+                    </FadeIn>
+                    <FadeIn x={-24} y={0} delay={0.14}>
                     <ul className="space-y-3.5 text-sm text-background/85">
                         <li className="flex items-center gap-3">
                             <Lightning className="h-4 w-4 shrink-0" />
@@ -69,9 +73,11 @@ export default function LoginPage() {
                             Hard caps built in — 180 DMs/hour, 24-hour window
                         </li>
                     </ul>
+                    </FadeIn>
                 </aside>
 
                 <div className="flex flex-col items-center justify-center px-6 py-14">
+                    <FadeIn className="flex flex-col items-center">
                     <h1 className="text-center font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
                         Sign in to open-autoDM
                     </h1>
@@ -79,12 +85,14 @@ export default function LoginPage() {
                         Your automation console and Creator Studio, running on your own
                         instance.
                     </p>
+                    </FadeIn>
 
-                    <div className="mt-10 flex w-full justify-center">
+                    <FadeIn className="mt-10 flex w-full justify-center" delay={0.1}>
                         <LoginForm signupOpen={signupEnabled} />
-                    </div>
+                    </FadeIn>
 
                     {signupEnabled && (
+                        <FadeIn delay={0.18}>
                         <p className="mt-6 text-center text-[13px] text-muted-foreground">
                             New to open-autoDM?{" "}
                             <a
@@ -94,6 +102,7 @@ export default function LoginPage() {
                                 Create an account
                             </a>
                         </p>
+                        </FadeIn>
                     )}
                 </div>
             </main>

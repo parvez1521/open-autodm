@@ -15,7 +15,7 @@ import {
     X,
 } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 import { AccountSwitcher } from "@/components/dashboard/AccountSwitcher";
