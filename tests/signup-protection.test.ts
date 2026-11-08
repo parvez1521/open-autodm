@@ -199,7 +199,12 @@ const USER_CREATION_PATTERNS: { label: string; re: RegExp }[] = [
   { label: 'signInWithOtp', re: /\.signInWithOtp\s*\(/ },
   { label: 'signInWithOAuth', re: /\.signInWithOAuth\s*\(/ },
   { label: 'verifyOtp', re: /\.verifyOtp\s*\(/ },
-  { label: 'resetPasswordForEmail', re: /\.resetPasswordForEmail\s*\(/ },
+  // resetPasswordForEmail was listed here until the functional-audit
+  // fix (2026-11-08): it cannot create or provision an account — it
+  // only emails a recovery link to an address that already has one —
+  // and the owner approved a real password-recovery flow. Its single
+  // call site is pinned positively in the auth-call inventory below
+  // (components/auth/ForgotPasswordForm.tsx, exactly that one method).
   { label: 'auth.admin.createUser', re: /admin\s*\.\s*createUser\s*\(/ },
   { label: 'auth.admin.inviteUserByEmail', re: /admin\s*\.\s*inviteUserByEmail\s*\(/ },
   { label: 'auth.admin.generateLink', re: /admin\s*\.\s*generateLink\s*\(/ },
@@ -277,6 +282,13 @@ describe('S-02 (1): no signup path exists anywhere in src/', () => {
       'getUser',
       'onAuthStateChange',
       'exchangeCodeForSession',
+      // Audit fix (2026-11-08): password recovery/change for EXISTING
+      // accounts. Neither can create or provision an identity:
+      // resetPasswordForEmail only emails an address that already has
+      // an account, and updateUser only mutates the caller's own
+      // verified session. Their call sites are pinned exactly below.
+      'resetPasswordForEmail',
+      'updateUser',
     ]);
     const seen = new Map<string, Set<string>>();
     for (const file of collectSourceFiles(SRC_ROOT)) {
@@ -296,6 +308,14 @@ describe('S-02 (1): no signup path exists anywhere in src/', () => {
     expect(seen.get('components/auth/LoginForm.tsx')).toEqual(new Set(['signInWithPassword']));
     // …and the flag-gated signup form is the only other form-level site.
     expect(seen.get('components/auth/SignupForm.tsx')).toEqual(new Set(['signUp']));
+    // Audit fix (2026-11-08): the recovery/change surfaces are pinned
+    // to exactly their own methods — no other auth call may creep in.
+    expect(seen.get('components/auth/ForgotPasswordForm.tsx')).toEqual(new Set(['resetPasswordForEmail']));
+    expect(seen.get('components/auth/ResetPasswordForm.tsx')).toEqual(
+      new Set(['exchangeCodeForSession', 'getSession', 'updateUser'])
+    );
+    expect(seen.get('components/auth/ChangePasswordForm.tsx')).toEqual(new Set(['updateUser']));
+    expect(seen.get('components/dashboard/SessionFooter.tsx')).toEqual(new Set(['signOut']));
   });
 });
 

@@ -1,10 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { CircleNotch, SignIn } from "@/components/phosphor";
 import { createBrowserClient } from "@/lib/supabase";
 import { LogoMark } from "@/components/ui/Logo";
+import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
+
+/**
+ * Human copy for the auth_error values /auth/callback can forward
+ * (functional audit fix, 2026-11-08): a failed confirmation, invite
+ * or recovery link used to land here with no message at all.
+ */
+function humanAuthError(raw: string): string {
+    const value = raw.trim();
+    if (value === "access_denied") {
+        return "That email link was cancelled or denied. Sign in below, or request a fresh link.";
+    }
+    if (/expired/i.test(value)) {
+        return "That email link has expired. Sign in below, or request a fresh one with “Forgot password?” if it was a reset link.";
+    }
+    if (/not provisioned/i.test(value)) {
+        return "This account is not provisioned for this instance. Ask the instance owner to add your login first.";
+    }
+    if (/invalid|already.*used|not found/i.test(value)) {
+        return "That email link is invalid or was already used. Sign in below, or request a fresh link.";
+    }
+    // Callback messages are already user-facing Supabase sentences;
+    // show them as-is (capped) rather than swallowing them.
+    return value.length > 220 ? `${value.slice(0, 220)}…` : value;
+}
 
 /**
  * Sign-in only — in BOTH signup postures. When the owner opens public
@@ -14,12 +39,40 @@ import { LogoMark } from "@/components/ui/Logo";
  * users. Its footer copy is posture-aware via the signupOpen prop:
  * invite-only wording when signup is closed, an open-signup note when
  * it is not (the S-02 pin keeps the invite-only wording in source).
+ *
+ * Audit fix (2026-11-08): a "Forgot password?" affordance swaps the
+ * card to ForgotPasswordForm (the resetPasswordForEmail call lives
+ * in that file — this form's only auth call remains
+ * signInWithPassword), and ?auth_error= values forwarded by
+ * /auth/callback are surfaced as human messages instead of being
+ * swallowed.
  */
 export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [mode, setMode] = useState<"signin" | "forgot">("signin");
+
+    // Surface a forwarded auth failure (audit fix): /auth/callback
+    // redirects here with ?auth_error=… when a confirmation/invite
+    // code exchange fails or the identity gate refuses the session.
+    // Read once on mount (query or hash), show a human message, then
+    // scrub the parameter so a refresh doesn't repeat it.
+    useEffect(() => {
+        const fromQuery = new URLSearchParams(window.location.search);
+        const fromHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const raw =
+            fromQuery.get("auth_error") ??
+            fromQuery.get("error_description") ??
+            fromQuery.get("error") ??
+            fromHash.get("error_description") ??
+            fromHash.get("error");
+        if (raw) {
+            setError(humanAuthError(raw));
+            window.history.replaceState({}, "", "/login");
+        }
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -54,13 +107,18 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
                     {/* h2, not h1 (P27): the page's own h1 sits above
                         this card; the card heading stays an h2. */}
                     <h2 className="text-lg font-heading font-semibold tracking-tight text-foreground mb-1">
-                        Welcome back
+                        {mode === "forgot" ? "Reset your password" : "Welcome back"}
                     </h2>
                     <p className="text-[13px] text-muted-foreground">
-                        Sign in to your automation console.
+                        {mode === "forgot"
+                            ? "We will email you a link to choose a new one."
+                            : "Sign in to your automation console."}
                     </p>
                 </div>
 
+                {mode === "forgot" ? (
+                    <ForgotPasswordForm onBack={() => setMode("signin")} />
+                ) : (
                 <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col space-y-3">
                     {error && (
                         <p role="alert" className="text-[12.5px] text-destructive font-medium">
@@ -82,7 +140,19 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
                         />
                     </div>
                     <div>
-                        <label htmlFor="login-password" className="micro-label block mb-1">Password</label>
+                        <div className="flex items-baseline justify-between mb-1">
+                            <label htmlFor="login-password" className="micro-label block">Password</label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setError(null);
+                                    setMode("forgot");
+                                }}
+                                className="text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                Forgot password?
+                            </button>
+                        </div>
                         <input
                             id="login-password"
                             type="password"
@@ -104,6 +174,7 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
                         {isLoading ? "Signing in…" : "Sign in"}
                     </button>
                 </form>
+                )}
 
                 <div className="mt-6 pt-5 border-t border-border">
                     {signupOpen ? (

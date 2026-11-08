@@ -6,6 +6,8 @@ import { useSearchParams } from "next/navigation";
 import { InstagramLogo, CheckCircle, XCircle, CircleNotch, LinkBreak, Warning, ArrowsClockwise, Wrench, PauseCircle } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { createBrowserClient } from "@/lib/supabase";
+import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
+import { IgAvatar } from "@/components/dashboard/IgAvatar";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { useInstagramAccounts, useRefreshInstagramToken, useResubscribeWebhook, useCheckSubscription } from "@/hooks/useInstagramAccounts";
 import { useSetupStatus } from "@/hooks/useSetup";
@@ -35,6 +37,20 @@ function SettingsContent() {
     const [checkingSubId, setCheckingSubId] = useState<string | null>(null);
     const [subStatus, setSubStatus] = useState<Record<string, { subscribedFields: string[]; hasComments: boolean; hasMessages: boolean } | null>>({});
     const [banner, setBanner] = useState<{ type: "success" | "error"; message: string } | null>(null);
+    const [userEmail, setUserEmail] = useState<string | null>(null);
+
+    // Signed-in identity for the Session section (audit fix): getUser()
+    // verifies with the Auth server — never a local token decode.
+    useEffect(() => {
+        let cancelled = false;
+        const supabase = createBrowserClient();
+        void supabase.auth.getUser().then(({ data }) => {
+            if (!cancelled) setUserEmail(data.user?.email ?? null);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     useEffect(() => {
         const igConnected = searchParams.get("instagram_connected");
@@ -269,15 +285,7 @@ function SettingsContent() {
 
                                 <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <div className="relative w-9 h-9 rounded-full border border-border shrink-0">
-                                            <div className="w-full h-full rounded-full bg-background overflow-hidden flex items-center justify-center">
-                                                {account.profile_picture_url ? (
-                                                    <img src={account.profile_picture_url} alt={account.username} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <InstagramLogo className="w-4 h-4 text-muted-foreground" />
-                                                )}
-                                            </div>
-                                        </div>
+                                        <IgAvatar username={account.username} pictureUrl={account.profile_picture_url} className="w-9 h-9" iconClassName="w-4 h-4" />
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[13px] font-semibold text-foreground truncate">@{account.username}</span>
@@ -361,12 +369,32 @@ function SettingsContent() {
                 </div>
             </section>
 
+            {/* Password */}
+            <section className="bg-card border border-border rounded-xl p-5 space-y-4">
+                <div>
+                    <h2 className="text-[14px] font-heading font-semibold text-foreground">Password</h2>
+                    <p className="text-[13px] text-muted-foreground mt-0.5">
+                        Change the password for your console login.
+                    </p>
+                </div>
+                <ChangePasswordForm />
+            </section>
+
             {/* Account */}
-            <section className="bg-card border border-border rounded-xl p-5 flex items-center justify-between">
-                <h2 className="text-[14px] font-heading font-semibold text-foreground">Session</h2>
+            <section className="bg-card border border-border rounded-xl p-5 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                    <h2 className="text-[14px] font-heading font-semibold text-foreground">Session</h2>
+                    <p className="text-[13px] text-muted-foreground mt-0.5 truncate">
+                        {userEmail ? (
+                            <>Signed in as <span className="text-foreground/80 font-medium">{userEmail}</span></>
+                        ) : (
+                            "Signed in to this instance."
+                        )}
+                    </p>
+                </div>
                 <button
                     onClick={handleSignOut}
-                    className="h-8 px-3 rounded-lg text-[13px] font-medium text-muted-foreground border border-border hover:text-destructive hover:border-destructive/40 transition-colors"
+                    className="h-8 px-3 rounded-lg text-[13px] font-medium text-muted-foreground border border-border hover:text-destructive hover:border-destructive/40 transition-colors shrink-0"
                 >
                     Sign out
                 </button>

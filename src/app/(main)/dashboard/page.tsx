@@ -24,9 +24,9 @@ function formatRelativeTime(dateStr: string): string {
 
 export default function DashboardPage() {
     const { account: connectedAccount, accountId } = useActiveAccount();
-    const { data: automations } = useAutomations(accountId);
-    const { data: setup } = useSetupStatus();
-    const { data: contacts } = useContacts(accountId);
+    const { data: automations, isLoading: automationsLoading } = useAutomations(accountId);
+    const { data: setup, isLoading: setupLoading } = useSetupStatus();
+    const { data: contacts, isLoading: contactsLoading } = useContacts(accountId);
 
     // Fixed 30-day window, computed once per mount so the query key stays stable
     const analyticsRange = useMemo(() => {
@@ -36,8 +36,14 @@ export default function DashboardPage() {
             to: new Date(now).toISOString(),
         };
     }, []);
-    const { data: analytics } = useAnalytics({ ...analyticsRange, automationId: "all", accountId });
+    const { data: analytics, isLoading: analyticsLoading } = useAnalytics({ ...analyticsRange, automationId: "all", accountId });
     const { data: activities, isLoading: isActivityLoading } = useActivity(accountId, 15);
+
+    // Audit fix: while the numbers are in flight, the stats and the
+    // System rows render neutral skeletons — never literal 0s or a
+    // "Not connected" / "Idle" flash that reads as a dead engine.
+    const statsLoading = automationsLoading || contactsLoading || analyticsLoading;
+    const systemLoading = setupLoading || automationsLoading;
 
     const activeCount = automations?.filter(a => a.is_active).length ?? 0;
     const totalDms = automations?.reduce((sum, a) => sum + a.total_dms_sent, 0) ?? 0;
@@ -86,7 +92,11 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-between">
                             <span className="micro-label">{stat.label}</span>
                         </div>
-                        <p className="text-2xl font-heading font-semibold tracking-tight text-foreground mt-2 tabular-nums">{stat.value}</p>
+                        {statsLoading ? (
+                            <div className="mt-2 h-8 w-16 rounded-md bg-muted/60 animate-pulse" aria-label="Loading" />
+                        ) : (
+                            <p className="text-2xl font-heading font-semibold tracking-tight text-foreground mt-2 tabular-nums">{stat.value}</p>
+                        )}
                     </div>
                 ))}
             </div>
@@ -155,7 +165,7 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* Viral Script Writer promo */}
+            {/* Script Writer promo */}
             <Link href="/script-writer" className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-xl">
                 <div className="relative overflow-hidden bg-card border border-primary/25 rounded-xl p-5">
                     <div className="flex items-start justify-between gap-4">
@@ -164,7 +174,7 @@ export default function DashboardPage() {
                                 <PencilLine className="w-5 h-5 text-muted-foreground" />
                             </span>
                             <div className="min-w-0">
-                                <h2 className="text-[14px] font-heading font-semibold text-foreground">Viral Script Writer</h2>
+                                <h2 className="text-[14px] font-heading font-semibold text-foreground">Script Writer</h2>
                                 <p className="text-[13px] text-muted-foreground mt-0.5">
                                     Generate a hook-first Reel script tuned for Instagram - then turn its CTA keyword into an automation.
                                 </p>
@@ -225,15 +235,19 @@ export default function DashboardPage() {
                         ].map((row) => (
                             <div key={row.label} className="flex items-center justify-between h-10 px-3 rounded-lg bg-muted/40">
                                 <div className="flex items-center gap-2.5">
-                                    <span className={cn("w-1.5 h-1.5 rounded-full", row.ok ? "bg-secondary" : "bg-muted-foreground/40")} />
+                                    <span className={cn("w-1.5 h-1.5 rounded-full", systemLoading ? "bg-muted-foreground/30" : row.ok ? "bg-secondary" : "bg-muted-foreground/40")} />
                                     <span className="text-[13px] font-medium text-foreground">{row.label}</span>
                                 </div>
-                                <span className="text-[12px] text-muted-foreground truncate max-w-[120px]">{row.detail}</span>
+                                {systemLoading ? (
+                                    <div className="h-4 w-20 rounded bg-muted animate-pulse" aria-label="Loading" />
+                                ) : (
+                                    <span className="text-[12px] text-muted-foreground truncate max-w-[120px]">{row.detail}</span>
+                                )}
                             </div>
                         ))}
                     </div>
 
-                    {!setup?.configured && (
+                    {!setupLoading && !setup?.configured && (
                         <Link
                             href="/setup"
                             className="mt-4 flex items-center justify-center gap-1.5 h-9 w-full rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 transition-opacity"

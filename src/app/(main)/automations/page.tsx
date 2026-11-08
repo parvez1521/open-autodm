@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Plus } from "@/components/phosphor";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Plus, CircleNotch } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { AutomationsList } from "@/components/automations/AutomationsList";
 import { ContactsList } from "@/components/automations/ContactsList";
@@ -12,9 +13,32 @@ import type { AutomationFromDB } from "@/hooks/useAutomations";
 import { AutomationDebugPanel } from "@/components/debug/AutomationDebugPanel";
 
 export default function AutomationsPage() {
+    return (
+        <Suspense fallback={<div className="w-full max-w-5xl mx-auto py-24 flex justify-center"><CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" /></div>}>
+            <AutomationsContent />
+        </Suspense>
+    );
+}
+
+function AutomationsContent() {
+    const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState<"automations" | "contacts">("automations");
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAutomation, setEditingAutomation] = useState<AutomationFromDB | null>(null);
+    const [initialKeyword, setInitialKeyword] = useState<string | null>(null);
+
+    // Script Writer handoff (audit fix, 2026-11-08): a ?keyword= from
+    // the generated script opens the create flow with that keyword
+    // already in the trigger list, then the URL is scrubbed.
+    useEffect(() => {
+        const keyword = searchParams.get("keyword");
+        if (keyword && keyword.trim()) {
+            setEditingAutomation(null);
+            setInitialKeyword(keyword.trim());
+            setIsModalOpen(true);
+            window.history.replaceState({}, "", "/automations");
+        }
+    }, [searchParams]);
 
     const { accountId } = useActiveAccount();
     const { data: automations, isLoading } = useAutomations(accountId);
@@ -37,6 +61,7 @@ export default function AutomationsPage() {
     const handleModalClose = () => {
         setIsModalOpen(false);
         setEditingAutomation(null);
+        setInitialKeyword(null);
     };
 
     return (
@@ -91,6 +116,7 @@ export default function AutomationsPage() {
                 onClose={handleModalClose}
                 editAutomation={editingAutomation}
                 accountId={accountId}
+                initialKeyword={initialKeyword}
             />
 
             {/* Debug panel - visible only when NEXT_PUBLIC_DEBUG=true */}

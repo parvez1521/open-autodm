@@ -17,6 +17,12 @@ interface NewAutomationModalProps {
     editAutomation?: AutomationFromDB | null;
     /** The account this automation belongs to (the sidebar's active account). */
     accountId?: string | null;
+    /**
+     * Keyword carried in from the Script Writer handoff (audit fix,
+     * 2026-11-08): when creating (never when editing), the new flow
+     * starts with this keyword already in the trigger keyword list.
+     */
+    initialKeyword?: string | null;
 }
 
 export type CardButton = {
@@ -128,7 +134,7 @@ function automationToFlowData(automation: AutomationFromDB): AutomationFlowData 
     };
 }
 
-export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId }: NewAutomationModalProps) {
+export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId, initialKeyword }: NewAutomationModalProps) {
     const isEditMode = !!editAutomation;
 
     const [step, setStep] = useState(0);
@@ -158,12 +164,14 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId 
                 setStep(2);
             } else {
                 const fd = defaultFlowData();
+                const carried = initialKeyword?.trim();
+                if (carried) fd.keywords = [carried];
                 setFlowData(fd);
                 setSavedSnapshot(JSON.stringify(fd));
                 setStep(0);
             }
         }
-    }, [isOpen, editAutomation]);
+    }, [isOpen, editAutomation, initialKeyword]);
 
     const updateData = useCallback((patch: Partial<AutomationFlowData>) =>
         setFlowData(prev => ({ ...prev, ...patch })), []);

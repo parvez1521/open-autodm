@@ -110,6 +110,7 @@ export {
   ShieldCheck,
   ShieldWarning,
   SignIn,
+  SignOut,
   Smiley,
   Square,
   SquaresFour,

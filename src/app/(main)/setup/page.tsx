@@ -205,8 +205,9 @@ export default function SetupPage() {
                             className={inputCls}
                         />
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            Meta signs webhooks with either secret depending on app type. If the debug panel shows
-                            &ldquo;signature mismatch&rdquo; on real events, paste the App Secret from App settings → Basic here.
+                            Meta signs webhooks with either secret depending on app type. If real webhook
+                            events start failing with &ldquo;signature mismatch&rdquo; errors, paste the
+                            App Secret from App settings → Basic here.
                         </p>
                     </div>
                     {saveError && <p className="text-[12px] text-destructive font-medium">{saveError}</p>}

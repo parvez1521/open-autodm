@@ -8,7 +8,6 @@ import {
     ChartBar,
     Gear,
     Wrench,
-    GithubLogo,
     PencilLine,
     FilmSlate,
     CaretLeft,
@@ -20,6 +19,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 import { AccountSwitcher } from "@/components/dashboard/AccountSwitcher";
+import { SessionFooter } from "@/components/dashboard/SessionFooter";
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 import { useUiStore } from "@/lib/store";
 
@@ -35,7 +35,6 @@ const NAV = {
     System: [
         { name: "Setup Wizard", href: "/setup", icon: Wrench, external: false },
         { name: "Settings", href: "/settings", icon: Gear, external: false },
-        { name: "GitHub", href: "https://github.com", icon: GithubLogo, external: true },
     ],
 };
 
@@ -91,7 +90,7 @@ function NavGroups({
     );
 }
 
-export function Sidebar({ workspaceRuntimeEnabled = false }: { workspaceRuntimeEnabled?: boolean } = {}) {
+export function Sidebar({ workspaceRuntimeEnabled = false, userEmail = null }: { workspaceRuntimeEnabled?: boolean; userEmail?: string | null } = {}) {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     return (
@@ -144,9 +143,10 @@ export function Sidebar({ workspaceRuntimeEnabled = false }: { workspaceRuntimeE
                 </div>
             )}
 
-            {/* Account switcher */}
+            {/* Account switcher + session (email, support/legal, sign out) */}
             <div className={cn("border-t border-border p-2.5", isCollapsed && "px-2")}>
-                <AccountSwitcher isCollapsed={isCollapsed} />
+                <AccountSwitcher isCollapsed={isCollapsed} userEmail={userEmail} />
+                <SessionFooter email={userEmail} collapsed={isCollapsed} />
             </div>
         </motion.aside>
     );
@@ -156,7 +156,7 @@ export function Sidebar({ workspaceRuntimeEnabled = false }: { workspaceRuntimeE
  * Mobile navigation drawer (< lg). Opened by the Topbar hamburger via
  * useUiStore; closes on backdrop tap, the X button, Escape, or navigation.
  */
-export function MobileSidebar({ workspaceRuntimeEnabled = false }: { workspaceRuntimeEnabled?: boolean } = {}) {
+export function MobileSidebar({ workspaceRuntimeEnabled = false, userEmail = null }: { workspaceRuntimeEnabled?: boolean; userEmail?: string | null } = {}) {
     const isOpen = useUiStore((s) => s.mobileSidebarOpen);
     const close = useUiStore((s) => s.closeMobileSidebar);
     const pathname = usePathname();
@@ -224,9 +224,10 @@ export function MobileSidebar({ workspaceRuntimeEnabled = false }: { workspaceRu
                             </div>
                         )}
 
-                        {/* Account switcher */}
+                        {/* Account switcher + session (email, support/legal, sign out) */}
                         <div className="border-t border-border p-2.5">
-                            <AccountSwitcher isCollapsed={false} />
+                            <AccountSwitcher isCollapsed={false} userEmail={userEmail} />
+                            <SessionFooter email={userEmail} onNavigate={close} />
                         </div>
                     </motion.aside>
                 </div>

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Viral Script Writer - a hook-first Instagram Reel script generator.
+ * Script Writer - a hook-first Instagram Reel script generator.
  *
  * The model is steered by the prompt system in lib/script-writer (there
  * is no fine-tune): hook 0-3s, open loop, one idea per section, and a
@@ -183,7 +183,7 @@ export default function ScriptWriterPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-heading font-semibold tracking-tight text-foreground">
-            Viral Script Writer
+            Script Writer
           </h1>
           <p className="text-[13px] text-muted-foreground mt-1 max-w-xl leading-relaxed">
             Hook-first Reel scripts written for Instagram retention, on a free model
@@ -414,10 +414,10 @@ export default function ScriptWriterPage() {
                   <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2.5 py-1.5 font-mono text-xs text-foreground">
                     Comment “{script.ctaKeyword}”
                   </span>
-                  <Link href="/automations" className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-foreground text-background text-[12.5px] font-semibold hover:opacity-90 transition-opacity">
+                  <Link href={`/automations?keyword=${encodeURIComponent(script.ctaKeyword)}`} className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-foreground text-background text-[12.5px] font-semibold hover:opacity-90 transition-opacity">
                     <Robot className="w-3.5 h-3.5" /> Create automation with this keyword
                   </Link>
-                  <span className="text-[11.5px] text-muted-foreground">Opens Automations - use {script.ctaKeyword} as the trigger keyword.</span>
+                  <span className="text-[11.5px] text-muted-foreground">Opens Automations with {script.ctaKeyword} prefilled as the trigger keyword.</span>
                 </div>
               </div>
 

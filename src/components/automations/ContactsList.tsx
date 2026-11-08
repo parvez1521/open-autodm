@@ -104,7 +104,7 @@ export function ContactsList() {
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
                     <span className="text-xs font-semibold text-muted-foreground">
-                        {filtered.length} contact{filtered.length !== 1 ? "s" : ""}
+                        {`${filtered.length} contact${filtered.length !== 1 ? "s" : ""}`}
                     </span>
                     <button
                         onClick={() => void refetch()}

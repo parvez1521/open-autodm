@@ -9,33 +9,38 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { InstagramLogo, Check, CaretUpDown, Plus, CircleNotch } from "@/components/phosphor";
+import { Check, CaretUpDown, Plus, CircleNotch, SignOut } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { apiClient, ApiError } from "@/lib/api/client";
+import { createBrowserClient } from "@/lib/supabase";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { IgAvatar } from "@/components/dashboard/IgAvatar";
 import type { InstagramAccount } from "@/hooks/useInstagramAccounts";
 
 function AccountAvatar({ account, size = 7 }: { account: InstagramAccount | null; size?: 6 | 7 }) {
-    const cls = size === 6 ? "w-6 h-6" : "w-7 h-7";
     return (
-        <div className={cn(cls, "relative rounded-full border border-border shrink-0")}>
-            <div className="w-full h-full rounded-full bg-background flex items-center justify-center overflow-hidden">
-                {account?.profile_picture_url ? (
-                    <img src={account.profile_picture_url} alt={account.username} className="w-full h-full object-cover rounded-full" />
-                ) : (
-                    <InstagramLogo className="w-3 h-3 text-muted-foreground" />
-                )}
-            </div>
-        </div>
+        <IgAvatar
+            username={account?.username}
+            pictureUrl={account?.profile_picture_url}
+            className={size === 6 ? "w-6 h-6" : "w-7 h-7"}
+        />
     );
 }
 
-export function AccountSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
+export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed: boolean; userEmail?: string | null }) {
     const { account, accounts, setActiveAccount } = useActiveAccount();
     const [open, setOpen] = useState(false);
     const [connecting, setConnecting] = useState(false);
     const [connectError, setConnectError] = useState<string | null>(null);
+    const [signingOut, setSigningOut] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
+
+    const handleSignOut = async () => {
+        setSigningOut(true);
+        const supabase = createBrowserClient();
+        await supabase.auth.signOut();
+        window.location.href = "/login";
+    };
 
     // Close on outside click / Escape
     useEffect(() => {
@@ -158,6 +163,23 @@ export function AccountSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                                 {connecting ? "Redirecting…" : "Add account"}
                             </button>
                             {connectError && <p className="px-2 pb-1 text-[11px] text-destructive">{connectError}</p>}
+                        </div>
+                        {/* Session — the signed-in user (functional audit fix:
+                            identity + sign-out inside the account menu too) */}
+                        <div className="border-t border-border p-1.5">
+                            {userEmail && (
+                                <p className="px-2 pt-1 pb-1.5 text-[11px] text-muted-foreground truncate" title={userEmail}>
+                                    Signed in as <span className="text-foreground/80 font-medium">{userEmail}</span>
+                                </p>
+                            )}
+                            <button
+                                onClick={() => void handleSignOut()}
+                                disabled={signingOut}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12.5px] font-medium text-muted-foreground hover:text-destructive hover:bg-muted/60 disabled:opacity-60 transition-colors"
+                            >
+                                {signingOut ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <SignOut className="w-3.5 h-3.5" />}
+                                {signingOut ? "Signing out…" : "Sign out"}
+                            </button>
                         </div>
                     </motion.div>
                 )}

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const error = searchParams.get('error');
 
   if (error) {
-    return NextResponse.redirect(new URL(`/?auth_error=${encodeURIComponent(error)}`, request.url));
+    return NextResponse.redirect(new URL(`/login?auth_error=${encodeURIComponent(error)}`, request.url));
   }
   if (!code) {
     return NextResponse.redirect(new URL('/', request.url));
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const { data: exchangeData, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) {
-    return NextResponse.redirect(new URL(`/?auth_error=${encodeURIComponent(exchangeError.message)}`, request.url));
+    return NextResponse.redirect(new URL(`/login?auth_error=${encodeURIComponent(exchangeError.message)}`, request.url));
   }
 
   // Fail closed: no identifiable user, or an identity the instance does
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     await supabase.auth.signOut();
     return NextResponse.redirect(
       new URL(
-        `/?auth_error=${encodeURIComponent('This account is not provisioned for this instance.')}`,
+        `/login?auth_error=${encodeURIComponent('This account is not provisioned for this instance.')}`,
         request.url
       )
     );

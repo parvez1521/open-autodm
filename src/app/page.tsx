@@ -59,7 +59,7 @@ const FEATURES = [
     },
     {
         icon: PencilLine,
-        title: "Viral Script Writer",
+        title: "Script Writer",
         note: "New",
         body: "Writes the Reel before the automation exists: three hook options, a timestamped script paced for speaking, caption and hashtags. It ends on your comment keyword, so the script and the automation use the same word.",
         href: "#script-writer",
@@ -676,7 +676,7 @@ export default function LandingPage() {
                                     The script comes first
                                 </h2>
                                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-                                    The Viral Script Writer lives inside the console. Give it a
+                                    The Script Writer lives inside the console. Give it a
                                     topic and it writes for the first three seconds first,
                                     because that is where a Reel is won.
                                 </p>
