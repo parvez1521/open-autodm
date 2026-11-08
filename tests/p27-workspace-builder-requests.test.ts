@@ -414,6 +414,7 @@ describe('source pins — builder flow wiring', () => {
   const automationsSrc = read('src/hooks/useAutomations.ts');
   const accountsSrc = read('src/hooks/useInstagramAccounts.ts');
   const postsSrc = read('src/hooks/useInstagramPosts.ts');
+  const contactsSrc = read('src/hooks/useContacts.ts');
 
   it('useAutomations: all five hooks route through sendWorkspaceRequest; no direct apiClient call remains', () => {
     const occurrences = automationsSrc.split('sendWorkspaceRequest').length - 1;
@@ -466,6 +467,19 @@ describe('source pins — builder flow wiring', () => {
     expect(postsSrc).toContain("? ['instagram-posts', accountId, requestScope.workspaceId]");
     expect(postsSrc).toContain(": ['instagram-posts', accountId]");
     expect(postsSrc).not.toContain('apiClient');
+  });
+
+  it('useContacts: the audience read is scoped, with a workspace-named cache key (follow-up to the flakiness round)', () => {
+    // The flakiness round gated this hook on the resolved scope but
+    // deliberately left its transport unscoped; GET /api/contacts is
+    // workspace-aware, so in workspace mode the unscoped read 400'd
+    // workspace-context-required. It now follows the sibling pattern.
+    expect(contactsSrc).toContain('sendWorkspaceRequest');
+    expect(contactsSrc).toContain('sendWorkspaceRequest<{ contacts: ContactFromDB[] }>');
+    expect(contactsSrc).toContain("? ['contacts', accountId ?? 'all', requestScope.workspaceId]");
+    expect(contactsSrc).toContain(": ['contacts', accountId ?? 'all']");
+    expect(contactsSrc).not.toContain('apiClient<');
+    expect(contactsSrc).not.toContain('apiClient(');
   });
 
   it('clientRequest: the selector convention matches the server (header name + typed error)', () => {

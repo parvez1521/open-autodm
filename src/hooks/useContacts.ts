@@ -1,9 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api/client';
 import { useWorkspace } from '@/components/workspace/WorkspaceProvider';
-import { workspaceRequestScopeFromSelection } from '@/lib/tenancy/clientRequest';
+import {
+  sendWorkspaceRequest,
+  workspaceRequestScopeFromSelection,
+} from '@/lib/tenancy/clientRequest';
 
 export interface ContactFromDB {
   id: string;
@@ -19,22 +21,37 @@ export interface ContactFromDB {
 }
 
 export function useContacts(accountId?: string | null) {
-  // Flakiness fix (2026-11-08, investigation fix-plan item 3): the
-  // scope is resolved here ONLY as a readiness gate — this hook's
-  // transport (plain apiClient, no selector) is unchanged. While
-  // the WorkspaceProvider scope is 'unavailable' the query does not
-  // fire, so React Query's one retry is not burned on a scope that
-  // is still resolving. Both call sites (dashboard, ContactsList)
-  // already render inside WorkspaceProvider.
+  // The request scope does double duty here, with the same
+  // discipline as the sibling list hooks (useAutomations,
+  // useInstagramAccounts):
+  //
+  //  - Transport: GET /api/contacts is a workspace-aware route (in
+  //    workspace mode routeContext requires the selector and fails
+  //    closed with 'workspace-context-required'), so the read rides
+  //    sendWorkspaceRequest — flag OFF reproduces the exact legacy
+  //    unscoped call; flag ON + selection attaches the selector and
+  //    the cache key names the workspace, so switching workspaces
+  //    can never render the previous workspace's cached list.
+  //  - Readiness gate (flakiness fix, 2026-11-08, investigation
+  //    fix-plan item 3): while the WorkspaceProvider scope is
+  //    'unavailable' the query does not fire, so React Query's one
+  //    retry is not burned on a scope that is still resolving.
+  //
+  // Both call sites (dashboard, ContactsList) already render inside
+  // WorkspaceProvider.
   const { workspaceRuntimeEnabled, selectedWorkspaceId } = useWorkspace();
   const requestScope = workspaceRequestScopeFromSelection({
     workspaceRuntimeEnabled,
     selectedWorkspaceId,
   });
   return useQuery({
-    queryKey: ['contacts', accountId ?? 'all'],
+    queryKey:
+      requestScope.kind === 'workspace'
+        ? ['contacts', accountId ?? 'all', requestScope.workspaceId]
+        : ['contacts', accountId ?? 'all'],
     queryFn: () =>
-      apiClient<{ contacts: ContactFromDB[] }>(
+      sendWorkspaceRequest<{ contacts: ContactFromDB[] }>(
+        requestScope,
         `/contacts${accountId ? `?accountId=${encodeURIComponent(accountId)}` : ''}`
       ).then((r) => r.contacts),
     enabled: requestScope.kind !== 'unavailable',

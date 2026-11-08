@@ -386,12 +386,17 @@ describe('scope gating — workspace-scoped hooks wait for the scope', () => {
     );
   });
 
-  it('useContacts is gated on a resolved scope, transport unchanged', () => {
+  it('useContacts is gated on a resolved scope and rides the scoped transport', () => {
     const src = readSrc('hooks/useContacts.ts');
     expect(src).toContain("enabled: requestScope.kind !== 'unavailable'");
-    // The contacts transport (plain apiClient, no selector) is a
-    // pre-existing shape this fix deliberately does not change.
-    expect(src).toContain('apiClient<{ contacts: ContactFromDB[] }>');
+    // The flakiness round deliberately left the contacts transport
+    // (plain unscoped call, no selector) unchanged and pinned that
+    // gap here; the follow-up fix (2026-11-08) closed it — the read
+    // now goes through sendWorkspaceRequest like its sibling hooks,
+    // so workspace mode no longer 400s workspace-context-required.
+    expect(src).toContain('sendWorkspaceRequest<{ contacts: ContactFromDB[] }>');
+    expect(src).not.toContain('apiClient<');
+    expect(src).not.toContain('apiClient(');
   });
 
   it('the three list routes and the repository carry the bounded retry', () => {
