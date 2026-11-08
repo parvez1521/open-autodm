@@ -116,6 +116,16 @@ describe('prototype pages under default flags (all OFF)', () => {
     expect(html).not.toContain('draft-unapproved');
     expect(html).toContain('approved');
     expect(html).toContain('₹299');
+    // Owner instruction, 2026-11-08 ~19:38 IST: ONE currency per
+    // visitor (the server render is the INR default — no $ figure
+    // may appear alongside), monthly only (no annual text), Free
+    // carries 1,000 auto DMs and the limited Studio.
+    expect(html).not.toContain('$5');
+    expect(html).not.toContain('$9');
+    expect(html).not.toContain('$15');
+    expect(html).not.toContain('Annual');
+    expect(html).toContain('1,000 auto DMs / month');
+    expect(html).toContain('Creator Studio (limited)');
     expect(html).toContain('Custom pricing');
     expect(html).toContain('For Business / Agency');
     expect(html).toContain('Contact us');

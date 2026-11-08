@@ -17,28 +17,38 @@
  * like a classic pricing table (owner screenshot reference,
  * 2026-11-08 ~18:36 IST — this supersedes the round-6 banded
  * rows and the stacked-box fix f7a25c3; both missed what the
- * owner meant by "vertical"). Inside each column the content
- * flows top-to-bottom in a single column: plan name → price →
- * CTA → limits and capability lists going down the column.
- * Growth carries a flat "Best value" banner and a stronger
- * brand outline. The columns grid breaks out of the prototype
- * shell's narrow main column so the five columns can stand
- * side by side on desktop (xl: 5 across, lg: 3 + 2 wrap,
- * mobile: one stacked column of tall cards). A limit-by-limit
- * comparison table still sits below the columns.
- * Motion pass (2026-11-08, owner instruction ~17:59 IST): the
- * period toggle is a segmented control with a shared layoutId
- * indicator, plan columns stagger in and reflow with `layout`,
- * and the price figure flips vertically when the period
- * changes — all from the shared motion system
- * (lib/motion/presets), on the `motion` package. Figures and
- * copy unchanged. All figures come from lib/billing/catalogue.
+ * owner meant by "vertical"). Growth carries a flat "Best
+ * value" banner and a stronger brand outline. The columns grid
+ * breaks out of the prototype shell's narrow main column so the
+ * five columns can stand side by side on desktop (xl: 5 across,
+ * lg: 3 + 2 wrap, mobile: one stacked column of tall cards). A
+ * limit-by-limit comparison table still sits below the columns.
+ *
+ * De-clutter + geo-currency + monthly-only pass (owner
+ * instruction, 2026-11-08 ~19:38 IST): the page had grown messy,
+ * so —
+ *  - ONE currency per visitor, chosen by country (India → INR,
+ *    everywhere else → USD) via lib/billing/geo +
+ *    useDisplayCurrency; ₹ and $ never render together. The
+ *    first paint is INR (the SSR default) and the client corrects
+ *    it on mount when the visitor is outside India.
+ *  - MONTHLY ONLY: the monthly/annual toggle is gone entirely,
+ *    and no annual figure renders anywhere on the page. (The
+ *    catalogue keeps its annual data fields for the billing
+ *    APIs; surfaces simply never show them.)
+ *  - Each column is SHORT: plan name → price → CTA → at most
+ *    five key facts. The dense capability-notes lists that used
+ *    to fill the columns moved out; the full limit-by-limit
+ *    detail still lives in the comparison table below.
+ *  - Free is 1,000 auto DMs a month with Creator Studio
+ *    (limited); paid plans keep the full Creator Studio.
+ * All figures come from lib/billing/catalogue.
  *
  * Single-file on purpose: the customer-journey render harness
  * esbuild-transforms the page file itself and loads its imports
  * through vite without a JSX transform, so a statically imported
- * JSX subcomponent cannot be parsed there. The toggle state lives
- * in this client page instead.
+ * JSX subcomponent cannot be parsed there. The currency hook is
+ * a plain TS module, which the harness loads fine.
  *
  * Plan actions (subscription wiring, 2026-11-08): a signed-OUT
  * visitor keeps the get-started flow; a signed-IN user is routed
@@ -54,24 +64,25 @@
  */
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { EASE_OUT, SPRING_SNAPPY, fadeUp, staggerChild, staggerParent } from "@/lib/motion/presets";
+import { motion } from "motion/react";
+import { fadeUp, staggerChild, staggerParent } from "@/lib/motion/presets";
 import {
   PLANS,
   CATALOGUE_STATUS,
   TRIAL_DAYS,
   isSelfServePaidPlan,
-  type BillingPeriod,
-  type CurrencyCode,
   type Plan,
   type SupportLevel,
 } from "@/lib/billing/catalogue";
+import { formatPriceMinor } from "@/lib/billing/geo";
+import { useDisplayCurrency } from "@/lib/billing/useDisplayCurrency";
+import type { CurrencyCode } from "@/lib/billing/catalogue";
 
 /** The contact address the legal pages already publish. */
 const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
 
 /**
- * Check marker for the capability lists — Phosphor's regular
+ * Check marker for the key-facts lists — Phosphor's regular
  * Check glyph (256 viewBox; path data from the icon set, which
  * the rest of the site draws via "@/components/phosphor") drawn
  * inline instead of imported. The import is avoided on purpose:
@@ -91,14 +102,6 @@ function CheckMark() {
       <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" />
     </svg>
   );
-}
-
-function formatMinor(minor: number, currency: CurrencyCode): string {
-  if (minor === 0) return currency === "INR" ? "₹0" : "$0";
-  const major = minor / 100;
-  return currency === "INR"
-    ? `₹${major.toLocaleString("en-IN")}`
-    : `$${major.toLocaleString("en-US")}`;
 }
 
 const SUPPORT_LABELS: Record<SupportLevel, string> = {
@@ -129,23 +132,52 @@ const DIMENSIONS: { label: string; value: (plan: Plan) => string }[] = [
     label: "Free trial",
     value: (p) => (p.customPricing ? "Talk to us" : isSelfServePaidPlan(p) ? `${TRIAL_DAYS} days, no card needed` : "—"),
   },
-  { label: "Creator Studio", value: () => "Included" },
+  {
+    label: "Creator Studio",
+    // Owner instruction, 2026-11-08 ~19:38 IST: full Studio on
+    // paid plans, limited on Free.
+    value: (p) => (p.id === "free" ? "Included (limited)" : "Included"),
+  },
+];
+
+/** The Studio line for a plan column: limited on Free, full elsewhere. */
+function studioFact(plan: Plan): string {
+  return plan.id === "free" ? "Creator Studio (limited)" : "Creator Studio included";
+}
+
+/**
+ * The column's SHORT key-facts list (owner de-clutter instruction,
+ * 2026-11-08 ~19:38 IST): accounts, auto DMs, automations, Studio
+ * — never more than five lines. Everything else lives in the
+ * comparison table below the columns.
+ */
+function keyFacts(plan: Plan): string[] {
+  const accounts = plan.limits.instagramAccounts;
+  return [
+    `${accounts} Instagram account${accounts === 1 ? "" : "s"}`,
+    `${plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month`,
+    `${plan.limits.activeAutomations} active automations`,
+    studioFact(plan),
+  ];
+}
+
+/** Enterprise keeps three short facts of its own (all limits custom). */
+const ENTERPRISE_FACTS: readonly string[] = [
+  "Custom accounts, seats and volumes",
+  "Creator Studio included",
+  "Priority support",
 ];
 
 /**
- * One tall vertical plan column. Content flows top-to-bottom in
- * a single column: name → price → CTA → limits → capabilities.
- * Growth (owner screenshot reference, 2026-11-08 ~18:36 IST) is
- * the highlighted pick: a flat brand "Best value" banner across
- * the top of its column and a stronger brand outline.
+ * One tall vertical plan column, deliberately sparse: name →
+ * price → CTA → short key facts, top-to-bottom in a single
+ * column. Growth (owner screenshot reference, 2026-11-08
+ * ~18:36 IST) is the highlighted pick: a flat brand "Best value"
+ * banner across the top of its column and a stronger outline.
  */
-function PlanColumn({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod; signedIn: boolean }) {
-  const inr = plan.prices.INR;
-  const usd = plan.prices.USD;
-  const inrFigure = period === "monthly" ? inr.monthlyMinor : inr.annualMonthlyMinor;
-  const usdFigure = period === "monthly" ? usd.monthlyMinor : usd.annualMonthlyMinor;
+function PlanColumn({ plan, currency, signedIn }: { plan: Plan; currency: CurrencyCode; signedIn: boolean }) {
   const highlighted = plan.id === "creator-pro";
-  const columnClassName = `flex h-full flex-col p-5 ${
+  const columnClassName = `flex h-full flex-col p-6 ${
     highlighted ? "border-2 border-primary" : "border border-border"
   }`;
 
@@ -174,19 +206,15 @@ function PlanColumn({ plan, period, signedIn }: { plan: Plan; period: BillingPer
             Contact us
           </a>
         </div>
-        <div className="mt-5 border-t border-border pt-5">
-          <ul className="space-y-1.5 text-[13px]">
-            {plan.capabilityNotes.map((note) => (
-              <li key={note} className="flex gap-2">
+        <div className="mt-6 border-t border-border pt-6">
+          <ul className="space-y-2.5 text-[13px]">
+            {ENTERPRISE_FACTS.map((fact) => (
+              <li key={fact} className="flex gap-2">
                 <CheckMark />
-                <span>{note}</span>
+                <span>{fact}</span>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-[13px] text-muted-foreground">
-            Accounts, seats and volumes are agreed with you — custom limits,
-            priority support.
-          </p>
         </div>
       </motion.div>
     );
@@ -200,35 +228,15 @@ function PlanColumn({ plan, period, signedIn }: { plan: Plan; period: BillingPer
       data-testid={`plan-${plan.id}`}
     >
       {highlighted && (
-        <p className="-mx-5 -mt-5 mb-5 bg-primary px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-foreground">
+        <p className="-mx-6 -mt-6 mb-6 bg-primary px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-foreground">
           Best value
         </p>
       )}
       <div>
         <h2 className="font-heading text-base font-semibold">{plan.name}</h2>
         <p className="mt-3 font-heading text-3xl font-semibold">
-          <span className="relative inline-flex overflow-hidden">
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.span
-                key={period}
-                initial={{ y: 14, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: -14, opacity: 0 }}
-                transition={{ duration: 0.28, ease: EASE_OUT }}
-                className="inline-flex items-baseline"
-              >
-                {formatMinor(inrFigure, "INR")}
-                <span className="text-sm font-normal text-muted-foreground"> / mo · </span>
-                {formatMinor(usdFigure, "USD")}
-                <span className="text-sm font-normal text-muted-foreground"> / mo</span>
-              </motion.span>
-            </AnimatePresence>
-          </span>
-        </p>
-        <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
-          {period === "monthly"
-            ? `Annual billing: ${formatMinor(inr.annualMonthlyMinor, "INR")} / ${formatMinor(usd.annualMonthlyMinor, "USD")} per month, billed yearly.`
-            : `Billed yearly: ${formatMinor(inr.annualTotalMinor, "INR")} / ${formatMinor(usd.annualTotalMinor, "USD")} per year.`}
+          {formatPriceMinor(plan.prices[currency].monthlyMinor, currency)}
+          <span className="text-sm font-normal text-muted-foreground"> / mo</span>
         </p>
         {isSelfServePaidPlan(plan) && (
           <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
@@ -250,7 +258,7 @@ function PlanColumn({ plan, period, signedIn }: { plan: Plan; period: BillingPer
             </span>
           ) : (
             <a
-              href={`/billing?plan=${plan.id}&period=${period}`}
+              href={`/billing?plan=${plan.id}`}
               className="mt-5 flex h-10 items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
             >
               Start free trial
@@ -265,21 +273,12 @@ function PlanColumn({ plan, period, signedIn }: { plan: Plan; period: BillingPer
           </a>
         )}
       </div>
-      <div className="mt-5 border-t border-border pt-5">
-        <ul className="space-y-1.5 text-[13px] text-muted-foreground">
-          <li>{plan.limits.instagramAccounts} Instagram account(s)</li>
-          <li>{plan.limits.teamSeats} seat(s)</li>
-          <li>{plan.limits.activeAutomations} active automations</li>
-          <li>{plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</li>
-          <li>{plan.limits.aiDraftingGenerationsPerMonth} AI drafting generations / month</li>
-          <li>Data retention: {plan.dataRetentionDays} days</li>
-          <li>Support: {SUPPORT_LABELS[plan.supportLevel]}</li>
-        </ul>
-        <ul className="mt-4 space-y-1.5 text-[13px]">
-          {plan.capabilityNotes.map((note) => (
-            <li key={note} className="flex gap-2">
+      <div className="mt-6 border-t border-border pt-6">
+        <ul className="space-y-2.5 text-[13px]">
+          {keyFacts(plan).map((fact) => (
+            <li key={fact} className="flex gap-2">
               <CheckMark />
-              <span>{note}</span>
+              <span>{fact}</span>
             </li>
           ))}
         </ul>
@@ -289,7 +288,7 @@ function PlanColumn({ plan, period, signedIn }: { plan: Plan; period: BillingPer
 }
 
 export default function PricingPrototypePage() {
-  const [period, setPeriod] = useState<BillingPeriod>("monthly");
+  const currency = useDisplayCurrency();
   const [signedIn, setSignedIn] = useState(false);
 
   // Session probe (client-only; static renders stay signed-out):
@@ -321,50 +320,18 @@ export default function PricingPrototypePage() {
         </p>
       </motion.div>
 
-      {/* The toggle and the plan columns break out of the shell's
-          narrow main column so the five tall columns can stand
-          side by side on desktop, as in the owner's reference. */}
+      {/* The plan columns break out of the shell's narrow main
+          column so the five tall columns can stand side by side
+          on desktop, as in the owner's reference. */}
       <div className="relative left-1/2 w-[min(80rem,calc(100vw_-_2.5rem))] -translate-x-1/2">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Motion pass (2026-11-08): the period toggle is now a
-              segmented control whose indicator is one shared element
-              (layoutId) that springs between Monthly and Annual. */}
-          <div className="flex items-center gap-1 rounded-lg border border-border p-1" role="group" aria-label="Billing period">
-            {(["monthly", "annual"] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                aria-pressed={period === p}
-                onClick={() => setPeriod(p)}
-                className="relative h-8 rounded-md px-4 text-sm font-medium"
-              >
-                {period === p && (
-                  <motion.span
-                    layoutId="billing-period-pill"
-                    className="absolute inset-0 rounded-md bg-foreground"
-                    transition={SPRING_SNAPPY}
-                  />
-                )}
-                <span className={`relative z-10 ${period === p ? "font-semibold text-background" : "text-foreground"}`}>
-                  {p === "monthly" ? "Monthly" : "Annual"}
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="text-[13px] text-muted-foreground">
-            Annual billing runs about 20% lower on every paid tier. Every paid plan starts with a{" "}
-            {TRIAL_DAYS}-day free trial — no card needed.
-          </p>
-        </div>
-
         <motion.div
-          className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
           variants={staggerParent}
           initial="hidden"
           animate="show"
         >
           {PLANS.map((plan) => (
-            <PlanColumn key={plan.id} plan={plan} period={period} signedIn={signedIn} />
+            <PlanColumn key={plan.id} plan={plan} currency={currency} signedIn={signedIn} />
           ))}
         </motion.div>
       </div>
@@ -416,9 +383,9 @@ export default function PricingPrototypePage() {
       >
         <p className="micro-label">On every plan, including Free</p>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
-          Creator Studio, safety and compliance features, recipient opt-outs, data deletion,
-          webhook verification, comment moderation, are included on every tier including Free and
-          are never metered.
+          Creator Studio comes with every plan — limited on Free, full on paid plans. Safety and
+          compliance features, recipient opt-outs, data deletion, webhook verification and comment
+          moderation are included on every tier including Free and are never metered.
         </p>
       </motion.div>
     </div>

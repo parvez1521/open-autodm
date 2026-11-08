@@ -7,10 +7,18 @@
  *   (3 accounts) · Pro ₹799/mo (5 accounts) · Enterprise — custom
  *   pricing for Business / Agency, sold by conversation (Contact Us),
  *   never by self-serve checkout.
- * Creator Studio is included on EVERY plan, Free included. Every
+ * Creator Studio is included on EVERY plan — full on paid plans,
+ * LIMITED on Free (owner instruction, 2026-11-08 ~19:38 IST: Free
+ * carries 1,000 auto DMs a month plus the limited Studio). Every
  * self-serve paid plan starts with a 15-day free trial, no card
  * upfront; at expiry the workspace drops back to Free unless its
  * owner checks out — nobody is ever silently charged.
+ *
+ * Display rules (owner instruction, 2026-11-08 ~19:38 IST): pricing
+ * surfaces render MONTHLY figures only, in ONE currency chosen by
+ * the visitor's country (lib/billing/geo.ts). The annual fields
+ * stay in the data (checkout/trial APIs still accept the period)
+ * but no surface renders an annual price or a period toggle.
  *
  * Price approval is NOT billing go-live: BILLING_ENABLED /
  * PAYMENTS_LIVE_MODE still default OFF and no payment-provider keys
@@ -115,7 +123,9 @@ export const PLANS: readonly Plan[] = [
       instagramAccounts: 1,
       teamSeats: 1,
       activeAutomations: 3,
-      dmsPerMonth: 250,
+      // Owner instruction, 2026-11-08 ~19:38 IST: Free carries
+      // 1,000 auto DMs a month (was 250 in the draft catalogue).
+      dmsPerMonth: 1000,
       contactsPerMonth: 250,
       aiDraftingGenerationsPerMonth: 20,
       scriptWriterGenerationsPerMonth: 10,
@@ -126,7 +136,7 @@ export const PLANS: readonly Plan[] = [
     capabilityNotes: [
       'Comment-to-DM, story-reply and keyword-DM automations',
       'Recipient opt-out handling, comment moderation basics, webhook safety and data-deletion compliance are included and unrestricted (see phase11-pricing-and-packaging.md §Safety floor)',
-      'Creator Studio included — niche research, ideas, scripts, voiceover, SEO and projects',
+      'Creator Studio included (limited) — niche research, ideas, scripts, voiceover, SEO and projects',
     ],
   },
   {

@@ -21,18 +21,25 @@
  * caller's workspaces (GET /api/workspaces) and let them pick — the
  * chosen id is sent as the x-workspace-id SELECTOR and re-validated
  * by the server on every request.
+ *
+ * Display rules (owner instruction, 2026-11-08 ~19:38 IST): prices
+ * render MONTHLY only — the monthly/annual toggle is gone — in the
+ * visitor's ONE geo currency (lib/billing/geo: India → INR, else
+ * USD), which is also the currency checkout is opened in. Free
+ * shows Creator Studio (limited); paid plans show it in full.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { EASE_OUT, SPRING_SNAPPY, staggerChild, staggerParent } from "@/lib/motion/presets";
+import { motion } from "motion/react";
+import { staggerChild, staggerParent } from "@/lib/motion/presets";
 import {
   PLANS,
   TRIAL_DAYS,
   isSelfServePaidPlan,
-  type BillingPeriod,
   type Plan,
 } from "@/lib/billing/catalogue";
+import { formatPriceMinor } from "@/lib/billing/geo";
+import { useDisplayCurrency } from "@/lib/billing/useDisplayCurrency";
 
 const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
@@ -97,14 +104,6 @@ function loadRazorpay(): Promise<boolean> {
   return razorpayScriptPromise;
 }
 
-function formatMinor(minor: number, currency: "INR" | "USD"): string {
-  if (minor === 0) return currency === "INR" ? "₹0" : "$0";
-  const major = minor / 100;
-  return currency === "INR"
-    ? `₹${major.toLocaleString("en-IN")}`
-    : `$${major.toLocaleString("en-US")}`;
-}
-
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -115,7 +114,9 @@ export default function BillingPanel() {
   const [status, setStatus] = useState<StatusPayload | null>(null);
   const [workspaces, setWorkspaces] = useState<WorkspaceOption[] | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [period, setPeriod] = useState<BillingPeriod>("monthly");
+  // Monthly only (owner instruction, 2026-11-08 ~19:38 IST): no
+  // period state, no toggle — trials and checkout are monthly.
+  const currency = useDisplayCurrency();
   const [loading, setLoading] = useState(true);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -193,7 +194,7 @@ export default function BillingPanel() {
       const res = await fetch("/api/billing/trial", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan.id, period, workspaceId: workspaceId ?? undefined }),
+        body: JSON.stringify({ planId: plan.id, period: "monthly", workspaceId: workspaceId ?? undefined }),
       });
       const data = (await res.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
       if (!res.ok || !data?.ok) {
@@ -217,7 +218,7 @@ export default function BillingPanel() {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan.id, currency: "INR", period, workspaceId: workspaceId ?? undefined }),
+        body: JSON.stringify({ planId: plan.id, currency, period: "monthly", workspaceId: workspaceId ?? undefined }),
       });
       const data = (await res.json().catch(() => null)) as {
         ok?: boolean; code?: string; message?: string; keyId?: string;
@@ -244,7 +245,7 @@ export default function BillingPanel() {
         amount: data.order.amount,
         currency: data.order.currency,
         name: "Open AutoDM",
-        description: `${plan.name} plan — ${period}`,
+        description: `${plan.name} plan — monthly`,
         handler: () => {
           setNotice("Payment submitted. Your plan activates as soon as the payment is confirmed — usually a few seconds. This panel refreshes itself.");
           pollStatusSoon();
@@ -320,7 +321,8 @@ export default function BillingPanel() {
           Included now: {status.entitlement.limits.instagramAccounts} Instagram account(s) ·{" "}
           {status.entitlement.limits.activeAutomations} active automations ·{" "}
           {status.entitlement.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month ·{" "}
-          {status.entitlement.limits.teamSeats} team seat(s) · Creator Studio included
+          {status.entitlement.limits.teamSeats} team seat(s) ·{" "}
+          {status.entitlement.planId === "free" ? "Creator Studio (limited)" : "Creator Studio included"}
         </p>
         {!status.entitlementsEnforced && (
           <p className="mt-2 text-[12px] text-muted-foreground">
@@ -345,38 +347,9 @@ export default function BillingPanel() {
         </div>
       )}
 
-      {/* Motion pass (2026-11-08): same segmented-pill language as
-          /pricing — one shared indicator springs between periods. */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1 rounded-lg border border-border p-1" role="group" aria-label="Billing period">
-          {(["monthly", "annual"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={period === p}
-              onClick={() => setPeriod(p)}
-              className="relative h-8 rounded-md px-4 text-sm font-medium"
-            >
-              {period === p && (
-                <motion.span
-                  layoutId="billing-panel-period-pill"
-                  className="absolute inset-0 rounded-md bg-foreground"
-                  transition={SPRING_SNAPPY}
-                />
-              )}
-              <span className={`relative z-10 ${period === p ? "font-semibold text-background" : "text-foreground"}`}>
-                {p === "monthly" ? "Monthly" : "Annual"}
-              </span>
-            </button>
-          ))}
-        </div>
-        <span className="text-[13px] text-muted-foreground">Annual runs about 20% lower.</span>
-      </div>
-
       <motion.div className="space-y-5" variants={staggerParent} initial="hidden" animate="show">
         {PLANS.map((plan) => {
-          const inr = plan.prices.INR;
-          const figure = period === "monthly" ? inr.monthlyMinor : inr.annualMonthlyMinor;
+          const figure = plan.prices[currency].monthlyMinor;
           const isCurrent = plan.id === currentPlanId && (paidActive || trialing || plan.id === "free");
           return (
             <motion.div layout variants={staggerChild} key={plan.id} className="border border-border p-6" data-testid={`billing-plan-${plan.id}`}>
@@ -385,24 +358,15 @@ export default function BillingPanel() {
                   <h2 className="font-heading text-base font-semibold">{plan.name}</h2>
                   <p className="mt-2 font-heading text-2xl font-semibold">
                     {plan.customPricing ? "Custom pricing" : (
-                      <span className="relative inline-flex overflow-hidden">
-                        <AnimatePresence mode="popLayout" initial={false}>
-                          <motion.span
-                            key={period}
-                            initial={{ y: 12, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: -12, opacity: 0 }}
-                            transition={{ duration: 0.26, ease: EASE_OUT }}
-                            className="inline-flex items-baseline"
-                          >
-                            {formatMinor(figure, "INR")}<span className="text-sm font-normal text-muted-foreground"> / mo</span>
-                          </motion.span>
-                        </AnimatePresence>
-                      </span>
+                      <>
+                        {formatPriceMinor(figure, currency)}<span className="text-sm font-normal text-muted-foreground"> / mo</span>
+                      </>
                     )}
                   </p>
                   <p className="mt-1 text-[13px] text-muted-foreground">
-                    {plan.limits.instagramAccounts} Instagram account(s) · Creator Studio included
+                    {plan.limits.instagramAccounts} Instagram account(s) ·{" "}
+                    {plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month ·{" "}
+                    {plan.id === "free" ? "Creator Studio (limited)" : "Creator Studio included"}
                     {isSelfServePaidPlan(plan) ? ` · ${TRIAL_DAYS}-day free trial, no card needed` : ""}
                   </p>
                 </div>
@@ -427,7 +391,7 @@ export default function BillingPanel() {
                         onClick={() => void subscribe(plan)}
                         className="inline-flex h-9 items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-50"
                       >
-                        {busyPlan === plan.id ? "Working…" : paidActive || trialing ? `Switch to ${plan.name}` : `Subscribe — ${formatMinor(period === "monthly" ? inr.monthlyMinor : inr.annualTotalMinor, "INR")}${period === "annual" ? " / yr" : " / mo"}`}
+                        {busyPlan === plan.id ? "Working…" : paidActive || trialing ? `Switch to ${plan.name}` : `Subscribe — ${formatPriceMinor(plan.prices[currency].monthlyMinor, currency)} / mo`}
                       </button>
                       {!paidActive && (
                         <button
@@ -455,7 +419,7 @@ export default function BillingPanel() {
             {status.recentOrders.map((o) => (
               <li key={o.id}>
                 {formatDate(o.createdAt)} — {PLANS.find((p) => p.id === o.planId)?.name ?? o.planId} —{" "}
-                {formatMinor(o.amountMinor, o.currency === "USD" ? "USD" : "INR")} — {o.status}
+                {formatPriceMinor(o.amountMinor, o.currency === "USD" ? "USD" : "INR")} — {o.status}
               </li>
             ))}
           </ul>

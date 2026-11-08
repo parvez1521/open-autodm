@@ -40,6 +40,8 @@ import { HERO_CREATOR_IMG, STUDIO_DESK_IMG, INK_TEXTURE_IMG } from "@/lib/landin
 import { ScrollProgress } from "@/components/motion/primitives";
 import { LIFT_HOVER, PRESS_HOVER, PRESS_TAP, SPRING_PRESS, SPRING_SNAPPY } from "@/lib/motion/presets";
 import { PLANS, TRIAL_DAYS } from "@/lib/billing/catalogue";
+import { formatPriceMinor } from "@/lib/billing/geo";
+import { useDisplayCurrency } from "@/lib/billing/useDisplayCurrency";
 import { ScriptSampleShowcase } from "@/components/home/ScriptSampleShowcase";
 import { WaitlistForm } from "@/components/home/WaitlistForm";
 
@@ -229,13 +231,11 @@ function HeroLoopChip() {
     );
 }
 
-/** Hosted-plan prices for the landing band (INR, from the billing
- *  catalogue — the single source for these figures; owner-approved
- *  2026-11-08). */
-function inrPrice(minor: number): string {
-    if (minor === 0) return "₹0";
-    return `₹${(minor / 100).toLocaleString("en-IN")}`;
-}
+/** Hosted-plan prices for the landing band come from the billing
+ *  catalogue — the single source for these figures (owner-approved
+ *  2026-11-08) — formatted by lib/billing/geo in the visitor's ONE
+ *  geo currency (owner instruction, 2026-11-08 ~19:38 IST: India →
+ *  INR, everywhere else → USD; never both together). */
 
 /** The contact address the legal pages already publish — the
  *  Enterprise tier's Contact Us target. */
@@ -258,6 +258,9 @@ const heroItem: Variants = {
 };
 
 export default function LandingPage() {
+    // Geo display currency for the pricing band (INR until the
+    // client resolves the visitor's country on mount).
+    const currency = useDisplayCurrency();
     // Continuous numbering for the Creator Studio index (01-10 across groups).
     let toolNumber = 0;
 
@@ -934,7 +937,7 @@ export default function LandingPage() {
                                                 {plan.name}
                                             </span>
                                             <span className="mt-2 font-heading text-xl font-semibold text-foreground">
-                                                {inrPrice(plan.prices.INR.monthlyMinor)}
+                                                {formatPriceMinor(plan.prices[currency].monthlyMinor, currency)}
                                                 <span className="text-[13px] font-normal text-muted-foreground"> / mo</span>
                                             </span>
                                             <span className="mt-3 flex flex-col gap-1 text-sm leading-relaxed text-muted-foreground">
@@ -944,7 +947,7 @@ export default function LandingPage() {
                                                 </span>
                                                 <span>{plan.limits.activeAutomations} active automations</span>
                                                 <span>{plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</span>
-                                                <span>Creator Studio included</span>
+                                                <span>{plan.id === "free" ? "Creator Studio (limited)" : "Creator Studio included"}</span>
                                             </span>
                                             <span className="mt-auto pt-4">
                                                 <ArrowRight className="h-4 w-4 text-muted-foreground" />
@@ -955,8 +958,7 @@ export default function LandingPage() {
                             )}
                         </div>
                         <p className="mt-4 text-[13px] leading-relaxed text-muted-foreground">
-                            Annual billing runs about 20% lower on every paid tier. Every
-                            paid plan starts with a {TRIAL_DAYS}-day free trial — no card
+                            Every paid plan starts with a {TRIAL_DAYS}-day free trial — no card
                             needed. Safety and compliance features are included on every
                             plan, Free included, and are never metered.
                         </p>

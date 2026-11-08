@@ -14,6 +14,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { currencyForCountry, currencyForTimezone, formatPriceMinor } from "@/lib/billing/geo";
 
 const SRC = path.resolve(process.cwd(), "src");
 const read = (rel: string) => fs.readFileSync(path.join(SRC, rel), "utf8");
@@ -197,12 +198,17 @@ describe("design pass round 4 — KeywordTicker, images, pricing band", () => {
     expect(page).toContain("On autopilot");
   });
 
-  it("the pricing page renders the toggle and the comparison table from the catalogue", () => {
+  it("the pricing page renders the comparison table from the catalogue (toggle removed 2026-11-08 ~19:38 IST)", () => {
     // Single-file on purpose (see the page header): the render
     // harness cannot parse a statically imported JSX subcomponent,
-    // so the toggle + table live in the pricing page itself.
+    // so the table lives in the pricing page itself.
+    // Owner instruction, 2026-11-08 ~19:38 IST: pricing is
+    // MONTHLY ONLY — the monthly/annual toggle this test used to
+    // pin (aria-pressed) was removed entirely, so the pin now
+    // asserts its absence alongside the surviving table pins.
     const pricing = read("app/(saas)/pricing/page.tsx");
-    expect(pricing).toContain('aria-pressed');
+    expect(pricing).not.toContain('aria-pressed');
+    expect(pricing).not.toContain("billing-period-pill");
     expect(pricing).toContain("Compare every limit");
     expect(pricing).toContain("data-testid");
     expect(pricing).toContain("plan-");
@@ -339,7 +345,10 @@ describe("design pass round 5 — approved pricing on the landing band", () => {
  *    window-scrolled surfaces a sprung scroll-progress hairline;
  *  - made /pricing and the billing panel share a segmented period
  *    toggle (shared layoutId indicator) with price-figure flips
- *    and layout-animated plan boxes;
+ *    and layout-animated plan boxes (SUPERSEDED the same evening:
+ *    the owner's ~19:38 IST instruction removed the toggle and
+ *    all annual rendering — pricing is monthly-only now; see the
+ *    "de-clutter + geo currency" describe at the end of this file);
  *  - added press springs on primary CTAs, hover lift on plan
  *    boxes, and arrow nudges on index rows (superseding the old
  *    no-hover-transform rule — see the rewritten B-A3 pin in
@@ -386,9 +395,14 @@ describe("design pass round 7 — shared motion system (motion package)", () => 
     expect(page).toContain("SPRING_PRESS");
   });
 
-  it("pricing's period toggle is a shared-indicator segmented control with price flips", () => {
-    expect(pricing).toContain('layoutId="billing-period-pill"');
-    expect(pricing).toContain("AnimatePresence");
+  it("pricing is monthly-only and geo-currency since 2026-11-08 ~19:38 IST (toggle pin superseded)", () => {
+    // Was: "pricing's period toggle is a shared-indicator segmented
+    // control with price flips" (round 7). The owner then ordered
+    // the toggle removed ENTIRELY and prices shown in ONE geo
+    // currency — the pin now guards that end state instead.
+    expect(pricing).not.toContain('layoutId="billing-period-pill"');
+    expect(pricing).not.toContain("Annual");
+    expect(pricing).toContain("useDisplayCurrency");
     expect(pricing).toContain("staggerParent");
     // The catalogue figures and honesty lines did not move.
     expect(pricing).toContain("Checkout is being switched on");
@@ -417,9 +431,11 @@ describe("design pass round 7 — shared motion system (motion package)", () => 
  * the content flows top-to-bottom (name → price → CTA → limits
  * and features going down the column), and the Growth column
  * is highlighted as the best-value pick with a flat brand
- * banner and a stronger outline. The toggle (shared layoutId
- * pill), stagger and price flips from round 7 are unchanged;
- * figures and copy did not move.
+ * banner and a stronger outline. Figures and copy did not move.
+ * (The round-7 toggle/stagger/price-flip language this redo
+ * originally kept was itself superseded at ~19:38 IST the same
+ * day: toggle and annual rendering removed, columns de-cluttered
+ * to short key facts — see the final describe in this file.)
  */
 describe("pricing columns — tall vertical columns side by side", () => {
   const page = read("app/page.tsx");
@@ -443,5 +459,87 @@ describe("pricing columns — tall vertical columns side by side", () => {
   it("the landing band uses the same side-by-side column grid", () => {
     expect(page).toContain("grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5");
     expect(page).not.toContain("mt-10 space-y-4");
+  });
+});
+
+/**
+ * De-clutter + geo currency + monthly-only pass (owner
+ * instruction, 2026-11-08 ~19:38 IST).
+ *
+ * The owner found the new pricing columns CLUTTERED and ordered:
+ *  1. ONE currency per visitor, by country — India sees ₹ only,
+ *     everyone else sees $ only; the two never render together.
+ *  2. MONTHLY ONLY — the monthly/annual toggle removed entirely
+ *     (it was added by round 7 the same day; this supersedes it),
+ *     and no annual price renders anywhere.
+ *  3. Free = 1,000 auto DMs a month + Creator Studio (limited);
+ *     paid plans keep the full Studio (pinned in
+ *     billing-catalogue.test.ts).
+ *  4. Columns de-cluttered: name → price → CTA → a short
+ *     key-facts list; the dense capability-notes lists no longer
+ *     render in the columns.
+ * Geo plumbing: the middleware stamps a `geo-currency` cookie
+ * from the Vercel edge country header; client surfaces resolve
+ * cookie → timezone → INR default via useDisplayCurrency, so the
+ * SSR/first paint is always INR (single currency) and corrects
+ * on mount for non-India visitors.
+ */
+describe("de-clutter + geo currency + monthly-only (owner, 2026-11-08 ~19:38 IST)", () => {
+  const page = read("app/page.tsx");
+  const pricing = read("app/(saas)/pricing/page.tsx");
+  const panel = read("components/billing/BillingPanel.tsx");
+  const middleware = read("middleware.ts");
+
+  it("the middleware stamps the geo-currency cookie from the edge country header", () => {
+    expect(middleware).toContain("x-vercel-ip-country");
+    expect(middleware).toContain("GEO_CURRENCY_COOKIE");
+    expect(middleware).toContain("currencyForCountry");
+  });
+
+  it("country and timezone resolution follow the owner's one-currency rule", () => {
+    expect(currencyForCountry("IN")).toBe("INR");
+    expect(currencyForCountry("in")).toBe("INR");
+    expect(currencyForCountry("US")).toBe("USD");
+    expect(currencyForCountry("GB")).toBe("USD");
+    expect(currencyForCountry(null)).toBe("USD");
+    expect(currencyForTimezone("Asia/Kolkata")).toBe("INR");
+    expect(currencyForTimezone("Asia/Calcutta")).toBe("INR");
+    expect(currencyForTimezone("America/New_York")).toBe("USD");
+    expect(formatPriceMinor(29900, "INR")).toBe("₹299");
+    expect(formatPriceMinor(900, "USD")).toBe("$9");
+    expect(formatPriceMinor(0, "USD")).toBe("$0");
+    expect(formatPriceMinor(0, "INR")).toBe("₹0");
+  });
+
+  it("every price surface resolves the single geo currency — ₹ and $ never render together", () => {
+    for (const src of [page, pricing, panel]) {
+      expect(src).toContain("useDisplayCurrency");
+      expect(src).toContain("formatPriceMinor");
+    }
+    // The old dual-currency price line ("₹299 / mo · $5 / mo") is gone.
+    expect(pricing).not.toContain("/ mo ·");
+    expect(pricing).not.toContain('prices.INR');
+    expect(pricing).not.toContain('prices.USD');
+  });
+
+  it("no surface renders an annual price or a period toggle anymore", () => {
+    for (const src of [page, pricing, panel]) {
+      expect(src).not.toContain("Annual");
+      expect(src).not.toContain("annualMonthlyMinor");
+      expect(src).not.toContain("annualTotalMinor");
+    }
+    expect(pricing).not.toContain("billing-period-pill");
+    expect(panel).not.toContain("billing-panel-period-pill");
+    expect(pricing).not.toContain('aria-pressed');
+  });
+
+  it("the columns are de-cluttered: short key facts, no capability-notes dump", () => {
+    expect(pricing).toContain("keyFacts");
+    expect(pricing).not.toContain("capabilityNotes");
+    expect(pricing).toContain("auto DMs / month");
+    // Free's Studio is limited on every surface; paid stays full.
+    for (const src of [page, pricing, panel]) {
+      expect(src).toContain("Creator Studio (limited)");
+    }
   });
 });

@@ -11,7 +11,9 @@
  *  - Free costs exactly 0; Enterprise is custom-priced — it carries
  *    NO price figure (zeros) and can never be self-serve purchased
  *  - approved tiers: ₹299/1 account, ₹500/3, ₹799/5, Enterprise custom
- *  - Creator Studio is included on every plan, Free included
+ *  - Creator Studio is included on every plan — full on paid
+ *    plans, LIMITED on Free (owner instruction, 2026-11-08
+ *    ~19:38 IST, which also set Free to 1,000 auto DMs a month)
  *  - the 15-day no-card trial is the selected option; no trial
  *    option ever permits a silent auto-charge
  *  - annual totals are internally consistent (annualMonthly × 12)
@@ -116,6 +118,23 @@ describe('billing catalogue (owner-approved 2026-11-08)', () => {
         plan.capabilityNotes.some((n) => n.includes('Creator Studio included')),
         `${plan.id} must include Creator Studio`,
       ).toBe(true);
+    }
+  });
+
+  // Owner instruction, 2026-11-08 ~19:38 IST: Free carries 1,000
+  // auto DMs a month and the LIMITED Creator Studio; paid plans
+  // keep the full Studio (their notes never say "limited").
+  it('gives Free 1,000 auto DMs a month and the limited Studio (owner, 2026-11-08 ~19:38 IST)', () => {
+    const free = getPlan('free');
+    expect(free.limits.dmsPerMonth).toBe(1000);
+    expect(
+      free.capabilityNotes.some((n) => n.includes('Creator Studio included (limited)')),
+    ).toBe(true);
+    for (const plan of PLANS.filter((p) => p.id !== 'free')) {
+      expect(
+        plan.capabilityNotes.some((n) => n.toLowerCase().includes('limited')),
+        `${plan.id} must keep the full Studio`,
+      ).toBe(false);
     }
   });
 

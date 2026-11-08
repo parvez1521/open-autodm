@@ -2,6 +2,11 @@
  * Next.js middleware.
  *  1. Refreshes the Supabase session cookie (required by @supabase/ssr).
  *  2. Protects app routes; redirects unauthenticated users to the login page.
+ *  3. Stamps the geo display-currency cookie (owner instruction,
+ *     2026-11-08 ~19:38 IST): the Vercel edge country header decides
+ *     whether pricing surfaces render INR or USD — never both. Set
+ *     once, only when absent, on the final pass-through response so
+ *     the Supabase cookie rebuild above cannot drop it.
  *
  * /api/* is fully excluded: the webhook and cron endpoints must never be
  * touched by session logic, and app API routes authenticate via Bearer JWT.
@@ -10,6 +15,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { isIdentityAllowed } from '@/lib/signupProtection';
+import { GEO_CURRENCY_COOKIE, currencyForCountry } from '@/lib/billing/geo';
 
 const SUPABASE_URL = process.env['NEXT_PUBLIC_SUPABASE_URL']!;
 const SUPABASE_ANON_KEY = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']!;
@@ -90,6 +96,24 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/dashboard';
     return NextResponse.redirect(redirectUrl);
+  }
+
+  // Geo display currency (see header note 3): read the edge country
+  // header — x-vercel-ip-country on Vercel, cf-ipcountry on
+  // Cloudflare — and persist the resolved currency as a cookie the
+  // client pricing surfaces read (lib/billing/useDisplayCurrency).
+  // No header (local dev, tests) → no cookie; the client falls back
+  // to timezone, then INR.
+  if (!request.cookies.has(GEO_CURRENCY_COOKIE)) {
+    const country =
+      request.headers.get('x-vercel-ip-country') ?? request.headers.get('cf-ipcountry');
+    if (country) {
+      supabaseResponse.cookies.set(GEO_CURRENCY_COOKIE, currencyForCountry(country), {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: 'lax',
+      });
+    }
   }
 
   return supabaseResponse;

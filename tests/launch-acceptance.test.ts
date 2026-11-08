@@ -213,7 +213,7 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     expect(resolved.plan.id).toBe('free');
     expect(resolved.resolution).toBe('free-default-inactive-subscription');
     const dm = checkEntitlement(wsSub('ws-exp', 'starter', 'expired'), 'dmsPerMonth', { dmsThisMonth: 1000 }, { flags: ENFORCED });
-    expect(dm.limit).toBe(getPlan('free').limits.dmsPerMonth); // 250
+    expect(dm.limit).toBe(getPlan('free').limits.dmsPerMonth); // 1000 (Free DM limit raised 250 → 1000, owner 2026-11-08 ~19:38 IST)
     expect(dm.allowed).toBe(false); // usage that fit the trial plan no longer fits
     expect(dm.effectiveAllowed).toBe(false);
   });
@@ -277,7 +277,7 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     expect(resolved.plan.id).toBe('creator-pro');
     expect(resolved.resolution).toBe('active-subscription');
     const dm = checkEntitlement(wsSub('ws-act', 'creator-pro', 'active'), 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(dm.limit).toBe(getPlan('creator-pro').limits.dmsPerMonth); // 10000, not Free's 250
+    expect(dm.limit).toBe(getPlan('creator-pro').limits.dmsPerMonth); // 10000, not Free's 1000
     expect(dm.allowed).toBe(true);
   });
 
@@ -339,7 +339,7 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     expect(checks).toHaveLength(9);
     for (const c of checks) expect(c.planId).toBe('free');
     const dm = checkEntitlement(wsSub('ws-pd', 'agency', 'past_due'), 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(dm.limit).toBe(getPlan('free').limits.dmsPerMonth); // 250, NOT Agency's 50000
+    expect(dm.limit).toBe(getPlan('free').limits.dmsPerMonth); // 1000, NOT Agency's 50000
     expect(dm.allowed).toBe(false);
     // Safety floor is unaffected by past_due: Free still has non-zero
     // allowances and the plan itself is a real, limited default —
