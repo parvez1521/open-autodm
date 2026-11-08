@@ -26,6 +26,24 @@ import {
 } from '@/lib/billing/razorpay';
 import { POST } from '@/app/api/billing/checkout/route';
 
+// ── Workspace binding (subscription wiring, 2026-11-08) ────────────────
+// The checkout route now binds orders to the caller's authenticated
+// workspace and records them. This file keeps its original focus
+// (config, signatures, order client, route gating, catalogue pricing,
+// secret hygiene) with the caller authenticated as the owner of a
+// single workspace — which the route resolves by default — backed by
+// an in-memory fake Supabase.
+const wiringHolder = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock('@/lib/supabase/service', () => ({
+  createServiceClient: () => wiringHolder.db,
+}));
+vi.mock('@/lib/auth', () => ({
+  getAuthenticatedUser: async () => ({ id: 'user-owner', email: 'owner@example.com' }),
+  unauthorized: () =>
+    Response.json({ error: 'Unauthorized', message: 'Valid session required' }, { status: 401 }),
+}));
+import { createFakeSupabase } from './helpers/fake-supabase';
+
 const SYNTH_KEY_ID = 'rzp_test_synthetic123';
 const SYNTH_KEY_SECRET = 'synthetic-secret-value';
 const SYNTH_WEBHOOK_SECRET = 'synthetic-webhook-secret';
@@ -176,6 +194,11 @@ beforeEach(() => {
   savedEnv = {};
   for (const k of ENV_KEYS) savedEnv[k] = process.env[k];
   vi.unstubAllGlobals();
+  wiringHolder.db = createFakeSupabase({
+    workspace_memberships: [
+      { workspace_id: 'ws-1', user_id: 'user-owner', role: 'owner' },
+    ],
+  }).client;
 });
 
 afterEach(() => {

@@ -16,14 +16,21 @@
  * Free, and Enterprise (custom, sales-led) — are refused here with
  * PLAN_NOT_PURCHASABLE; Enterprise is sold by conversation only.
  *
- * NOTE (pre-live wiring, intentionally not invented here): in
- * production this route must be bound to the caller's authenticated
- * workspace session and record the order against that workspace before
- * returning it. That binding belongs to the billing go-live step, not
- * to this scaffolding.
+ * Workspace binding (subscription wiring, 2026-11-08): once the plan
+ * is validated, the caller must be authenticated and the workspace is
+ * resolved through src/lib/billing/access.ts (selector, or the
+ * caller's single membership re-resolved). Only the workspace OWNER
+ * (manageBilling) may check out. The created order is recorded in
+ * billing_orders against that workspace BEFORE the response returns —
+ * that record is what the signed webhook later resolves the workspace
+ * and plan from; a request whose order cannot be recorded fails
+ * loudly (500 ORDER_RECORD_FAILED) instead of returning an order the
+ * webhook would have to ignore as unknown.
  */
 
 import { createLogger } from "@/lib/logger";
+import { getAuthenticatedUser, unauthorized } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase/service";
 import { readBillingFlags } from "@/lib/billing/flags";
 import { getPlan, type BillingPeriod, type CurrencyCode, type PlanId } from "@/lib/billing/catalogue";
 import {
@@ -31,6 +38,17 @@ import {
   readRazorpayConfig,
   RazorpayApiError,
 } from "@/lib/billing/razorpay";
+import {
+  billingWorkspaceSelector,
+  resolveBillingWorkspace,
+  billingManagerFailure,
+  workspaceFailureResponse,
+} from "@/lib/billing/access";
+import {
+  createBillingOrder,
+  getWorkspaceSubscription,
+  BillingPersistenceError,
+} from "@/lib/billing/persistence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,6 +92,7 @@ export async function POST(request: Request): Promise<Response> {
     planId?: unknown;
     currency?: unknown;
     period?: unknown;
+    workspaceId?: unknown;
   };
   const planId = fields.planId;
   if (typeof planId !== "string" || !(PLAN_IDS as readonly string[]).includes(planId)) {
@@ -111,16 +130,89 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  // ── Workspace binding: authenticated caller, resolved workspace,
+  // owner-only (manageBilling). The order is recorded against this
+  // workspace below — never against a client-claimed id alone.
+  const user = await getAuthenticatedUser(request);
+  if (!user) return unauthorized();
+  const db = createServiceClient();
+  const resolved = await resolveBillingWorkspace(
+    db,
+    user.id,
+    billingWorkspaceSelector(request, fields.workspaceId),
+  );
+  if (!resolved.ok) return workspaceFailureResponse(resolved);
+  const managerFailure = billingManagerFailure(resolved.ctx);
+  if (managerFailure) return workspaceFailureResponse(managerFailure);
+  const workspaceId = resolved.ctx.workspaceId;
+
+  // A subscription's currency is immutable once issued (…000027
+  // trigger): a workspace with an existing row in another currency
+  // must finish/cancel that subscription first — refuse here, before
+  // any provider order exists.
+  try {
+    const existingSub = await getWorkspaceSubscription(db, workspaceId);
+    if (existingSub && existingSub.currency !== currency) {
+      return Response.json(
+        {
+          ok: false,
+          code: "CURRENCY_LOCKED",
+          message: `This workspace's subscription is in ${existingSub.currency}; its currency cannot be changed.`,
+        },
+        { status: 409 },
+      );
+    }
+  } catch (err) {
+    logger.error(
+      { error: err instanceof Error ? err.message : String(err) },
+      "checkout subscription pre-check failed",
+    );
+    return Response.json(
+      { ok: false, code: "INTERNAL_ERROR", message: "Checkout failed. Nothing was charged." },
+      { status: 500 },
+    );
+  }
+
   const receipt = `opdm_${plan.id}_${period}_${Date.now().toString(36)}`.slice(0, 40);
   try {
     const order = await createRazorpayOrder(config, {
       amountMinor,
       currency,
       receipt,
-      notes: { planId: plan.id, period, currency, source: "opendm-checkout" },
+      notes: { planId: plan.id, period, currency, workspaceId, source: "opendm-checkout" },
     });
+    // Record the order against the workspace BEFORE returning it: the
+    // signed webhook resolves workspace + plan from this row.
+    try {
+      await createBillingOrder(db, {
+        workspaceId,
+        provider: "razorpay",
+        providerOrderId: order.id,
+        planId: plan.id,
+        billingPeriod: period,
+        amountMinor,
+        currency,
+        receipt,
+      });
+    } catch (err) {
+      if (err instanceof BillingPersistenceError) {
+        logger.error(
+          { orderId: order.id, workspaceId },
+          "razorpay order created but could not be recorded; failing loudly",
+        );
+        return Response.json(
+          {
+            ok: false,
+            code: "ORDER_RECORD_FAILED",
+            message: "The payment order could not be recorded. Nothing was charged; please retry.",
+          },
+          { status: 500 },
+        );
+      }
+      throw err;
+    }
     logger.info(
-      { orderId: order.id, planId: plan.id, period, currency, amountMinor },
+      { orderId: order.id, workspaceId, planId: plan.id, period, currency, amountMinor },
       "razorpay order created",
     );
     return Response.json({
@@ -137,6 +229,7 @@ export async function POST(request: Request): Promise<Response> {
       keyId: config.keyId,
       planId: plan.id,
       period,
+      workspaceId,
     });
   } catch (err) {
     if (err instanceof RazorpayApiError) {

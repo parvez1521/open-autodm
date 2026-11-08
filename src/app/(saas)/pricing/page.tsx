@@ -25,9 +25,18 @@
  * through vite without a JSX transform, so a statically imported
  * JSX subcomponent cannot be parsed there. The toggle state lives
  * in this client page instead.
+ *
+ * Plan actions (subscription wiring, 2026-11-08): a signed-OUT
+ * visitor keeps the get-started flow; a signed-IN user is routed
+ * into the billing flow instead (/billing?plan=… preselects the
+ * plan) where trial start and checkout are workspace-bound and
+ * owner-gated server-side. Sign-in state is probed client-side
+ * (GET /api/workspaces: 401 = signed out, anything else = signed
+ * in) so static rendering — and the harness — always shows the
+ * signed-out variant.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PLANS,
   CATALOGUE_STATUS,
@@ -81,7 +90,7 @@ const DIMENSIONS: { label: string; value: (plan: Plan) => string }[] = [
   { label: "Creator Studio", value: () => "Included" },
 ];
 
-function PlanRow({ plan, period }: { plan: Plan; period: BillingPeriod }) {
+function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod; signedIn: boolean }) {
   const inr = plan.prices.INR;
   const usd = plan.prices.USD;
   const inrFigure = period === "monthly" ? inr.monthlyMinor : inr.annualMonthlyMinor;
@@ -148,6 +157,21 @@ function PlanRow({ plan, period }: { plan: Plan; period: BillingPeriod }) {
             Starts with a {TRIAL_DAYS}-day free trial — no card needed.
           </p>
         )}
+        {signedIn ? (
+          <a
+            href={plan.id === "free" ? "/billing" : `/billing?plan=${plan.id}&period=${period}`}
+            className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+          >
+            {plan.id === "free" ? "Manage billing" : "Start free trial"}
+          </a>
+        ) : (
+          <a
+            href="/get-started"
+            className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+          >
+            Get started
+          </a>
+        )}
       </div>
       <div className="grid gap-x-10 gap-y-4 sm:grid-cols-2">
         <ul className="space-y-1 text-[13px] text-muted-foreground">
@@ -168,6 +192,25 @@ function PlanRow({ plan, period }: { plan: Plan; period: BillingPeriod }) {
 
 export default function PricingPrototypePage() {
   const [period, setPeriod] = useState<BillingPeriod>("monthly");
+  const [signedIn, setSignedIn] = useState(false);
+
+  // Session probe (client-only; static renders stay signed-out):
+  // GET /api/workspaces authenticates first — 401 means signed out,
+  // any other response (200 list, or 503 while workspace runtime is
+  // off) means a session exists.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/workspaces")
+      .then((res) => {
+        if (!cancelled) setSignedIn(res.status !== 401);
+      })
+      .catch(() => {
+        /* offline / blocked: keep the signed-out variant */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   return (
     <div className="space-y-6">
       <div>
@@ -215,7 +258,7 @@ export default function PricingPrototypePage() {
 
       <div className="space-y-5">
         {PLANS.map((plan) => (
-          <PlanRow key={plan.id} plan={plan} period={period} />
+          <PlanRow key={plan.id} plan={plan} period={period} signedIn={signedIn} />
         ))}
       </div>
 

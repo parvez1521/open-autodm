@@ -322,6 +322,31 @@ const CLASSIFIED: Record<string, Classified> = {
     exceptionReason:
       'Follow-up rows are keyed by (automation_id, recipient_id, qualified_event_id); scheduling callers derive account+automation from verified/account-scoped flows, the cron sweep re-derives the workspace from the account binding, and the send path re-validates in processJob.',
   },
+
+  // — SaaS billing routes (subscription wiring, 2026-11-08) —
+  // Session auth first, then the workspace is resolved per request
+  // through lib/billing/access.ts (routeContext membership check —
+  // the selector is never proof) and mutations additionally require
+  // the owner-only manageBilling capability. All billing reads/writes
+  // are scoped by the resolved ctx.workspaceId.
+  'app/api/billing/checkout/route.ts': {
+    kind: 'user-session+owner-check',
+    tokens: ['getAuthenticatedUser(request)', 'resolveBillingWorkspace', 'billingManagerFailure(resolved.ctx)'],
+  },
+  'app/api/billing/trial/route.ts': {
+    kind: 'user-session+owner-check',
+    tokens: ['getAuthenticatedUser(request)', 'resolveBillingWorkspace', 'billingManagerFailure(resolved.ctx)'],
+  },
+  'app/api/billing/status/route.ts': {
+    kind: 'user-session+owner-check',
+    tokens: ['getAuthenticatedUser(request)', 'resolveBillingWorkspace', 'hasCapability(ctx, "manageBilling")'],
+  },
+  'app/api/billing/webhook/route.ts': {
+    kind: 'webhook-hmac',
+    tokens: ['verifyRazorpayWebhookSignature(rawBody, signature, config.webhookSecret)', 'getBillingOrderByProviderOrderId', 'processBillingWebhook'],
+    exceptionReason:
+      'Public Razorpay webhook: the HMAC-SHA256 signature over the exact raw body is the credential (fail closed, verified before parsing). The workspace is resolved ONLY from the billing_orders row recorded at checkout — never from payload claims — and the Phase 12 core re-verifies the order server-side with Razorpay before any entitlement write.',
+  },
 };
 
 const REVIEWED_EXCEPTIONS = Object.entries(CLASSIFIED)
@@ -341,9 +366,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 37 importing files, 81 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site)', () => {
+  it('counts reconcile with the audit: 41 importing files, 85 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites)', () => {
     const importers = serviceImporters();
-    expect(importers.length).toBe(37);
+    expect(importers.length).toBe(41);
     let calls = 0;
     for (const f of importers) {
       for (const line of sourceOf(f).split('\n')) {
@@ -354,7 +379,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(81);
+    expect(calls).toBe(85);
   });
 
   it('every classified file still carries its audited guard tokens', () => {
@@ -374,11 +399,13 @@ describe('P17/B source scan: service-role importer classification', () => {
       expect(spec.exceptionReason, `${file} needs a reviewed-exception reason`).toBeTruthy();
       expect(spec.exceptionReason!.length).toBeGreaterThan(40);
     }
-    // 19 user-scoped files carry their guard inline; the rest are
+    // 22 user-scoped files carry their guard inline; the rest are
     // exceptions. (P19 removed the accept route from the user-scoped
     // set: it carries no service client any more. P30/AA-6 removed
-    // the three remaining workspaces-tree files the same way.)
-    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(19);
+    // the three remaining workspaces-tree files the same way.
+    // Subscription wiring 2026-11-08 added the three user-scoped
+    // billing routes: checkout, trial, status.)
+    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(22);
   });
 
   it('FINDING B-F1 pin: no product file imports scopedDb helpers (guards are heterogeneous, not scopedDb)', () => {
