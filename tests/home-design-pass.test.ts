@@ -405,29 +405,43 @@ describe("design pass round 7 — shared motion system (motion package)", () => 
 });
 
 /**
- * Vertical pricing fix (2026-11-08, owner feedback ~18:18 IST).
+ * Pricing columns redo (2026-11-08, owner screenshot reference
+ * ~18:36 IST — a classic ThemeGrill-style pricing table).
  *
- * After round 7 the owner reported the plan boxes read as
- * HORIZONTAL: the boxes were stacked, but each box split into
- * side-by-side columns on desktop (and the landing band laid each
- * plan out as a name|price|features|arrow row). The owner's
- * standing rule: pricing stays VERTICAL — boxes stacked one below
- * another, each in its own flat outline, content flowing
- * top-to-bottom in a single column. The toggle (shared layoutId
- * pill), stagger and price flips from round 7 are unchanged.
+ * Two earlier attempts missed what the owner meant by
+ * "vertical": round 6 put each plan in its own outlined box but
+ * split the box into side-by-side columns inside, and the
+ * 18:18 fix (f7a25c3) stacked the boxes full-width one below
+ * another. The owner's screenshot settled it: plans are TALL
+ * VERTICAL COLUMNS standing SIDE BY SIDE — inside each column
+ * the content flows top-to-bottom (name → price → CTA → limits
+ * and features going down the column), and the Growth column
+ * is highlighted as the best-value pick with a flat brand
+ * banner and a stronger outline. The toggle (shared layoutId
+ * pill), stagger and price flips from round 7 are unchanged;
+ * figures and copy did not move.
  */
-describe("vertical pricing — boxes stack, one column inside each box", () => {
+describe("pricing columns — tall vertical columns side by side", () => {
   const page = read("app/page.tsx");
   const pricing = read("app/(saas)/pricing/page.tsx");
 
-  it("/pricing boxes stack vertically with no two-column split inside", () => {
-    expect(pricing).toContain("space-y-5");
-    expect(pricing).not.toContain("lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]");
+  it("/pricing lays the five plans out as side-by-side columns, not stacked bands", () => {
+    expect(pricing).toContain("grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5");
+    expect(pricing).not.toContain("space-y-5");
+    expect(pricing).toContain("flex h-full flex-col");
     expect(pricing).toContain("border border-border");
   });
 
-  it("the landing band boxes stack vertically with no horizontal plan row", () => {
-    expect(page).toContain("space-y-4");
-    expect(page).not.toContain("14rem_10rem");
+  it("Growth is the highlighted column — flat Best value banner, stronger brand outline", () => {
+    for (const src of [page, pricing]) {
+      expect(src).toContain('plan.id === "creator-pro"');
+      expect(src).toContain("Best value");
+      expect(src).toContain("border-primary");
+    }
+  });
+
+  it("the landing band uses the same side-by-side column grid", () => {
+    expect(page).toContain("grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5");
+    expect(page).not.toContain("mt-10 space-y-4");
   });
 });

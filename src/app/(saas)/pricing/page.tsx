@@ -13,25 +13,26 @@
  * PAYMENTS_LIVE_MODE default OFF, no provider keys configured),
  * and the copy says so.
  *
- * Layout: banded comparison rows with a monthly/annual toggle,
- * plus a limit-by-limit comparison table — no tier-card grid.
- * Round 6 (2026-11-08, owner feedback): each plan row now sits
- * in its own flat outlined box with vertical gaps, so every
- * plan reads as an individual unit; copy and figures unchanged.
+ * Layout: tall VERTICAL plan columns standing side by side,
+ * like a classic pricing table (owner screenshot reference,
+ * 2026-11-08 ~18:36 IST — this supersedes the round-6 banded
+ * rows and the stacked-box fix f7a25c3; both missed what the
+ * owner meant by "vertical"). Inside each column the content
+ * flows top-to-bottom in a single column: plan name → price →
+ * CTA → limits and capability lists going down the column.
+ * Growth carries a flat "Best value" banner and a stronger
+ * brand outline. The columns grid breaks out of the prototype
+ * shell's narrow main column so the five columns can stand
+ * side by side on desktop (xl: 5 across, lg: 3 + 2 wrap,
+ * mobile: one stacked column of tall cards). A limit-by-limit
+ * comparison table still sits below the columns.
  * Motion pass (2026-11-08, owner instruction ~17:59 IST): the
  * period toggle is a segmented control with a shared layoutId
- * indicator, plan boxes stagger in and reflow with `layout`, and
- * the price figure flips vertically when the period changes —
- * all from the shared motion system (lib/motion/presets), on the
- * `motion` package. Figures and copy unchanged.
- * Vertical fix (2026-11-08, owner feedback ~18:18 IST): the
- * round-7 boxes read as HORIZONTAL bands because each box split
- * into two side-by-side columns on desktop. The owner's standing
- * rule is pricing stays VERTICAL — boxes stacked one below
- * another, each its own flat outline, and each box's content now
- * flows top-to-bottom in a single column too. No two-column
- * split inside a plan box. Figures and copy unchanged.
- * All figures come from lib/billing/catalogue.
+ * indicator, plan columns stagger in and reflow with `layout`,
+ * and the price figure flips vertically when the period
+ * changes — all from the shared motion system
+ * (lib/motion/presets), on the `motion` package. Figures and
+ * copy unchanged. All figures come from lib/billing/catalogue.
  *
  * Single-file on purpose: the customer-journey render harness
  * esbuild-transforms the page file itself and loads its imports
@@ -68,6 +69,29 @@ import {
 
 /** The contact address the legal pages already publish. */
 const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
+
+/**
+ * Check marker for the capability lists — Phosphor's regular
+ * Check glyph (256 viewBox; path data from the icon set, which
+ * the rest of the site draws via "@/components/phosphor") drawn
+ * inline instead of imported. The import is avoided on purpose:
+ * the render harness loads this page's imports through vite,
+ * and the wrapper barrel pulls the whole icon package into that
+ * render, pushing the page past the harness's time budget. The
+ * glyph, weight and colour are identical to the wrapped Check.
+ */
+function CheckMark() {
+  return (
+    <svg
+      viewBox="0 0 256 256"
+      fill="currentColor"
+      aria-hidden
+      className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"
+    >
+      <path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" />
+    </svg>
+  );
+}
 
 function formatMinor(minor: number, currency: CurrencyCode): string {
   if (minor === 0) return currency === "INR" ? "₹0" : "$0";
@@ -108,11 +132,22 @@ const DIMENSIONS: { label: string; value: (plan: Plan) => string }[] = [
   { label: "Creator Studio", value: () => "Included" },
 ];
 
-function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod; signedIn: boolean }) {
+/**
+ * One tall vertical plan column. Content flows top-to-bottom in
+ * a single column: name → price → CTA → limits → capabilities.
+ * Growth (owner screenshot reference, 2026-11-08 ~18:36 IST) is
+ * the highlighted pick: a flat brand "Best value" banner across
+ * the top of its column and a stronger brand outline.
+ */
+function PlanColumn({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod; signedIn: boolean }) {
   const inr = plan.prices.INR;
   const usd = plan.prices.USD;
   const inrFigure = period === "monthly" ? inr.monthlyMinor : inr.annualMonthlyMinor;
   const usdFigure = period === "monthly" ? usd.monthlyMinor : usd.annualMonthlyMinor;
+  const highlighted = plan.id === "creator-pro";
+  const columnClassName = `flex h-full flex-col p-5 ${
+    highlighted ? "border-2 border-primary" : "border border-border"
+  }`;
 
   if (plan.customPricing) {
     // Enterprise (owner instruction, 2026-11-08): positioned
@@ -122,7 +157,7 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
       <motion.div
         layout
         variants={staggerChild}
-        className="grid gap-5 border border-border p-6 lg:p-7"
+        className={columnClassName}
         data-testid={`plan-${plan.id}`}
       >
         <div>
@@ -134,15 +169,18 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
           </p>
           <a
             href={CONTACT_HREF}
-            className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+            className="mt-5 flex h-10 items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
           >
             Contact us
           </a>
         </div>
-        <div>
-          <ul className="space-y-1 text-[13px]">
+        <div className="mt-5 border-t border-border pt-5">
+          <ul className="space-y-1.5 text-[13px]">
             {plan.capabilityNotes.map((note) => (
-              <li key={note}>{note}</li>
+              <li key={note} className="flex gap-2">
+                <CheckMark />
+                <span>{note}</span>
+              </li>
             ))}
           </ul>
           <p className="mt-3 text-[13px] text-muted-foreground">
@@ -158,9 +196,14 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
     <motion.div
       layout
       variants={staggerChild}
-      className="grid gap-5 border border-border p-6 lg:p-7"
+      className={columnClassName}
       data-testid={`plan-${plan.id}`}
     >
+      {highlighted && (
+        <p className="-mx-5 -mt-5 mb-5 bg-primary px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-foreground">
+          Best value
+        </p>
+      )}
       <div>
         <h2 className="font-heading text-base font-semibold">{plan.name}</h2>
         <p className="mt-3 font-heading text-3xl font-semibold">
@@ -194,21 +237,21 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
         )}
         {signedIn ? (
           plan.id === "free" ? (
-            // QA fix (2026-11-08): the Free row used to offer "Manage
+            // QA fix (2026-11-08): the Free column used to offer "Manage
             // billing" — a promise of a working billing console while
             // BILLING_ENABLED is off and /billing renders its inert
             // state. A signed-in user without a paid subscription IS
             // on Free, so the honest state is a non-action marker.
             <span
               aria-disabled="true"
-              className="mt-4 inline-flex h-9 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground"
+              className="mt-5 flex h-10 items-center justify-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground"
             >
               Current plan
             </span>
           ) : (
             <a
               href={`/billing?plan=${plan.id}&period=${period}`}
-              className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+              className="mt-5 flex h-10 items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
             >
               Start free trial
             </a>
@@ -216,22 +259,28 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
         ) : (
           <a
             href="/get-started"
-            className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+            className="mt-5 flex h-10 items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
           >
             Get started
           </a>
         )}
       </div>
-      <div className="space-y-4">
-        <ul className="space-y-1 text-[13px] text-muted-foreground">
-          <li>{plan.limits.instagramAccounts} Instagram account(s) · {plan.limits.teamSeats} seat(s)</li>
-          <li>{plan.limits.activeAutomations} active automations · {plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</li>
+      <div className="mt-5 border-t border-border pt-5">
+        <ul className="space-y-1.5 text-[13px] text-muted-foreground">
+          <li>{plan.limits.instagramAccounts} Instagram account(s)</li>
+          <li>{plan.limits.teamSeats} seat(s)</li>
+          <li>{plan.limits.activeAutomations} active automations</li>
+          <li>{plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</li>
           <li>{plan.limits.aiDraftingGenerationsPerMonth} AI drafting generations / month</li>
-          <li>Data retention: {plan.dataRetentionDays} days · Support: {SUPPORT_LABELS[plan.supportLevel]}</li>
+          <li>Data retention: {plan.dataRetentionDays} days</li>
+          <li>Support: {SUPPORT_LABELS[plan.supportLevel]}</li>
         </ul>
-        <ul className="space-y-1 text-[13px]">
+        <ul className="mt-4 space-y-1.5 text-[13px]">
           {plan.capabilityNotes.map((note) => (
-            <li key={note}>{note}</li>
+            <li key={note} className="flex gap-2">
+              <CheckMark />
+              <span>{note}</span>
+            </li>
           ))}
         </ul>
       </div>
@@ -272,43 +321,53 @@ export default function PricingPrototypePage() {
         </p>
       </motion.div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        {/* Motion pass (2026-11-08): the period toggle is now a
-            segmented control whose indicator is one shared element
-            (layoutId) that springs between Monthly and Annual. */}
-        <div className="flex items-center gap-1 rounded-lg border border-border p-1" role="group" aria-label="Billing period">
-          {(["monthly", "annual"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={period === p}
-              onClick={() => setPeriod(p)}
-              className="relative h-8 rounded-md px-4 text-sm font-medium"
-            >
-              {period === p && (
-                <motion.span
-                  layoutId="billing-period-pill"
-                  className="absolute inset-0 rounded-md bg-foreground"
-                  transition={SPRING_SNAPPY}
-                />
-              )}
-              <span className={`relative z-10 ${period === p ? "font-semibold text-background" : "text-foreground"}`}>
-                {p === "monthly" ? "Monthly" : "Annual"}
-              </span>
-            </button>
-          ))}
+      {/* The toggle and the plan columns break out of the shell's
+          narrow main column so the five tall columns can stand
+          side by side on desktop, as in the owner's reference. */}
+      <div className="relative left-1/2 w-[min(80rem,calc(100vw_-_2.5rem))] -translate-x-1/2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Motion pass (2026-11-08): the period toggle is now a
+              segmented control whose indicator is one shared element
+              (layoutId) that springs between Monthly and Annual. */}
+          <div className="flex items-center gap-1 rounded-lg border border-border p-1" role="group" aria-label="Billing period">
+            {(["monthly", "annual"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={period === p}
+                onClick={() => setPeriod(p)}
+                className="relative h-8 rounded-md px-4 text-sm font-medium"
+              >
+                {period === p && (
+                  <motion.span
+                    layoutId="billing-period-pill"
+                    className="absolute inset-0 rounded-md bg-foreground"
+                    transition={SPRING_SNAPPY}
+                  />
+                )}
+                <span className={`relative z-10 ${period === p ? "font-semibold text-background" : "text-foreground"}`}>
+                  {p === "monthly" ? "Monthly" : "Annual"}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[13px] text-muted-foreground">
+            Annual billing runs about 20% lower on every paid tier. Every paid plan starts with a{" "}
+            {TRIAL_DAYS}-day free trial — no card needed.
+          </p>
         </div>
-        <p className="text-[13px] text-muted-foreground">
-          Annual billing runs about 20% lower on every paid tier. Every paid plan starts with a{" "}
-          {TRIAL_DAYS}-day free trial — no card needed.
-        </p>
-      </div>
 
-      <motion.div className="space-y-5" variants={staggerParent} initial="hidden" animate="show">
-        {PLANS.map((plan) => (
-          <PlanRow key={plan.id} plan={plan} period={period} signedIn={signedIn} />
-        ))}
-      </motion.div>
+        <motion.div
+          className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+          variants={staggerParent}
+          initial="hidden"
+          animate="show"
+        >
+          {PLANS.map((plan) => (
+            <PlanColumn key={plan.id} plan={plan} period={period} signedIn={signedIn} />
+          ))}
+        </motion.div>
+      </div>
 
       <motion.div
         className="overflow-x-auto"

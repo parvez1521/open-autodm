@@ -868,22 +868,27 @@ export default function LandingPage() {
                             </motion.a>
                         </Reveal>
 
-                        {/* Vertical fix (2026-11-08, owner feedback ~18:18 IST):
-                            the band boxes stack vertically and each box's
-                            content flows top-to-bottom in one column — the
-                            old name|price|features|arrow row read as
-                            horizontal. Same rule as /pricing. */}
-                        <div className="mt-10 space-y-4">
+                        {/* Pricing columns (2026-11-08, owner screenshot
+                            reference ~18:36 IST): the band uses the same
+                            tall VERTICAL columns as /pricing — the five
+                            plans stand side by side and each column's
+                            content flows top-to-bottom (name → price →
+                            limits down the column); Growth is highlighted
+                            with a flat "Best value" banner and a stronger
+                            brand outline. This replaces the stacked
+                            full-width boxes, which were not what the
+                            owner meant by "vertical". */}
+                        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                             {PLANS.map((plan, i) =>
                                 plan.customPricing ? (
                                     // Enterprise (owner instruction, 2026-11-08):
                                     // "For Business / Agency", Contact Us instead
                                     // of a price — no figure anywhere.
-                                    <Reveal key={plan.id} delay={i * 0.05}>
+                                    <Reveal key={plan.id} delay={i * 0.05} className="h-full">
                                         <motion.div
                                             whileHover={LIFT_HOVER}
                                             transition={SPRING_SNAPPY}
-                                            className="grid gap-2 border border-border p-5 sm:px-6"
+                                            className="flex h-full flex-col border border-border p-5 sm:px-6"
                                         >
                                             <span className="font-heading text-[15px] font-semibold text-foreground">
                                                 {plan.name}
@@ -891,17 +896,17 @@ export default function LandingPage() {
                                                     For Business / Agency
                                                 </span>
                                             </span>
-                                            <span className="font-heading text-xl font-semibold text-foreground">
+                                            <span className="mt-2 font-heading text-xl font-semibold text-foreground">
                                                 Custom
                                             </span>
-                                            <span className="text-sm leading-relaxed text-muted-foreground">
+                                            <span className="mt-2 text-sm leading-relaxed text-muted-foreground">
                                                 More accounts, custom limits and priority
                                                 support — tell us what you run and we will
                                                 put a number on it. Creator Studio included.
                                             </span>
                                             <a
                                                 href={CONTACT_HREF}
-                                                className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+                                                className="mt-auto inline-flex items-center gap-1.5 pt-4 text-sm font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
                                             >
                                                 Contact us
                                                 <ArrowRight className="h-3.5 w-3.5" />
@@ -909,28 +914,41 @@ export default function LandingPage() {
                                         </motion.div>
                                     </Reveal>
                                 ) : (
-                                    <Reveal key={plan.id} delay={i * 0.05}>
+                                    <Reveal key={plan.id} delay={i * 0.05} className="h-full">
                                         <motion.a
                                             href="/pricing"
                                             whileHover={LIFT_HOVER}
                                             transition={SPRING_SNAPPY}
-                                            className="grid gap-2 border border-border p-5 sm:px-6 transition-colors hover:bg-muted/40"
+                                            className={`flex h-full flex-col p-5 transition-colors hover:bg-muted/40 sm:px-6 ${
+                                                plan.id === "creator-pro"
+                                                    ? "border-2 border-primary"
+                                                    : "border border-border"
+                                            }`}
                                         >
+                                            {plan.id === "creator-pro" && (
+                                                <span className="-mx-5 -mt-5 mb-4 bg-primary px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-foreground sm:-mx-6">
+                                                    Best value
+                                                </span>
+                                            )}
                                             <span className="flex items-center gap-2.5 font-heading text-[15px] font-semibold text-foreground">
                                                 {plan.name}
                                             </span>
-                                            <span className="font-heading text-xl font-semibold text-foreground">
+                                            <span className="mt-2 font-heading text-xl font-semibold text-foreground">
                                                 {inrPrice(plan.prices.INR.monthlyMinor)}
                                                 <span className="text-[13px] font-normal text-muted-foreground"> / mo</span>
                                             </span>
-                                            <span className="text-sm leading-relaxed text-muted-foreground">
-                                                {plan.limits.instagramAccounts} Instagram account
-                                                {plan.limits.instagramAccounts === 1 ? "" : "s"} ·{" "}
-                                                {plan.limits.activeAutomations} active automations ·{" "}
-                                                {plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month ·{" "}
-                                                Creator Studio included
+                                            <span className="mt-3 flex flex-col gap-1 text-sm leading-relaxed text-muted-foreground">
+                                                <span>
+                                                    {plan.limits.instagramAccounts} Instagram account
+                                                    {plan.limits.instagramAccounts === 1 ? "" : "s"}
+                                                </span>
+                                                <span>{plan.limits.activeAutomations} active automations</span>
+                                                <span>{plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</span>
+                                                <span>Creator Studio included</span>
                                             </span>
-                                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                            <span className="mt-auto pt-4">
+                                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                            </span>
                                         </motion.a>
                                     </Reveal>
                                 ),
