@@ -35,7 +35,7 @@ export default function BillingPrototypePage() {
       <div>
         <h1 className="font-heading text-2xl font-semibold">Billing (prototype)</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Current plan: <strong>{resolved.plan.proposedName}</strong> ({resolved.resolution}) ·
+          Current plan: <strong>{resolved.plan.name}</strong> ({resolved.resolution}) ·
           Retention {resolved.dataRetentionDays} days · Support {resolved.supportLevel} ·
           Entitlements {saas.entitlementsEnforced ? "ENFORCED" : "log-only (not enforced)"}
         </p>

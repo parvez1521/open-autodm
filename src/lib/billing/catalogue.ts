@@ -1,27 +1,34 @@
 /**
- * DRAFT pricing catalogue — Phase 11 (2026-11-06).
+ * Pricing catalogue — OWNER-APPROVED 2026-11-08 (design pass round 5).
  *
- * STATUS: draft-unapproved. Nothing in this file is an approved price, an
- * approved limit, or an approved trial policy. Every number here is a
- * configurable proposal for owner review (see
- * saas/phase11-pricing-and-packaging.md and
- * saas/phase11-market-and-competitor-research.md). No code may charge a
- * customer from this catalogue until the owner approves exact prices,
- * limits, trial policy, provider, tax treatment and refund policy, and
- * until BILLING_ENABLED / PAYMENTS_LIVE_MODE are deliberately turned on
- * (they default OFF — see the programme checkpoint).
+ * STATUS: approved. The owner set the prices, the account counts, the
+ * Enterprise shape and the trial policy himself on 2026-11-08:
+ *   Free ₹0 · Starter ₹299/mo (1 Instagram account) · Growth ₹500/mo
+ *   (3 accounts) · Pro ₹799/mo (5 accounts) · Enterprise — custom
+ *   pricing for Business / Agency, sold by conversation (Contact Us),
+ *   never by self-serve checkout.
+ * Creator Studio is included on EVERY plan, Free included. Every
+ * self-serve paid plan starts with a 15-day free trial, no card
+ * upfront; at expiry the workspace drops back to Free unless its
+ * owner checks out — nobody is ever silently charged.
+ *
+ * Price approval is NOT billing go-live: BILLING_ENABLED /
+ * PAYMENTS_LIVE_MODE still default OFF and no payment-provider keys
+ * are configured, so no code can charge a customer from this
+ * catalogue until the owner deliberately flips those at go-live
+ * (tax treatment and refund policy are recorded at that step).
  *
  * Money rule: every price is an INTEGER in the currency's minor unit —
  * paise for INR (₹1 = 100), cents for USD ($1 = 100). Floats are never
  * used for money anywhere in billing.
  */
 
-export const CATALOGUE_STATUS = 'draft-unapproved' as const;
+export const CATALOGUE_STATUS = 'approved' as const;
 export type CatalogueStatus = typeof CATALOGUE_STATUS;
 
 export type CurrencyCode = 'INR' | 'USD';
 export type BillingPeriod = 'monthly' | 'annual';
-export type PlanId = 'free' | 'starter' | 'creator-pro' | 'agency';
+export type PlanId = 'free' | 'starter' | 'creator-pro' | 'agency' | 'enterprise';
 
 /** Prices for one currency. All fields are integer minor units. */
 export interface PlanPrice {
@@ -55,29 +62,36 @@ export interface PlanLimits {
   scriptWriterGenerationsPerMonth: number;
   /**
    * Follow-up messages per month (Phase 13 entitlement dimension).
-   * Draft values mirror the DM allowance shape: follow-ups are a subset
-   * of outbound messaging, capped separately so a workspace cannot spend
-   * its whole DM budget on follow-up nudges. DRAFT — owner approval pending.
+   * Follow-ups are a subset of outbound messaging, capped separately
+   * so a workspace cannot spend its whole DM budget on follow-up
+   * nudges.
    */
   followUpsPerMonth: number;
 }
 
-/** Support tier for a plan (Phase 13 entitlement dimension). DRAFT. */
+/** Support tier for a plan (Phase 13 entitlement dimension). */
 export type SupportLevel = 'community' | 'email' | 'priority-email' | 'dedicated';
 
 export interface Plan {
   id: PlanId;
-  /** Proposed display name — NOT approved. */
-  proposedName: string;
+  /** Display name (owner-approved 2026-11-08). */
+  name: string;
   status: CatalogueStatus;
+  /**
+   * True only for Enterprise: pricing is custom and sales-led, so the
+   * plan carries NO price figure anywhere and can never be bought
+   * through self-serve checkout (its stored prices stay zero and the
+   * checkout route refuses zero-amount plans).
+   */
+  customPricing?: boolean;
   /** Both currencies are present for every plan, paid or free. */
   prices: Record<CurrencyCode, PlanPrice>;
   limits: PlanLimits;
-  /** Data-retention tier in days (Phase 13). DRAFT — owner approval pending. */
+  /** Data-retention tier in days (Phase 13). */
   dataRetentionDays: number;
-  /** Support tier (Phase 13). DRAFT — owner approval pending. */
+  /** Support tier (Phase 13). */
   supportLevel: SupportLevel;
-  /** Human-readable capability notes for the pricing page draft. */
+  /** Human-readable capability notes for the pricing surfaces. */
   capabilityNotes: string[];
 }
 
@@ -90,7 +104,7 @@ const zeroPrice: PlanPrice = {
 export const PLANS: readonly Plan[] = [
   {
     id: 'free',
-    proposedName: 'Free',
+    name: 'Free',
     status: CATALOGUE_STATUS,
     prices: {
       INR: { ...zeroPrice },
@@ -112,17 +126,18 @@ export const PLANS: readonly Plan[] = [
     capabilityNotes: [
       'Comment-to-DM, story-reply and keyword-DM automations',
       'Recipient opt-out handling, comment moderation basics, webhook safety and data-deletion compliance are included and unrestricted (see phase11-pricing-and-packaging.md §Safety floor)',
+      'Creator Studio included — niche research, ideas, scripts, voiceover, SEO and projects',
     ],
   },
   {
     id: 'starter',
-    proposedName: 'Starter',
+    name: 'Starter',
     status: CATALOGUE_STATUS,
     prices: {
-      // ₹499/mo monthly; ₹399/mo billed annually (₹4,788/yr) — DRAFT
-      INR: { monthlyMinor: 49900, annualMonthlyMinor: 39900, annualTotalMinor: 478800 },
-      // $9/mo monthly; $7/mo billed annually ($84/yr) — DRAFT
-      USD: { monthlyMinor: 900, annualMonthlyMinor: 700, annualTotalMinor: 8400 },
+      // ₹299/mo monthly; ₹239/mo billed annually (₹2,868/yr) — owner-approved 2026-11-08
+      INR: { monthlyMinor: 29900, annualMonthlyMinor: 23900, annualTotalMinor: 286800 },
+      // $5/mo monthly; $4/mo billed annually ($48/yr) — USD figures set alongside (round 5)
+      USD: { monthlyMinor: 500, annualMonthlyMinor: 400, annualTotalMinor: 4800 },
     },
     limits: {
       workspaces: 1,
@@ -140,17 +155,18 @@ export const PLANS: readonly Plan[] = [
     capabilityNotes: [
       'Everything in Free, with higher DM/contact allowances',
       'Public comment replies and follow-up messages',
+      'Creator Studio included',
     ],
   },
   {
     id: 'creator-pro',
-    proposedName: 'Creator Pro',
+    name: 'Growth',
     status: CATALOGUE_STATUS,
     prices: {
-      // ₹999/mo monthly; ₹799/mo billed annually (₹9,588/yr) — DRAFT
-      INR: { monthlyMinor: 99900, annualMonthlyMinor: 79900, annualTotalMinor: 958800 },
-      // $19/mo monthly; $15/mo billed annually ($180/yr) — DRAFT
-      USD: { monthlyMinor: 1900, annualMonthlyMinor: 1500, annualTotalMinor: 18000 },
+      // ₹500/mo monthly; ₹400/mo billed annually (₹4,800/yr) — owner-approved 2026-11-08
+      INR: { monthlyMinor: 50000, annualMonthlyMinor: 40000, annualTotalMinor: 480000 },
+      // $9/mo monthly; $7/mo billed annually ($84/yr)
+      USD: { monthlyMinor: 900, annualMonthlyMinor: 700, annualTotalMinor: 8400 },
     },
     limits: {
       workspaces: 3,
@@ -168,22 +184,23 @@ export const PLANS: readonly Plan[] = [
     capabilityNotes: [
       'Everything in Starter, for creators running several accounts',
       'Flow-graph automations, Traffic Guard, analytics',
+      'Creator Studio included',
     ],
   },
   {
     id: 'agency',
-    proposedName: 'Agency',
+    name: 'Pro',
     status: CATALOGUE_STATUS,
     prices: {
-      // ₹2,999/mo monthly; ₹2,399/mo billed annually (₹28,788/yr) — DRAFT
-      INR: { monthlyMinor: 299900, annualMonthlyMinor: 239900, annualTotalMinor: 2878800 },
-      // $59/mo monthly; $47/mo billed annually ($564/yr) — DRAFT
-      USD: { monthlyMinor: 5900, annualMonthlyMinor: 4700, annualTotalMinor: 56400 },
+      // ₹799/mo monthly; ₹639/mo billed annually (₹7,668/yr) — owner-approved 2026-11-08
+      INR: { monthlyMinor: 79900, annualMonthlyMinor: 63900, annualTotalMinor: 766800 },
+      // $15/mo monthly; $12/mo billed annually ($144/yr)
+      USD: { monthlyMinor: 1500, annualMonthlyMinor: 1200, annualTotalMinor: 14400 },
     },
     limits: {
-      workspaces: 10,
-      instagramAccounts: 10,
-      teamSeats: 10,
+      workspaces: 5,
+      instagramAccounts: 5,
+      teamSeats: 5,
       activeAutomations: 200,
       dmsPerMonth: 50000,
       contactsPerMonth: 50000,
@@ -192,10 +209,44 @@ export const PLANS: readonly Plan[] = [
       followUpsPerMonth: 10000,
     },
     dataRetentionDays: 730,
+    supportLevel: 'priority-email',
+    capabilityNotes: [
+      'Everything in Growth, with room for five accounts',
+      'Workspace-level subscription, member roles (owner/admin/member)',
+      'Creator Studio included',
+    ],
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise',
+    status: CATALOGUE_STATUS,
+    // Custom pricing (owner instruction, 2026-11-08): positioned
+    // "For Business / Agency" with a Contact Us action instead of a
+    // price. Prices stay zero so no surface can render a figure and
+    // checkout refuses the plan.
+    customPricing: true,
+    prices: {
+      INR: { ...zeroPrice },
+      USD: { ...zeroPrice },
+    },
+    limits: {
+      workspaces: 25,
+      instagramAccounts: 25,
+      teamSeats: 25,
+      activeAutomations: 500,
+      dmsPerMonth: 200000,
+      contactsPerMonth: 200000,
+      aiDraftingGenerationsPerMonth: 5000,
+      scriptWriterGenerationsPerMonth: 2500,
+      followUpsPerMonth: 25000,
+    },
+    dataRetentionDays: 730,
     supportLevel: 'dedicated',
     capabilityNotes: [
-      'Everything in Creator Pro, structured as client workspaces',
-      'Workspace-level subscription, member roles (owner/admin/member) — requires the Phase 11 multi-tenant build, not yet implemented',
+      'For Business / Agency — many accounts under one roof, structured as client workspaces',
+      'Custom limits — accounts, seats and volumes agreed with you',
+      'Priority support',
+      'Creator Studio included',
     ],
   },
 ] as const;
@@ -210,10 +261,17 @@ export function isPaidPlan(plan: Plan): boolean {
   return plan.id !== 'free';
 }
 
-// ── Trial options as DATA, not decisions ────────────────────────────────────
-// No trial option is selected. This list exists so a later owner decision
-// can be expressed as a configuration choice. See
-// saas/phase11-trial-policy-comparison.md for the comparison.
+/** Self-serve paid plans: buyable through checkout once billing is live. */
+export function isSelfServePaidPlan(plan: Plan): boolean {
+  return isPaidPlan(plan) && !plan.customPricing;
+}
+
+// ── Trial policy — owner-decided 2026-11-08 ─────────────────────────────
+// Every self-serve paid plan starts with a 15-day free trial. No card
+// is taken upfront (the signup flow captures no payment details); at
+// expiry the workspace drops back to Free unless its owner checks
+// out. The option list stays as data so the policy remains a
+// configuration choice; the selected option is the owner's decision.
 
 export type TrialCardModel =
   | 'card-upfront'
@@ -226,7 +284,7 @@ export type TrialExpiryBehaviour =
 
 export interface TrialOption {
   id: string;
-  days: 7 | 14 | 30;
+  days: 7 | 14 | 15 | 30;
   cardModel: TrialCardModel;
   expiryBehaviour: TrialExpiryBehaviour;
   status: CatalogueStatus;
@@ -260,10 +318,21 @@ export const TRIAL_OPTIONS: readonly TrialOption[] = [
   trialOption(14, 'card-upfront', 'payment-authorization-required'),
   trialOption(14, 'no-card-then-checkout', 'auto-downgrade-to-free'),
   trialOption(14, 'authorized-mandate', 'payment-authorization-required'),
+  trialOption(15, 'card-upfront', 'payment-authorization-required'),
+  trialOption(15, 'no-card-then-checkout', 'auto-downgrade-to-free'),
+  trialOption(15, 'authorized-mandate', 'payment-authorization-required'),
   trialOption(30, 'card-upfront', 'payment-authorization-required'),
   trialOption(30, 'no-card-then-checkout', 'auto-downgrade-to-free'),
   trialOption(30, 'authorized-mandate', 'payment-authorization-required'),
 ] as const;
 
-/** No trial is selected in this draft catalogue. */
-export const SELECTED_TRIAL_OPTION_ID: string | null = null;
+/** Selected by the owner on 2026-11-08: 15 days, no card, downgrade to Free. */
+export const SELECTED_TRIAL_OPTION_ID: string | null =
+  '15d-no-card-then-checkout-auto-downgrade-to-free';
+
+export const SELECTED_TRIAL_OPTION: TrialOption | undefined = TRIAL_OPTIONS.find(
+  (o) => o.id === SELECTED_TRIAL_OPTION_ID,
+);
+
+/** Trial length in days for every self-serve paid plan (owner-set: 15). */
+export const TRIAL_DAYS: number = SELECTED_TRIAL_OPTION?.days ?? 0;

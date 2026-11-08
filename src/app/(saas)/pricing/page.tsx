@@ -1,14 +1,44 @@
-import { PLANS, CATALOGUE_STATUS, type CurrencyCode, type Plan } from "@/lib/billing/catalogue";
+"use client";
 
 /**
- * Phase 13 prototype — pricing page rendering the DRAFT catalogue.
- * Prices are proposals only (catalogue status: draft-unapproved) and are
- * labelled as such in the UI. Nothing here can charge anyone:
- * BILLING_ENABLED / PAYMENTS_LIVE_MODE default OFF.
+ * Pricing page rendering the billing catalogue.
  *
- * Layout: banded comparison rows with hairline rules, one row per plan,
- * instead of a tier-card grid.
+ * Prices are OWNER-APPROVED (2026-11-08, design pass round 5):
+ * Free ₹0 · Starter ₹299/mo (1 account) · Growth ₹500/mo (3) ·
+ * Pro ₹799/mo (5) · Enterprise custom — "For Business / Agency",
+ * Contact Us instead of a price. Creator Studio is included on
+ * every plan; self-serve paid plans start with a 15-day free
+ * trial, no card needed. Nothing here can charge anyone yet:
+ * checkout is being switched on (BILLING_ENABLED /
+ * PAYMENTS_LIVE_MODE default OFF, no provider keys configured),
+ * and the copy says so.
+ *
+ * Layout: banded comparison rows with a monthly/annual toggle,
+ * plus a limit-by-limit comparison table — no tier-card grid.
+ * All figures come from lib/billing/catalogue.
+ *
+ * Single-file on purpose: the customer-journey render harness
+ * esbuild-transforms the page file itself and loads its imports
+ * through vite without a JSX transform, so a statically imported
+ * JSX subcomponent cannot be parsed there. The toggle state lives
+ * in this client page instead.
  */
+
+import { useState } from "react";
+import {
+  PLANS,
+  CATALOGUE_STATUS,
+  TRIAL_DAYS,
+  isSelfServePaidPlan,
+  type BillingPeriod,
+  type CurrencyCode,
+  type Plan,
+  type SupportLevel,
+} from "@/lib/billing/catalogue";
+
+/** The contact address the legal pages already publish. */
+const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
+
 function formatMinor(minor: number, currency: CurrencyCode): string {
   if (minor === 0) return currency === "INR" ? "₹0" : "$0";
   const major = minor / 100;
@@ -17,35 +47,111 @@ function formatMinor(minor: number, currency: CurrencyCode): string {
     : `$${major.toLocaleString("en-US")}`;
 }
 
-function PlanRow({ plan }: { plan: Plan }) {
+const SUPPORT_LABELS: Record<SupportLevel, string> = {
+  community: "Community",
+  email: "Email",
+  "priority-email": "Priority email",
+  dedicated: "Dedicated",
+};
+
+/** Numeric dimensions render "Custom" for the custom-priced plan. */
+function orCustom(plan: Plan, value: string): string {
+  return plan.customPricing ? "Custom" : value;
+}
+
+const DIMENSIONS: { label: string; value: (plan: Plan) => string }[] = [
+  { label: "Workspaces", value: (p) => orCustom(p, String(p.limits.workspaces)) },
+  { label: "Instagram accounts", value: (p) => orCustom(p, String(p.limits.instagramAccounts)) },
+  { label: "Team seats", value: (p) => orCustom(p, String(p.limits.teamSeats)) },
+  { label: "Active automations", value: (p) => orCustom(p, String(p.limits.activeAutomations)) },
+  { label: "DMs / month", value: (p) => orCustom(p, p.limits.dmsPerMonth.toLocaleString("en-IN")) },
+  { label: "Audience contacts / month", value: (p) => orCustom(p, p.limits.contactsPerMonth.toLocaleString("en-IN")) },
+  { label: "AI drafting generations / month", value: (p) => orCustom(p, p.limits.aiDraftingGenerationsPerMonth.toLocaleString("en-IN")) },
+  { label: "Script Writer generations / month", value: (p) => orCustom(p, p.limits.scriptWriterGenerationsPerMonth.toLocaleString("en-IN")) },
+  { label: "Follow-up messages / month", value: (p) => orCustom(p, p.limits.followUpsPerMonth.toLocaleString("en-IN")) },
+  { label: "Data retention", value: (p) => orCustom(p, `${p.dataRetentionDays} days`) },
+  { label: "Support", value: (p) => SUPPORT_LABELS[p.supportLevel] },
+  {
+    label: "Free trial",
+    value: (p) => (p.customPricing ? "Talk to us" : isSelfServePaidPlan(p) ? `${TRIAL_DAYS} days, no card needed` : "—"),
+  },
+  { label: "Creator Studio", value: () => "Included" },
+];
+
+function PlanRow({ plan, period }: { plan: Plan; period: BillingPeriod }) {
+  const inr = plan.prices.INR;
+  const usd = plan.prices.USD;
+  const inrFigure = period === "monthly" ? inr.monthlyMinor : inr.annualMonthlyMinor;
+  const usdFigure = period === "monthly" ? usd.monthlyMinor : usd.annualMonthlyMinor;
+
+  if (plan.customPricing) {
+    // Enterprise (owner instruction, 2026-11-08): positioned
+    // "For Business / Agency", Contact Us instead of any price,
+    // figure or checkout action.
+    return (
+      <div
+        className="grid gap-5 border-b border-border py-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12"
+        data-testid={`plan-${plan.id}`}
+      >
+        <div>
+          <h2 className="font-heading text-base font-semibold">{plan.name}</h2>
+          <p className="mt-3 font-heading text-3xl font-semibold">Custom pricing</p>
+          <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+            For Business / Agency. Tell us how many accounts you run and we
+            will put a number on it — no checkout, no card.
+          </p>
+          <a
+            href={CONTACT_HREF}
+            className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+          >
+            Contact us
+          </a>
+        </div>
+        <div>
+          <ul className="space-y-1 text-[13px]">
+            {plan.capabilityNotes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[13px] text-muted-foreground">
+            Accounts, seats and volumes are agreed with you — custom limits,
+            priority support.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="grid gap-5 border-b border-border py-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12"
       data-testid={`plan-${plan.id}`}
     >
       <div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h2 className="font-heading text-base font-semibold">{plan.proposedName}</h2>
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-            DRAFT, unapproved
-          </span>
-        </div>
-        <p className="mt-3 text-2xl font-semibold">
-          {formatMinor(plan.prices.INR.monthlyMinor, "INR")}
+        <h2 className="font-heading text-base font-semibold">{plan.name}</h2>
+        <p className="mt-3 font-heading text-3xl font-semibold">
+          {formatMinor(inrFigure, "INR")}
           <span className="text-sm font-normal text-muted-foreground"> / mo · </span>
-          {formatMinor(plan.prices.USD.monthlyMinor, "USD")}
+          {formatMinor(usdFigure, "USD")}
           <span className="text-sm font-normal text-muted-foreground"> / mo</span>
         </p>
-        <p className="text-[12px] text-muted-foreground">
-          Annual: {formatMinor(plan.prices.INR.annualMonthlyMinor, "INR")} / {formatMinor(plan.prices.USD.annualMonthlyMinor, "USD")} per month, billed yearly, draft figures.
+        <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+          {period === "monthly"
+            ? `Annual billing: ${formatMinor(inr.annualMonthlyMinor, "INR")} / ${formatMinor(usd.annualMonthlyMinor, "USD")} per month, billed yearly.`
+            : `Billed yearly: ${formatMinor(inr.annualTotalMinor, "INR")} / ${formatMinor(usd.annualTotalMinor, "USD")} per year.`}
         </p>
+        {isSelfServePaidPlan(plan) && (
+          <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground">
+            Starts with a {TRIAL_DAYS}-day free trial — no card needed.
+          </p>
+        )}
       </div>
       <div className="grid gap-x-10 gap-y-4 sm:grid-cols-2">
         <ul className="space-y-1 text-[13px] text-muted-foreground">
           <li>{plan.limits.instagramAccounts} Instagram account(s) · {plan.limits.teamSeats} seat(s)</li>
-          <li>{plan.limits.activeAutomations} active automations · {plan.limits.dmsPerMonth.toLocaleString()} DMs / month</li>
+          <li>{plan.limits.activeAutomations} active automations · {plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</li>
           <li>{plan.limits.aiDraftingGenerationsPerMonth} AI drafting generations / month</li>
-          <li>Data retention: {plan.dataRetentionDays} days · Support: {plan.supportLevel}</li>
+          <li>Data retention: {plan.dataRetentionDays} days · Support: {SUPPORT_LABELS[plan.supportLevel]}</li>
         </ul>
         <ul className="space-y-1 text-[13px]">
           {plan.capabilityNotes.map((note) => (
@@ -58,25 +164,98 @@ function PlanRow({ plan }: { plan: Plan }) {
 }
 
 export default function PricingPrototypePage() {
+  const [period, setPeriod] = useState<BillingPeriod>("monthly");
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-heading text-2xl font-semibold">Pricing (prototype)</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Catalogue status: <strong>{CATALOGUE_STATUS}</strong>. Every price and limit below is a
-          draft proposal awaiting owner approval, no plan can be purchased and no payment is taken
-          on this page.
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Catalogue status: <strong>{CATALOGUE_STATUS}</strong> — these prices were set by the
+          owner on 2026-11-08. Checkout is being switched on, so no plan can be purchased and no
+          payment is taken on this page yet. The hosted service itself is in preparation —
+          self-hosting the open-source release stays free.
         </p>
       </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2" role="group" aria-label="Billing period">
+          <button
+            type="button"
+            aria-pressed={period === "monthly"}
+            onClick={() => setPeriod("monthly")}
+            className={
+              period === "monthly"
+                ? "h-9 rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                : "h-9 rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            }
+          >
+            Monthly
+          </button>
+          <button
+            type="button"
+            aria-pressed={period === "annual"}
+            onClick={() => setPeriod("annual")}
+            className={
+              period === "annual"
+                ? "h-9 rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                : "h-9 rounded-lg border border-border px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            }
+          >
+            Annual
+          </button>
+        </div>
+        <p className="text-[13px] text-muted-foreground">
+          Annual billing runs about 20% lower on every paid tier. Every paid plan starts with a{" "}
+          {TRIAL_DAYS}-day free trial — no card needed.
+        </p>
+      </div>
+
       <div className="border-t border-border">
         {PLANS.map((plan) => (
-          <PlanRow key={plan.id} plan={plan} />
+          <PlanRow key={plan.id} plan={plan} period={period} />
         ))}
       </div>
-      <p className="text-[12px] text-muted-foreground">
-        Safety and compliance features, recipient opt-outs, data deletion, webhook verification,
-        comment moderation, are included on every tier including Free and are never metered.
-      </p>
+
+      <div className="overflow-x-auto">
+        <p className="micro-label">Compare every limit</p>
+        <table className="mt-4 w-full min-w-[620px] border-collapse text-left text-[13px]">
+          <thead>
+            <tr className="border-b border-border">
+              <th scope="col" className="py-3 pr-4 font-medium text-muted-foreground">
+                Included
+              </th>
+              {PLANS.map((plan) => (
+                <th key={plan.id} scope="col" className="py-3 pr-4 font-heading text-sm font-semibold">
+                  {plan.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {DIMENSIONS.map((dim) => (
+              <tr key={dim.label} className="border-b border-border">
+                <th scope="row" className="py-3 pr-4 font-normal text-muted-foreground">
+                  {dim.label}
+                </th>
+                {PLANS.map((plan) => (
+                  <td key={plan.id} className="py-3 pr-4">
+                    {dim.value(plan)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="border-t border-border pt-6">
+        <p className="micro-label">On every plan, including Free</p>
+        <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+          Creator Studio, safety and compliance features, recipient opt-outs, data deletion,
+          webhook verification, comment moderation, are included on every tier including Free and
+          are never metered.
+        </p>
+      </div>
     </div>
   );
 }

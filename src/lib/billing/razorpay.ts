@@ -6,8 +6,8 @@
  * (b) put real keys in the environment, and (c) the billing flags are
  * deliberately turned on (see ./flags.ts — BILLING_ENABLED and
  * PAYMENTS_LIVE_MODE both default OFF). Prices come from ./catalogue.ts,
- * which is draft-unapproved: no charge may be taken from it until the
- * owner approves exact prices.
+ * owner-approved on 2026-11-08; the flags and keys above are still
+ * required before any charge may be taken.
  *
  * What lives here:
  *  - readRazorpayConfig: env-only configuration. Importing this module

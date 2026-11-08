@@ -130,6 +130,33 @@
   }
 }
 
+/* ── Keyword ticker (landing, design pass round 4, 2026-11-08) ─────
+   The owner asked for continuous motion on the homepage. The ticker
+   is a slow, linear marquee of real automation moments (keyword ->
+   outcome, plus the shipped safety facts). It is pure CSS: the track
+   is two copies of one list translating -50%, so the loop is
+   seamless. No hover states, no transforms on any control. Under
+   prefers-reduced-motion the track is static and the first copy
+   simply reads as a spec strip. */
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-track {
+  animation: ticker-scroll 42s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}
+
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;

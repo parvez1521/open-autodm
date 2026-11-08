@@ -104,13 +104,22 @@ describe('prototype pages under default flags (all OFF)', () => {
     expect(html).toContain('billing-inert');
     expect(html).toContain('Billing is not enabled');
   });
-  it('pricing page renders every catalogue plan labelled DRAFT', async () => {
+  it('pricing page renders every catalogue plan at the owner-approved prices', async () => {
     const html = await renderPage('src/app/(saas)/pricing/page.tsx');
-    for (const id of ['free', 'starter', 'creator-pro', 'agency']) {
+    for (const id of ['free', 'starter', 'creator-pro', 'agency', 'enterprise']) {
       expect(html).toContain(`plan-${id}`);
     }
-    expect(html).toContain('DRAFT');
-    expect(html).toContain('draft-unapproved');
+    // Round 5 (2026-11-08): the owner approved the prices, so the
+    // DRAFT labelling is gone; Enterprise renders custom + Contact
+    // Us instead of a figure, and the trial offer is on the page.
+    expect(html).not.toContain('DRAFT');
+    expect(html).not.toContain('draft-unapproved');
+    expect(html).toContain('approved');
+    expect(html).toContain('₹299');
+    expect(html).toContain('Custom pricing');
+    expect(html).toContain('For Business / Agency');
+    expect(html).toContain('Contact us');
+    expect(html).toContain('15-day free trial');
   });
   it('onboarding page renders the checklist in journey order', async () => {
     const html = await renderPage('src/app/(saas)/onboarding/page.tsx');

@@ -321,8 +321,24 @@ export function PipelineShowcase() {
                 )}
             </div>
 
-            {/* Step rail */}
-            <div className="grid grid-cols-2 border-b border-border lg:grid-cols-4">
+            {/* Step rail — round 5 (2026-11-08): while the loop plays,
+                a packet travels the rail's top edge across all four
+                stages, so the comment's journey reads at a glance. */}
+            <div className="relative grid grid-cols-2 border-b border-border lg:grid-cols-4">
+                {playing && (
+                    <motion.span
+                        aria-hidden
+                        className="pointer-events-none absolute -top-[3px] z-10 h-[5px] w-[5px] rounded-full"
+                        style={{ background: IG_GRADIENT }}
+                        initial={{ left: "1%" }}
+                        animate={{ left: "99%" }}
+                        transition={{
+                            duration: STEP_MS.reduce((a, b) => a + b, 0) / 1000,
+                            ease: "linear",
+                            repeat: Infinity,
+                        }}
+                    />
+                )}
                 {STEPS.map((s, i) => {
                     const isActive = i === step;
                     const isDone = i < step;

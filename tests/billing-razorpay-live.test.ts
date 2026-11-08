@@ -240,9 +240,9 @@ describe('POST /api/billing/checkout — configured', () => {
     });
   }
 
-  it('creates an order at the catalogue monthly price for starter/INR (₹499 = 49900)', async () => {
+  it('creates an order at the catalogue monthly price for starter/INR (₹299 = 29900, owner-approved 2026-11-08)', async () => {
     setEnv(fullEnv);
-    stubOrderFetch(49900, 'INR');
+    stubOrderFetch(29900, 'INR');
     const res = await POST(checkoutRequest({ planId: 'starter', currency: 'INR', period: 'monthly' }));
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -251,34 +251,42 @@ describe('POST /api/billing/checkout — configured', () => {
     };
     expect(body.ok).toBe(true);
     expect(body.order.id).toBe('order_stubbed1');
-    expect(body.order.amount).toBe(49900);
+    expect(body.order.amount).toBe(29900);
     expect(body.order.currency).toBe('INR');
     expect(body.keyId).toBe(SYNTH_KEY_ID);
     expect(JSON.stringify(body)).not.toContain(SYNTH_KEY_SECRET);
   });
 
-  it('uses the annual total for annual billing (starter INR ₹4,788 = 478800)', async () => {
+  it('uses the annual total for annual billing (starter INR ₹2,868 = 286800)', async () => {
     setEnv(fullEnv);
-    stubOrderFetch(478800, 'INR');
+    stubOrderFetch(286800, 'INR');
     const res = await POST(checkoutRequest({ planId: 'starter', currency: 'INR', period: 'annual' }));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { order: { amount: number } };
-    expect(body.order.amount).toBe(478800);
+    expect(body.order.amount).toBe(286800);
   });
 
   it('defaults to INR monthly when currency/period are omitted', async () => {
     setEnv(fullEnv);
-    stubOrderFetch(99900, 'INR');
+    stubOrderFetch(50000, 'INR');
     const res = await POST(checkoutRequest({ planId: 'creator-pro' }));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { order: { amount: number; currency: string } };
-    expect(body.order.amount).toBe(99900);
+    expect(body.order.amount).toBe(50000);
     expect(body.order.currency).toBe('INR');
   });
 
   it('rejects the free plan as not purchasable', async () => {
     setEnv(fullEnv);
     const res = await POST(checkoutRequest({ planId: 'free' }));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { ok: boolean; code: string };
+    expect(body).toMatchObject({ ok: false, code: 'PLAN_NOT_PURCHASABLE' });
+  });
+
+  it('rejects Enterprise as not purchasable — custom pricing is sold by conversation (owner instruction, 2026-11-08)', async () => {
+    setEnv(fullEnv);
+    const res = await POST(checkoutRequest({ planId: 'enterprise' }));
     expect(res.status).toBe(400);
     const body = (await res.json()) as { ok: boolean; code: string };
     expect(body).toMatchObject({ ok: false, code: 'PLAN_NOT_PURCHASABLE' });

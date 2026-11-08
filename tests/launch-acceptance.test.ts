@@ -142,9 +142,11 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     expect(customers[0]!.workspaceId).toBe('ws-new-1');
     expect(customers[0]!.subscriptionStatus).toBeNull(); // no subscription yet — signup alone grants nothing paid
 
-    // No silent auto-charge, ever: no trial option is selected and
-    // every option forbids silent charging.
-    expect(SELECTED_TRIAL_OPTION_ID).toBeNull();
+    // No silent auto-charge, ever: the owner selected the 15-day
+    // no-card trial on 2026-11-08 (superseding the draft state where
+    // no option was selected), and every option still forbids
+    // silent charging.
+    expect(SELECTED_TRIAL_OPTION_ID).toBe('15d-no-card-then-checkout-auto-downgrade-to-free');
     for (const o of TRIAL_OPTIONS) expect(o.silentAutoChargeAllowed).toBe(false);
     // A fresh workspace with no subscription resolves to Free.
     expect(resolveEntitlement(null).plan.id).toBe('free');
@@ -227,7 +229,7 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
       workspaceId: 'ws-buy', providerCustomerId: customer.providerCustomerId, planId: 'starter', currency: 'INR', amountMinor: amount,
     });
     expect(checkout.checkoutUrl).toContain('mock.invalid'); // mock transport — no real payment page
-    expect(checkout.amountMinor).toBe(49900);
+    expect(checkout.amountMinor).toBe(29900); // ₹299 — owner-approved Starter price (2026-11-08; was ₹499 under the draft catalogue)
     expect(checkout.status).toBe('incomplete');
     // Authorization alone grants NOTHING: entitlement waits for the
     // verified webhook (scenario 6). incomplete ⇒ Free.

@@ -26,6 +26,7 @@ import {
   ArrowClockwise,
 } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "framer-motion";
 
 type Stage = 0 | 1 | 2 | 3 | 4; // idle, comment, matched, reply, dm(done)
 
@@ -178,26 +179,46 @@ export function DemoShowcase() {
               </p>
             </div>
 
+            <AnimatePresence>
             {stage >= 1 && (
-              <div className="flex items-start gap-2.5 text-sm">
+              <motion.div
+                key={`comment-${scenarioIdx}`}
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                className="flex items-start gap-2.5 text-sm"
+              >
                 <ChatCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p className="leading-relaxed">
                   <span className="font-medium">@visitor</span> {scenario.comment}{" "}
-                  <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-primary">
+                  <motion.span
+                    animate={stage === 2 ? { scale: [1, 1.22, 1] } : { scale: 1 }}
+                    transition={{ duration: 0.55, ease: "easeInOut" }}
+                    className="ml-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-primary"
+                  >
                     {scenario.keyword}
-                  </span>
+                  </motion.span>
                 </p>
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
 
+            <AnimatePresence>
             {stage >= 3 && (
-              <div className="ml-6 flex items-start gap-2.5 border-l-2 border-primary/40 pl-3 text-sm">
+              <motion.div
+                key={`reply-${scenarioIdx}`}
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                className="ml-6 flex items-start gap-2.5 border-l-2 border-primary/40 pl-3 text-sm"
+              >
                 <p className="leading-relaxed text-muted-foreground">
                   <span className="font-medium text-foreground">@creator</span> Sent you the
                   details in DM — check your inbox
                 </p>
-              </div>
+              </motion.div>
             )}
+            </AnimatePresence>
 
             {stage === 0 && (
               <p className="text-sm text-muted-foreground">
@@ -231,6 +252,16 @@ export function DemoShowcase() {
               );
             })}
           </ol>
+
+          {/* Round 5: the run's progress, as a filling thread under the rail. */}
+          <div className="mt-3 h-[3px] overflow-hidden rounded-full bg-border" aria-hidden="true">
+            <motion.span
+              className="block h-full rounded-full bg-primary"
+              initial={false}
+              animate={{ width: `${(stage / 4) * 100}%` }}
+              transition={{ duration: 0.6, ease: "easeInOut" }}
+            />
+          </div>
         </div>
 
         {/* DM side */}
@@ -238,17 +269,32 @@ export function DemoShowcase() {
           <p className="micro-label">Direct message</p>
           {stage >= 4 ? (
             <div className="mt-4 space-y-3">
-              <div className="max-w-[92%] rounded-xl rounded-tl-sm border border-border bg-background px-3.5 py-3 text-sm leading-relaxed">
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 26 }}
+                className="max-w-[92%] rounded-xl rounded-tl-sm border border-border bg-background px-3.5 py-3 text-sm leading-relaxed"
+              >
                 {scenario.dmBody}
-              </div>
-              <div className="max-w-[92%] rounded-xl rounded-tl-sm border border-border bg-background px-3.5 py-3">
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 26, delay: 0.18 }}
+                className="max-w-[92%] rounded-xl rounded-tl-sm border border-border bg-background px-3.5 py-3"
+              >
                 <p className="text-sm font-medium">{scenario.dmCardTitle}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{scenario.dmCardMeta}</p>
-              </div>
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              </motion.div>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.38 }}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground"
+              >
                 <PaperPlaneTilt className="h-3.5 w-3.5" /> Sent automatically, inside the
                 24-hour window
-              </p>
+              </motion.p>
             </div>
           ) : (
             <div className="mt-4 flex flex-1 items-center">

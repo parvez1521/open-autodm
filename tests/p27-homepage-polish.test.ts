@@ -70,7 +70,11 @@ describe('B-1 — landing footer reaches the legal routes', () => {
 
 describe('B-2/B-3/B-4 — LoginForm semantics', () => {
   it('the landing page has exactly one h1 (the hero); LoginForm contributes none', () => {
-    expect(pageSrc.split('<h1').length - 1).toBe(1);
+    // Round 5 (2026-11-08): the hero h1 is a motion.h1 (owner-ordered
+    // entrance choreography) — still exactly one h1 element.
+    const h1Count =
+      (pageSrc.split('<h1').length - 1) + (pageSrc.split('<motion.h1').length - 1);
+    expect(h1Count).toBe(1);
     expect(loginSrc).not.toContain('<h1');
     expect(loginSrc).toContain('<h2');
     expect(loginSrc).toContain('Welcome back');

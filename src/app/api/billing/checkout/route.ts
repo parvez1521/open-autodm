@@ -11,9 +11,10 @@
  * server-side, via the signed webhook (see lib/billing/razorpay.ts and
  * lib/billing/webhook.ts); this route never marks anything paid.
  *
- * Prices come from the DRAFT catalogue (lib/billing/catalogue.ts),
- * which is unapproved — going live additionally requires the owner's
- * price approval recorded there.
+ * Prices come from the billing catalogue (lib/billing/catalogue.ts),
+ * owner-approved on 2026-11-08. Plans without a self-serve price —
+ * Free, and Enterprise (custom, sales-led) — are refused here with
+ * PLAN_NOT_PURCHASABLE; Enterprise is sold by conversation only.
  *
  * NOTE (pre-live wiring, intentionally not invented here): in
  * production this route must be bound to the caller's authenticated
@@ -36,7 +37,7 @@ export const dynamic = "force-dynamic";
 
 const logger = createLogger("api:billing:checkout");
 
-const PLAN_IDS: readonly PlanId[] = ["free", "starter", "creator-pro", "agency"];
+const PLAN_IDS: readonly PlanId[] = ["free", "starter", "creator-pro", "agency", "enterprise"];
 const CURRENCIES: readonly CurrencyCode[] = ["INR", "USD"];
 const PERIODS: readonly BillingPeriod[] = ["monthly", "annual"];
 
