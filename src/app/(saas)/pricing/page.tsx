@@ -30,7 +30,10 @@
  * visitor keeps the get-started flow; a signed-IN user is routed
  * into the billing flow instead (/billing?plan=… preselects the
  * plan) where trial start and checkout are workspace-bound and
- * owner-gated server-side. Sign-in state is probed client-side
+ * owner-gated server-side. Exception (QA fix, 2026-11-08): the Free
+ * plan's signed-in action is a non-navigating "Current plan"
+ * marker — "Manage billing" promised a billing console that does
+ * not exist while billing is disabled. Sign-in state is probed client-side
  * (GET /api/workspaces: 401 = signed out, anything else = signed
  * in) so static rendering — and the harness — always shows the
  * signed-out variant.
@@ -158,12 +161,26 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
           </p>
         )}
         {signedIn ? (
-          <a
-            href={plan.id === "free" ? "/billing" : `/billing?plan=${plan.id}&period=${period}`}
-            className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-          >
-            {plan.id === "free" ? "Manage billing" : "Start free trial"}
-          </a>
+          plan.id === "free" ? (
+            // QA fix (2026-11-08): the Free row used to offer "Manage
+            // billing" — a promise of a working billing console while
+            // BILLING_ENABLED is off and /billing renders its inert
+            // state. A signed-in user without a paid subscription IS
+            // on Free, so the honest state is a non-action marker.
+            <span
+              aria-disabled="true"
+              className="mt-4 inline-flex h-9 items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground"
+            >
+              Current plan
+            </span>
+          ) : (
+            <a
+              href={`/billing?plan=${plan.id}&period=${period}`}
+              className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+            >
+              Start free trial
+            </a>
+          )
         ) : (
           <a
             href="/get-started"

@@ -27,9 +27,19 @@ interface AutomationsListProps {
     onDelete: (id: string) => void;
     onEdit: (automation: AutomationFromDB) => void;
     deleteError?: string | null;
+    /**
+     * QA fix (2026-11-08): the list query's failure, surfaced by the
+     * page. Before this, the page discarded the query error entirely,
+     * so a failed fetch was indistinguishable from an empty list —
+     * and while the fetch was wedged the loading skeleton below was
+     * the only thing on screen, forever. The empty state now renders
+     * ONLY for a settled, successful, genuinely-empty result.
+     */
+    loadError?: string | null;
+    onRetry?: () => void;
 }
 
-export function AutomationsList({ automations, isLoading, onToggle, onDelete, onEdit, deleteError }: AutomationsListProps) {
+export function AutomationsList({ automations, isLoading, onToggle, onDelete, onEdit, deleteError, loadError, onRetry }: AutomationsListProps) {
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     if (isLoading) {
@@ -38,6 +48,28 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                 {[1, 2, 3].map((i) => (
                     <div key={i} className="h-[72px] rounded-xl bg-muted/40 border border-border animate-pulse" />
                 ))}
+            </div>
+        );
+    }
+
+    if (loadError && automations.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center p-14 text-center border border-destructive/30 rounded-xl" role="alert">
+                <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center mb-4">
+                    <Warning className="w-5 h-5 text-destructive" />
+                </div>
+                <h3 className="text-[15px] font-heading font-semibold mb-1 text-foreground">Couldn&apos;t load your automations</h3>
+                <p className="text-[13px] text-muted-foreground max-w-xs">
+                    {loadError} This is a loading problem, not an empty list — your automations were not changed.
+                </p>
+                {onRetry && (
+                    <button
+                        onClick={onRetry}
+                        className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
+                        Try again
+                    </button>
+                )}
             </div>
         );
     }
@@ -58,6 +90,18 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
 
     return (
         <div className="flex flex-col space-y-2 w-full">
+            {loadError && (
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-destructive/10 text-[13px] text-destructive font-medium" role="alert">
+                    <Warning className="w-3.5 h-3.5 shrink-0" />
+                    Couldn&apos;t refresh the list — showing the last loaded automations.
+                    {onRetry && (
+                        <button onClick={onRetry} className="ml-auto shrink-0 font-semibold underline underline-offset-2 hover:opacity-80">
+                            Retry
+                        </button>
+                    )}
+                </div>
+            )}
+
             {deleteError && (
                 <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-destructive/10 text-[13px] text-destructive font-medium">
                     <Warning className="w-3.5 h-3.5 shrink-0" />

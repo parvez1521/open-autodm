@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise } from "@/components/phosphor";
+import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise, Warning } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
 
@@ -49,7 +49,7 @@ function formatDate(iso: string): string {
 }
 
 export function ContactsList() {
-    const { data: contacts, isLoading, refetch, isFetching } = useContacts();
+    const { data: contacts, isLoading, error: contactsError, refetch, isFetching } = useContacts();
     const [search, setSearch] = useState("");
 
     const filtered = useMemo(() => {
@@ -69,6 +69,30 @@ export function ContactsList() {
                 {[1, 2, 3].map((i) => (
                     <div key={i} className="h-20 rounded-xl bg-muted/30 border border-border/40 animate-pulse" />
                 ))}
+            </div>
+        );
+    }
+
+    // QA fix (2026-11-08): a failed contacts fetch used to render the
+    // "No Contacts Yet" empty state — a settled failure is not an
+    // empty list. It now gets its own retryable error state; the
+    // empty state is reserved for a settled, successful empty result.
+    if (contactsError && !contacts) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 text-center border border-destructive/30 rounded-xl" role="alert">
+                <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center mb-4">
+                    <Warning className="w-5 h-5 text-destructive" />
+                </div>
+                <h3 className="text-[15px] font-heading font-semibold mb-1 text-foreground">Couldn&apos;t load your contacts</h3>
+                <p className="text-[13px] text-muted-foreground max-w-sm">
+                    {contactsError.message} This is a loading problem, not an empty audience — your captured contacts were not changed.
+                </p>
+                <button
+                    onClick={() => void refetch()}
+                    className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                    Try again
+                </button>
             </div>
         );
     }

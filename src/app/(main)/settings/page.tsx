@@ -24,7 +24,11 @@ export default function SettingsPage() {
 function SettingsContent() {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
-    const { data: accounts, isLoading } = useInstagramAccounts();
+    // QA fix (2026-11-08): the accounts query error is consumed, not
+    // discarded — a failed fetch previously rendered the "No accounts
+    // connected yet" empty state (a false claim) and an unsettled
+    // fetch left the two pulse bars up indefinitely.
+    const { data: accounts, isLoading, error: accountsError, refetch: refetchAccounts } = useInstagramAccounts();
     const { data: setup } = useSetupStatus();
 
     const refreshMutation = useRefreshInstagramToken();
@@ -232,6 +236,21 @@ function SettingsContent() {
                             {[1, 2].map((i) => (
                                 <div key={i} className="h-16 rounded-lg bg-muted/50 animate-pulse" />
                             ))}
+                        </div>
+                    ) : accountsError && !accounts ? (
+                        <div className="text-center py-8 text-[13px]" role="alert">
+                            <Warning className="w-6 h-6 mx-auto mb-2 text-destructive/60" />
+                            <p className="font-medium text-foreground">Couldn&apos;t load your Instagram accounts.</p>
+                            <p className="text-muted-foreground mt-1 max-w-md mx-auto">
+                                {accountsError.message} If you have connected an account it is still
+                                connected — this list just failed to load.
+                            </p>
+                            <button
+                                onClick={() => void refetchAccounts()}
+                                className="mt-3 inline-flex h-8 items-center rounded-lg border border-border px-3 text-[13px] font-semibold hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                            >
+                                Try again
+                            </button>
                         </div>
                     ) : accounts && accounts.length > 0 ? (
                         accounts.map((account) => (

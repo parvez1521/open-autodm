@@ -1,10 +1,16 @@
 import Link from "next/link";
+import { SaasNavAccount } from "@/components/saas/SaasNavAccount";
 
 /**
  * Phase 13 — ISOLATED SaaS prototype shell.
  * This route group is a productization prototype only. It is separated
  * from the release's (main) app, changes none of its behaviour, and
  * every capability here is flag-gated OFF by default.
+ *
+ * QA fix (2026-11-08): the last nav slot is session-aware
+ * (SaasNavAccount) — signed-out visitors see the exact "Get started"
+ * link this header always rendered; a signed-in user sees their
+ * email and an "Open app" entry instead.
  */
 export default function SaasPrototypeLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -16,7 +22,7 @@ export default function SaasPrototypeLayout({ children }: { children: React.Reac
           </span>
           <nav className="flex gap-4 text-[13px] text-muted-foreground">
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
-            <Link href="/get-started" className="hover:text-foreground">Get started</Link>
+            <SaasNavAccount />
             <Link href="/onboarding" className="hover:text-foreground">Onboarding</Link>
             <Link href="/billing" className="hover:text-foreground">Billing</Link>
           </nav>

@@ -41,7 +41,11 @@ function AutomationsContent() {
     }, [searchParams]);
 
     const { accountId } = useActiveAccount();
-    const { data: automations, isLoading } = useAutomations(accountId);
+    // QA fix (2026-11-08): the query error is no longer discarded —
+    // AutomationsList renders an honest, retryable error state for it
+    // instead of silently showing the empty state (settled failure)
+    // or an endless skeleton (unsettled fetch).
+    const { data: automations, isLoading, error: automationsError, refetch: refetchAutomations } = useAutomations(accountId);
     const toggleMutation = useToggleAutomation();
     const deleteMutation = useDeleteAutomation();
 
@@ -105,6 +109,8 @@ function AutomationsContent() {
                         onDelete={handleDelete}
                         onEdit={handleEdit}
                         deleteError={deleteMutation.error?.message ?? null}
+                        loadError={automationsError?.message ?? null}
+                        onRetry={() => void refetchAutomations()}
                     />
                 ) : (
                     <ContactsList />
