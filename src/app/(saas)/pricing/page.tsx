@@ -15,6 +15,9 @@
  *
  * Layout: banded comparison rows with a monthly/annual toggle,
  * plus a limit-by-limit comparison table — no tier-card grid.
+ * Round 6 (2026-11-08, owner feedback): each plan row now sits
+ * in its own flat outlined box with vertical gaps, so every
+ * plan reads as an individual unit; copy and figures unchanged.
  * All figures come from lib/billing/catalogue.
  *
  * Single-file on purpose: the customer-journey render harness
@@ -90,7 +93,7 @@ function PlanRow({ plan, period }: { plan: Plan; period: BillingPeriod }) {
     // figure or checkout action.
     return (
       <div
-        className="grid gap-5 border-b border-border py-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12"
+        className="grid gap-5 border border-border p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12 lg:p-7"
         data-testid={`plan-${plan.id}`}
       >
         <div>
@@ -124,7 +127,7 @@ function PlanRow({ plan, period }: { plan: Plan; period: BillingPeriod }) {
 
   return (
     <div
-      className="grid gap-5 border-b border-border py-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12"
+      className="grid gap-5 border border-border p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12 lg:p-7"
       data-testid={`plan-${plan.id}`}
     >
       <div>
@@ -210,7 +213,7 @@ export default function PricingPrototypePage() {
         </p>
       </div>
 
-      <div className="border-t border-border">
+      <div className="space-y-5">
         {PLANS.map((plan) => (
           <PlanRow key={plan.id} plan={plan} period={period} />
         ))}

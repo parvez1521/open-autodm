@@ -836,14 +836,14 @@ export default function LandingPage() {
                             </a>
                         </Reveal>
 
-                        <div className="mt-10 border-t border-border">
+                        <div className="mt-10 space-y-4">
                             {PLANS.map((plan, i) =>
                                 plan.customPricing ? (
                                     // Enterprise (owner instruction, 2026-11-08):
                                     // "For Business / Agency", Contact Us instead
                                     // of a price — no figure anywhere.
                                     <Reveal key={plan.id} delay={i * 0.05}>
-                                        <div className="grid gap-2 border-b border-border px-1 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]">
+                                        <div className="grid gap-2 border border-border p-5 sm:px-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]">
                                             <span className="font-heading text-[15px] font-semibold text-foreground">
                                                 {plan.name}
                                                 <span className="block font-sans text-[12px] font-normal text-muted-foreground">
@@ -871,7 +871,7 @@ export default function LandingPage() {
                                     <Reveal key={plan.id} delay={i * 0.05}>
                                         <a
                                             href="/pricing"
-                                            className="grid gap-2 border-b border-border px-1 py-5 transition-colors hover:bg-muted/40 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]"
+                                            className="grid gap-2 border border-border p-5 sm:px-6 transition-colors hover:bg-muted/40 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]"
                                         >
                                             <span className="flex items-center gap-2.5 font-heading text-[15px] font-semibold text-foreground">
                                                 {plan.name}
