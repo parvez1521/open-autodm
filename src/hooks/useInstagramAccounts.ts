@@ -58,6 +58,10 @@ export function useInstagramAccounts() {
         ? ['instagram-accounts', requestScope.workspaceId]
         : ['instagram-accounts'],
     queryFn: () => sendWorkspaceRequest<{ accounts: InstagramAccount[] }>(requestScope, '/instagram/accounts').then((r) => r.accounts),
+    // Flakiness fix (2026-11-08, investigation fix-plan item 3):
+    // same scope gate as useAutomations — never fire (and burn the
+    // retry) before the WorkspaceProvider scope resolves.
+    enabled: requestScope.kind !== 'unavailable',
     staleTime: 60 * 1000, // 1 minute - refetch frequently to catch revoked access
     refetchOnWindowFocus: true,
   });

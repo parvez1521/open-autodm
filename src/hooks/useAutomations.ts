@@ -629,6 +629,14 @@ export function useAutomations(accountId?: string | null) {
         requestScope,
         `/automations${accountId ? `?accountId=${encodeURIComponent(accountId)}` : ''}`
       ).then((r) => r.automations),
+    // Flakiness fix (2026-11-08, investigation fix-plan item 3): do
+    // not fire before the WorkspaceProvider scope resolves. While
+    // the scope is 'unavailable' the queryFn would throw
+    // workspace-context-required BEFORE any network call — instantly
+    // burning React Query's one retry on a scope that was about to
+    // exist. Disabled queries simply wait; when the scope lands,
+    // the (workspace-named) key's query starts for real.
+    enabled: requestScope.kind !== 'unavailable',
   });
 }
 

@@ -65,6 +65,7 @@ import {
   applyTenantScope,
   assertRowInWorkspace,
 } from './scopedDb';
+import { withTransientQueryRetry } from '../supabase/queryRetry';
 
 // The repository is built ON scopedDb: re-export its primitives so
 // callers of this layer see one surface, and so the usage pin can
@@ -202,15 +203,29 @@ export function createTenantRepository(
       table,
 
       async list(filters: Record<string, unknown> = {}): Promise<TenantRow[]> {
-        let query = client.from(table).select('*');
-        query = applyTenantScope(query, ctx);
-        for (const [column, value] of Object.entries(filters)) {
-          if (column === 'workspace_id') continue; // scope already applied; never re-filtered by callers
-          query = query.eq(column, value);
-        }
-        const { data, error } = await query;
-        if (error) throw error;
-        return (data ?? []) as TenantRow[];
+        // Flakiness fix (2026-11-08, investigation fix-plan item 6):
+        // ONE bounded retry on transient PostgREST errors. The
+        // scoped selects behind the workspace list routes are
+        // trivial; on free-tier staging an individual leg
+        // intermittently returns a connection-class error under the
+        // page-mount burst, and that single blip used to become the
+        // route's 500. The query is rebuilt inside the thunk (a
+        // supabase-js builder must never be awaited twice), and the
+        // scope/filters are re-applied identically per attempt —
+        // a retry can never widen or narrow the tenant scope.
+        // Non-transient errors (auth, validation, integrity) are
+        // never retried and propagate exactly as before.
+        return withTransientQueryRetry(`tenant-repository:${table}:list`, async () => {
+          let query = client.from(table).select('*');
+          query = applyTenantScope(query, ctx);
+          for (const [column, value] of Object.entries(filters)) {
+            if (column === 'workspace_id') continue; // scope already applied; never re-filtered by callers
+            query = query.eq(column, value);
+          }
+          const { data, error } = await query;
+          if (error) throw error;
+          return (data ?? []) as TenantRow[];
+        });
       },
 
       async getByIdInWorkspace(id: string): Promise<TenantRow | null> {

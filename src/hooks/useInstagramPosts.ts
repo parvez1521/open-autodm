@@ -57,7 +57,10 @@ export function useInstagramPosts(accountId: string | null | undefined) {
     },
     initialPageParam: undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled: !!accountId,
+    // Flakiness fix (2026-11-08): the pre-existing account gate,
+    // plus the same scope gate as the other workspace-scoped reads —
+    // no firing before the WorkspaceProvider scope resolves.
+    enabled: !!accountId && requestScope.kind !== 'unavailable',
     staleTime: 5 * 60 * 1000,
   });
 }

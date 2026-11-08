@@ -14,6 +14,7 @@ import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
 import { resolveRouteWorkspaceContext, requireCapability } from '@/lib/tenancy/routeContext';
 import { createTenantRepository } from '@/lib/tenancy/repository';
 import { WorkspaceAccessError } from '@/lib/tenancy/context';
+import { withTransientQueryRetry } from '@/lib/supabase/queryRetry';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -57,11 +58,17 @@ const CreateAutomationSchema = z.object({
 });
 
 export async function GET(request: Request): Promise<Response> {
+  // Per-leg timing (flakiness fix, 2026-11-08, investigation
+  // fix-plan item 6): auth / resolve / query durations ride along
+  // in the logs so the next slow-or-failing list request is
+  // diagnosable from function logs alone.
+  const requestStartedAt = Date.now();
   const user = await getAuthenticatedUser(request);
   if (!user) return unauthorized();
+  const authMs = Date.now() - requestStartedAt;
   // Programme 18 Phase D: workspace mode branches here; flag OFF ⇒ the
   // legacy handler below runs exactly as before.
-  if (p18WorkspaceEnabled()) return p18ListAutomations(request, user);
+  if (p18WorkspaceEnabled()) return p18ListAutomations(request, user, authMs);
 
   const db = createServiceClient();
 
@@ -80,28 +87,44 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
-  let query = db
-    .from('automations')
-    .select(`
-      id, name, type, is_active, post_id, post_thumbnail_url, post_caption, keywords,
-      comment_reply_options, public_reply_enabled, public_reply_options,
-      follow_up_enabled, follow_up_delay_minutes, follow_up_message,
-      dm_opening_message_enabled,
-      dm_opening_message, dm_opening_message_button_title, dm_opening_message_button_link,
-      ask_to_follow_enabled, ask_to_follow_message,
-      ask_to_follow_visit_profile_button, ask_to_follow_confirm_button,
-      dm_responses, trigger_config, flow_graph, total_dms_sent, created_at, updated_at,
-      instagram_account_id,
-      instagram_accounts ( id, username, profile_picture_url )
-    `)
-    .eq('user_id', user.id);
-  if (requestedAccountId) query = query.eq('instagram_account_id', requestedAccountId);
-  const { data, error } = await query.order('created_at', { ascending: false });
-
-  if (error) {
-    logger.error({ err: error, userId: user.id }, 'Failed to fetch automations');
+  // Flakiness fix (2026-11-08): ONE bounded retry on transient
+  // PostgREST errors for the data leg (see lib/supabase/queryRetry).
+  // The builder is constructed inside the thunk — fresh per attempt.
+  const queryStartedAt = Date.now();
+  let data: unknown[] | null;
+  try {
+    data = await withTransientQueryRetry('api:automations:list', async () => {
+      let query = db
+        .from('automations')
+        .select(`
+          id, name, type, is_active, post_id, post_thumbnail_url, post_caption, keywords,
+          comment_reply_options, public_reply_enabled, public_reply_options,
+          follow_up_enabled, follow_up_delay_minutes, follow_up_message,
+          dm_opening_message_enabled,
+          dm_opening_message, dm_opening_message_button_title, dm_opening_message_button_link,
+          ask_to_follow_enabled, ask_to_follow_message,
+          ask_to_follow_visit_profile_button, ask_to_follow_confirm_button,
+          dm_responses, trigger_config, flow_graph, total_dms_sent, created_at, updated_at,
+          instagram_account_id,
+          instagram_accounts ( id, username, profile_picture_url )
+        `)
+        .eq('user_id', user.id);
+      if (requestedAccountId) query = query.eq('instagram_account_id', requestedAccountId);
+      const { data: rows, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      return rows;
+    });
+  } catch (error) {
+    logger.error(
+      { err: error, userId: user.id, authMs, queryMs: Date.now() - queryStartedAt },
+      'Failed to fetch automations',
+    );
     return Response.json({ error: 'Failed to fetch automations' }, { status: 500 });
   }
+  logger.debug(
+    { userId: user.id, authMs, queryMs: Date.now() - queryStartedAt },
+    'Listed automations',
+  );
   return Response.json({ automations: data ?? [] });
 }
 
@@ -228,9 +251,12 @@ function p18CapabilityFailure(err: unknown): Response {
 async function p18ListAutomations(
   request: Request,
   user: { id: string },
+  authMs: number,
 ): Promise<Response> {
   const db = createServiceClient();
+  const resolveStartedAt = Date.now();
   const resolved = await resolveRouteWorkspaceContext(db, user.id, p18Selector(request));
+  const resolveMs = Date.now() - resolveStartedAt;
   if (!resolved.ok) return p18ResolutionFailure(resolved);
   const repo = createTenantRepository(db, resolved.ctx, 'read');
 
@@ -248,16 +274,28 @@ async function p18ListAutomations(
     }
   }
 
+  // The data leg itself carries the bounded transient retry inside
+  // the tenant repository's list (fix-plan item 6); here we only add
+  // the per-leg timing.
+  const queryStartedAt = Date.now();
   try {
     const rows = await repo.automations.list(
       requestedAccountId ? { instagram_account_id: requestedAccountId } : {},
     );
+    const queryMs = Date.now() - queryStartedAt;
     const automations = [...rows].sort((a, b) =>
       String(b['created_at'] ?? '').localeCompare(String(a['created_at'] ?? '')),
     );
+    logger.debug(
+      { userId: user.id, authMs, resolveMs, queryMs },
+      'Listed automations (workspace mode)',
+    );
     return Response.json({ automations });
   } catch (err) {
-    logger.error({ err, userId: user.id }, 'Failed to fetch automations (workspace mode)');
+    logger.error(
+      { err, userId: user.id, authMs, resolveMs, queryMs: Date.now() - queryStartedAt },
+      'Failed to fetch automations (workspace mode)',
+    );
     return Response.json({ error: 'Failed to fetch automations' }, { status: 500 });
   }
 }
