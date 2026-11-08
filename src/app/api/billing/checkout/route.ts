@@ -1,20 +1,36 @@
 /**
- * POST /api/billing/checkout — create a Razorpay order for a plan.
+ * POST /api/billing/checkout — create a payment-provider order for a plan.
+ *
+ * PROVIDER SELECTION (owner decision 2026-11-08 ~20:34 IST): Cashfree
+ * is the PRIMARY gateway — when CASHFREE_CLIENT_ID +
+ * CASHFREE_CLIENT_SECRET are configured, checkout creates a Cashfree
+ * order. Razorpay is the fallback and stays fully wired: it is used
+ * only when Cashfree is not configured and Razorpay keys are (see
+ * lib/billing/activeProvider.ts). Customers are both Indian (UPI,
+ * INR) and international (cards, USD) — the checkout currency follows
+ * the caller's currency field, which the BillingPanel resolves from
+ * the geo display currency (India → INR, else USD).
  *
  * SCAFFOLDING — deliberately inert until the owner enables it:
  *  - BILLING_ENABLED off (default)            → 503 BILLING_DISABLED
- *  - PAYMENTS_LIVE_MODE off (default), or
- *    Razorpay keys missing from env           → 503 PAYMENTS_NOT_CONFIGURED
- * Only when billing is enabled AND live mode is on AND the Razorpay
- * keys are configured does this create a real order — and an order by
- * itself charges nobody. Payment completion is confirmed later,
- * server-side, via the signed webhook (see lib/billing/razorpay.ts and
- * lib/billing/webhook.ts); this route never marks anything paid.
+ *  - PAYMENTS_LIVE_MODE off (default), or no
+ *    provider configured in env              → 503 PAYMENTS_NOT_CONFIGURED
+ * Only when billing is enabled AND live mode is on AND a provider is
+ * configured does this create a real order — and an order by itself
+ * charges nobody. Payment completion is confirmed later, server-side,
+ * via the signed webhook (see lib/billing/webhook.ts); this route
+ * never marks anything paid.
  *
  * Prices come from the billing catalogue (lib/billing/catalogue.ts),
  * owner-approved on 2026-11-08. Plans without a self-serve price —
  * Free, and Enterprise (custom, sales-led) — are refused here with
  * PLAN_NOT_PURCHASABLE; Enterprise is sold by conversation only.
+ *
+ * Cashfree REQUIRES a customer phone for checkout: when Cashfree is
+ * the active provider the body must carry `customerPhone` (10 digits,
+ * collected by the BillingPanel — profiles/sessions carry no phone)
+ * or the request is refused with 400 INVALID_CUSTOMER_PHONE before
+ * any provider call.
  *
  * Workspace binding (subscription wiring, 2026-11-08): once the plan
  * is validated, the caller must be authenticated and the workspace is
@@ -28,6 +44,7 @@
  * webhook would have to ignore as unknown.
  */
 
+import { randomUUID } from "node:crypto";
 import { createLogger } from "@/lib/logger";
 import { getAuthenticatedUser, unauthorized } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -35,9 +52,14 @@ import { readBillingFlags } from "@/lib/billing/flags";
 import { getPlan, type BillingPeriod, type CurrencyCode, type PlanId } from "@/lib/billing/catalogue";
 import {
   createRazorpayOrder,
-  readRazorpayConfig,
   RazorpayApiError,
 } from "@/lib/billing/razorpay";
+import {
+  createCashfreeOrder,
+  CashfreeApiError,
+  type CashfreeConfig,
+} from "@/lib/billing/cashfree";
+import { resolveActiveBillingProvider } from "@/lib/billing/activeProvider";
 import {
   billingWorkspaceSelector,
   resolveBillingWorkspace,
@@ -63,6 +85,13 @@ function notConfigured(code: string, message: string): Response {
   return Response.json({ ok: false, code, message }, { status: 503 });
 }
 
+/** Normalize a customer phone to exactly 10 digits, or null when invalid. */
+function normalizeCustomerPhone(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const digits = value.replace(/[\s-]/g, "");
+  return /^\d{10}$/.test(digits) ? digits : null;
+}
+
 export async function POST(request: Request): Promise<Response> {
   const flags = readBillingFlags(process.env);
   if (!flags.billingEnabled) {
@@ -71,8 +100,8 @@ export async function POST(request: Request): Promise<Response> {
       "Billing is not enabled on this deployment.",
     );
   }
-  const config = readRazorpayConfig(process.env);
-  if (!flags.paymentsLiveMode || !config.configured) {
+  const active = resolveActiveBillingProvider(process.env);
+  if (!flags.paymentsLiveMode || !active) {
     return notConfigured(
       "PAYMENTS_NOT_CONFIGURED",
       "Payments are not configured yet. The owner still needs to connect a payment provider.",
@@ -93,6 +122,7 @@ export async function POST(request: Request): Promise<Response> {
     currency?: unknown;
     period?: unknown;
     workspaceId?: unknown;
+    customerPhone?: unknown;
   };
   const planId = fields.planId;
   if (typeof planId !== "string" || !(PLAN_IDS as readonly string[]).includes(planId)) {
@@ -128,6 +158,24 @@ export async function POST(request: Request): Promise<Response> {
       },
       { status: 400 },
     );
+  }
+
+  // Cashfree requires a customer phone to open checkout. Profiles and
+  // sessions carry no phone, so the panel collects it per checkout and
+  // the route refuses without it — before auth or any provider call.
+  let customerPhone: string | null = null;
+  if (active.providerId === "cashfree") {
+    customerPhone = normalizeCustomerPhone(fields.customerPhone);
+    if (!customerPhone) {
+      return Response.json(
+        {
+          ok: false,
+          code: "INVALID_CUSTOMER_PHONE",
+          message: "A 10-digit mobile number is required to open the payment window.",
+        },
+        { status: 400 },
+      );
+    }
   }
 
   // ── Workspace binding: authenticated caller, resolved workspace,
@@ -173,6 +221,22 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  if (active.providerId === "cashfree") {
+    return cashfreeCheckout({
+      request,
+      db,
+      config: active.cashfree,
+      plan,
+      period,
+      currency,
+      amountMinor,
+      workspaceId,
+      customerPhone: customerPhone!,
+      customerEmail: user.email,
+    });
+  }
+
+  const config = active.razorpay;
   const receipt = `opdm_${plan.id}_${period}_${Date.now().toString(36)}`.slice(0, 40);
   try {
     const order = await createRazorpayOrder(config, {
@@ -217,6 +281,7 @@ export async function POST(request: Request): Promise<Response> {
     );
     return Response.json({
       ok: true,
+      provider: "razorpay",
       order: {
         id: order.id,
         amount: order.amount,
@@ -249,6 +314,123 @@ export async function POST(request: Request): Promise<Response> {
     logger.error(
       { error: err instanceof Error ? err.message : String(err) },
       "checkout failed unexpectedly",
+    );
+    return Response.json(
+      { ok: false, code: "INTERNAL_ERROR", message: "Checkout failed. Nothing was charged." },
+      { status: 500 },
+    );
+  }
+}
+
+interface CashfreeCheckoutArgs {
+  request: Request;
+  db: ReturnType<typeof createServiceClient>;
+  config: CashfreeConfig;
+  plan: ReturnType<typeof getPlan>;
+  period: BillingPeriod;
+  currency: CurrencyCode;
+  amountMinor: number;
+  workspaceId: string;
+  customerPhone: string;
+  customerEmail: string | undefined;
+}
+
+/**
+ * Cashfree branch of checkout: create the order at Cashfree (with OUR
+ * order id, which Cashfree echoes and the webhook later resolves),
+ * record it in billing_orders BEFORE responding, and return the
+ * payment_session_id the Cashfree JS SDK needs. Nothing secret is
+ * returned — the SDK runs on the session id + mode alone.
+ */
+async function cashfreeCheckout(args: CashfreeCheckoutArgs): Promise<Response> {
+  const { db, config, plan, period, currency, amountMinor, workspaceId } = args;
+  const orderId = `opdm_${plan.id}_${period}_${Date.now().toString(36)}_${randomUUID().slice(0, 6)}`.slice(0, 50);
+  const origin = new URL(args.request.url).origin;
+  try {
+    const order = await createCashfreeOrder(config, {
+      orderId,
+      amountMinor,
+      currency,
+      customer: {
+        customerId: `ws_${workspaceId}`,
+        phone: args.customerPhone,
+        ...(args.customerEmail ? { email: args.customerEmail } : {}),
+      },
+      returnUrl: `${origin}/billing`,
+      notifyUrl: `${origin}/api/billing/webhook`,
+      note: `${plan.name} plan — ${period}`,
+    });
+    // Record the order against the workspace BEFORE returning it: the
+    // signed webhook resolves workspace + plan from this row.
+    try {
+      await createBillingOrder(db, {
+        workspaceId,
+        provider: "cashfree",
+        providerOrderId: order.orderId,
+        planId: plan.id,
+        billingPeriod: period,
+        amountMinor,
+        currency,
+        receipt: orderId,
+      });
+    } catch (err) {
+      if (err instanceof BillingPersistenceError) {
+        logger.error(
+          { orderId: order.orderId, workspaceId },
+          "cashfree order created but could not be recorded; failing loudly",
+        );
+        return Response.json(
+          {
+            ok: false,
+            code: "ORDER_RECORD_FAILED",
+            message: "The payment order could not be recorded. Nothing was charged; please retry.",
+          },
+          { status: 500 },
+        );
+      }
+      throw err;
+    }
+    logger.info(
+      { orderId: order.orderId, workspaceId, planId: plan.id, period, currency, amountMinor },
+      "cashfree order created",
+    );
+    return Response.json({
+      ok: true,
+      provider: "cashfree",
+      order: {
+        id: order.orderId,
+        amount: amountMinor,
+        currency,
+        status: order.orderStatus,
+        receipt: orderId,
+      },
+      // The payment session id is what the Cashfree JS SDK checks out
+      // with. It is a session handle, not a credential — the client
+      // secret never leaves the server.
+      paymentSessionId: order.paymentSessionId,
+      mode: config.environment,
+      planId: plan.id,
+      period,
+      workspaceId,
+    });
+  } catch (err) {
+    if (err instanceof CashfreeApiError) {
+      logger.error(
+        { status: err.status, providerCode: err.providerCode },
+        "cashfree order creation failed",
+      );
+      return Response.json(
+        {
+          ok: false,
+          code: "PROVIDER_ERROR",
+          message: "The payment provider could not create an order. Nothing was charged.",
+        },
+        { status: 502 },
+      );
+    }
+    logger.error(
+      { error: err instanceof Error ? err.message : String(err) },
+      "cashfree checkout failed unexpectedly",
     );
     return Response.json(
       { ok: false, code: "INTERNAL_ERROR", message: "Checkout failed. Nothing was charged." },

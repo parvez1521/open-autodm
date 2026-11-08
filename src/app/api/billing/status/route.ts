@@ -31,6 +31,7 @@ import { createLogger } from "@/lib/logger";
 import { getAuthenticatedUser, unauthorized } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { readBillingFlags, readSaasFlags } from "@/lib/billing/flags";
+import { resolveActiveBillingProvider } from "@/lib/billing/activeProvider";
 import { PLANS } from "@/lib/billing/catalogue";
 import { resolveEntitlement } from "@/lib/entitlements/service";
 import {
@@ -103,6 +104,11 @@ export async function GET(request: Request): Promise<Response> {
       canManageBilling: hasCapability(ctx, "manageBilling"),
       billingEnabled: billing.billingEnabled,
       paymentsLiveMode: billing.paymentsLiveMode,
+      // Which gateway checkout will use (owner decision 2026-11-08:
+      // Cashfree when configured, else Razorpay, else null). The
+      // BillingPanel needs this BEFORE checkout: Cashfree requires a
+      // customer phone, so the panel collects it only on that flow.
+      paymentProvider: resolveActiveBillingProvider(process.env)?.providerId ?? null,
       entitlementsEnforced: saas.entitlementsEnforced,
       subscription: row
         ? {

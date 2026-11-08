@@ -7,13 +7,23 @@
  * on (the page keeps its inert state while the flag is off). All state
  * comes from GET /api/billing/status (the billing read model); actions
  * go to POST /api/billing/trial (15-day no-card trial) and
- * POST /api/billing/checkout (Razorpay order → Razorpay Checkout).
+ * POST /api/billing/checkout (provider order → provider checkout).
  *
- * Activation is NEVER claimed client-side: after Razorpay Checkout
- * completes, this panel only says the payment was submitted and polls
- * the status endpoint — the plan changes when the signed webhook has
- * confirmed the payment server-side, and the panel shows exactly what
- * the server then reports.
+ * Provider (owner decision 2026-11-08 ~20:34 IST): Cashfree is the
+ * primary gateway, Razorpay the fallback — the status payload names
+ * the active one (`paymentProvider`) and the checkout response names
+ * the one it used; this panel branches on that, never on its own
+ * guess. Cashfree checkout runs on the payment_session_id via the
+ * Cashfree JS SDK. Cashfree also REQUIRES a customer phone:
+ * profiles/sessions carry no phone, so when Cashfree is active the
+ * panel collects a 10-digit mobile number inline before checkout
+ * (and the checkout route refuses without one).
+ *
+ * Activation is NEVER claimed client-side: after the provider
+ * checkout completes, this panel only says the payment was submitted
+ * and polls the status endpoint — the plan changes when the signed
+ * webhook has confirmed the payment server-side, and the panel shows
+ * exactly what the server then reports.
  *
  * Workspace selection: the status route resolves the caller's single
  * workspace server-side; only when the server asks for an explicit
@@ -43,6 +53,7 @@ import { useDisplayCurrency } from "@/lib/billing/useDisplayCurrency";
 
 const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
+const CASHFREE_SCRIPT = "https://sdk.cashfree.com/js/v3/cashfree.js";
 
 interface StatusPayload {
   ok: boolean;
@@ -51,6 +62,8 @@ interface StatusPayload {
   canManageBilling: boolean;
   billingEnabled: boolean;
   paymentsLiveMode: boolean;
+  /** Active gateway for checkout: 'cashfree' (primary) | 'razorpay' | null. */
+  paymentProvider?: string | null;
   entitlementsEnforced: boolean;
   subscription: {
     planId: string;
@@ -81,9 +94,17 @@ interface RazorpayInstance {
   on: (event: string, cb: (resp: { error?: { description?: string } }) => void) => void;
 }
 
+interface CashfreeInstance {
+  checkout: (options: {
+    paymentSessionId: string;
+    redirectTarget: string;
+  }) => Promise<{ error?: { message?: string }; paymentDetails?: unknown } | undefined>;
+}
+
 declare global {
   interface Window {
     Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance;
+    Cashfree?: (options: { mode: string }) => CashfreeInstance;
   }
 }
 
@@ -104,6 +125,23 @@ function loadRazorpay(): Promise<boolean> {
   return razorpayScriptPromise;
 }
 
+let cashfreeScriptPromise: Promise<boolean> | null = null;
+function loadCashfree(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (window.Cashfree) return Promise.resolve(true);
+  if (!cashfreeScriptPromise) {
+    cashfreeScriptPromise = new Promise((resolve) => {
+      const script = document.createElement("script");
+      script.src = CASHFREE_SCRIPT;
+      script.async = true;
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }
+  return cashfreeScriptPromise;
+}
+
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -117,6 +155,11 @@ export default function BillingPanel() {
   // Monthly only (owner instruction, 2026-11-08 ~19:38 IST): no
   // period state, no toggle — trials and checkout are monthly.
   const currency = useDisplayCurrency();
+  // Cashfree requires a customer phone for checkout; profiles carry
+  // none, so the panel collects it inline (validated 10-digit) when
+  // Cashfree is the active provider — or if the checkout route asks.
+  const [phone, setPhone] = useState("");
+  const [needsPhone, setNeedsPhone] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -211,6 +254,13 @@ export default function BillingPanel() {
 
   async function subscribe(plan: Plan) {
     if (!status?.canManageBilling) return;
+    const cashfreeFlow = status.paymentProvider === "cashfree" || needsPhone;
+    const customerPhone = phone.replace(/[\s-]/g, "");
+    if (cashfreeFlow && !/^\d{10}$/.test(customerPhone)) {
+      setNeedsPhone(true);
+      setError("Enter your 10-digit mobile number — the payment window needs it to open.");
+      return;
+    }
     setBusyPlan(plan.id);
     setNotice(null);
     setError(null);
@@ -218,18 +268,59 @@ export default function BillingPanel() {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: plan.id, currency, period: "monthly", workspaceId: workspaceId ?? undefined }),
+        body: JSON.stringify({
+          planId: plan.id,
+          currency,
+          period: "monthly",
+          workspaceId: workspaceId ?? undefined,
+          ...(cashfreeFlow ? { customerPhone } : {}),
+        }),
       });
       const data = (await res.json().catch(() => null)) as {
         ok?: boolean; code?: string; message?: string; keyId?: string;
+        provider?: string; paymentSessionId?: string; mode?: string;
         order?: { id: string; amount: number; currency: string };
       } | null;
-      if (!res.ok || !data?.ok || !data.order || !data.keyId) {
+      if (!res.ok || !data?.ok || !data.order) {
+        if (data?.code === "INVALID_CUSTOMER_PHONE") setNeedsPhone(true);
         setError(
           data?.code === "PAYMENTS_NOT_CONFIGURED" || data?.code === "BILLING_DISABLED"
             ? "Payments are being switched on for this deployment — nothing was charged. You can start the free trial meanwhile."
             : data?.message ?? "Checkout could not be started. Nothing was charged.",
         );
+        setBusyPlan(null);
+        return;
+      }
+      if (data.provider === "cashfree") {
+        if (!data.paymentSessionId) {
+          setError("The payment window could not be started. Nothing was charged; please try again.");
+          setBusyPlan(null);
+          return;
+        }
+        const loaded = await loadCashfree();
+        if (!loaded || !window.Cashfree) {
+          setError("The payment window could not be loaded. Nothing was charged; please try again.");
+          setBusyPlan(null);
+          return;
+        }
+        const cashfree = window.Cashfree({ mode: data.mode ?? "sandbox" });
+        const result = await cashfree.checkout({
+          paymentSessionId: data.paymentSessionId,
+          redirectTarget: "_modal",
+        });
+        if (result?.error) {
+          setError(result.error.message ?? "The payment did not go through. Nothing was charged.");
+        } else {
+          // The SDK returning without an error is NOT activation —
+          // the signed webhook confirms server-side; poll for it.
+          setNotice("Payment submitted. Your plan activates as soon as the payment is confirmed — usually a few seconds. This panel refreshes itself.");
+          pollStatusSoon();
+        }
+        setBusyPlan(null);
+        return;
+      }
+      if (!data.keyId) {
+        setError("Checkout could not be started. Nothing was charged.");
         setBusyPlan(null);
         return;
       }
@@ -344,6 +435,28 @@ export default function BillingPanel() {
       {error && (
         <div className="border border-border p-4" role="alert">
           <p className="text-sm">{error}</p>
+        </div>
+      )}
+
+      {(status.paymentProvider === "cashfree" || needsPhone) && status.canManageBilling && (
+        <div className="border border-border p-4" data-testid="billing-phone">
+          <label htmlFor="billing-phone-input" className="text-sm font-medium">
+            Mobile number for payment
+          </label>
+          <input
+            id="billing-phone-input"
+            data-testid="billing-phone-input"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel-national"
+            placeholder="10-digit mobile number"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            className="mt-2 block h-9 w-full max-w-xs rounded-lg border border-border bg-background px-3 text-sm"
+          />
+          <p className="mt-1 text-[12px] text-muted-foreground">
+            The payment window needs a mobile number to open. It is sent only with your checkout — it is not saved to your profile.
+          </p>
         </div>
       )}
 

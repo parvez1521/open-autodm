@@ -343,9 +343,21 @@ const CLASSIFIED: Record<string, Classified> = {
   },
   'app/api/billing/webhook/route.ts': {
     kind: 'webhook-hmac',
-    tokens: ['verifyRazorpayWebhookSignature(rawBody, signature, config.webhookSecret)', 'getBillingOrderByProviderOrderId', 'processBillingWebhook'],
+    // ONE public webhook URL serves both providers (dispatch by
+    // signature header). Razorpay (fallback, verifier below) — and,
+    // per the owner's 2026-11-08 ~20:34 IST decision making Cashfree
+    // the PRIMARY gateway, the Cashfree verifier call alongside it.
+    // Cashfree signs `timestamp + rawBody` (plain concatenation) with
+    // the CLIENT SECRET; both verifications are fail-closed over the
+    // exact raw body and run before parsing.
+    tokens: [
+      'verifyRazorpayWebhookSignature(rawBody, signature, config.webhookSecret)',
+      'verifyCashfreeWebhookSignature(rawBody, signature, clientSecret, timestamp)',
+      'getBillingOrderByProviderOrderId',
+      'processBillingWebhook',
+    ],
     exceptionReason:
-      'Public Razorpay webhook: the HMAC-SHA256 signature over the exact raw body is the credential (fail closed, verified before parsing). The workspace is resolved ONLY from the billing_orders row recorded at checkout — never from payload claims — and the Phase 12 core re-verifies the order server-side with Razorpay before any entitlement write.',
+      'Public payment-provider webhook (Cashfree primary per owner decision 2026-11-08 ~20:34 IST; Razorpay fallback): the HMAC-SHA256 signature over the exact raw body is the credential (fail closed, verified before parsing). The workspace is resolved ONLY from the billing_orders row recorded at checkout (provider-scoped lookup) — never from payload claims — and the Phase 12 core re-verifies the order server-side with the provider before any entitlement write.',
   },
 };
 

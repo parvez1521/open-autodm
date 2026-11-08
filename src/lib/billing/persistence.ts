@@ -7,8 +7,8 @@
  *                    BillingEventStore: sanitized metadata only, with
  *                    UNIQUE (provider, provider_event_id) as the
  *                    database-level idempotency/replay guard)
- *   billing_orders  (…000035 — a Razorpay order bound to its workspace
- *                    at checkout time)
+ *   billing_orders  (…000035 — a provider order — Razorpay or
+ *                    Cashfree — bound to its workspace at checkout)
  *
  * All writes here are service-role server code: checkout (after owner
  * checks), the trial route (after owner checks), and the webhook route
@@ -428,6 +428,13 @@ export interface PersistWebhookOutcomeInput {
   outcome: string;
   /** The store's final subscription record for this order (post-transition), if any. */
   finalRecord: SubscriptionRecord | null;
+  /**
+   * The confirmed provider payment id, when the caller extracted it
+   * (Cashfree passes it explicitly — owner decision 2026-11-08). When
+   * omitted, the historical derivation from the provider event id
+   * (`<event>:pay_…`, the Razorpay shape) is used unchanged.
+   */
+  providerPaymentId?: string | null;
 }
 
 /**
@@ -477,10 +484,13 @@ export async function persistWebhookOutcome(
       currentPeriodEnd: periodEnd(start, orderCtx.period).toISOString(),
       lastProviderEventAt: occurredIso,
     });
-    const paymentId = event.providerEventId.split(':')[1];
+    const claimedPaymentId = event.providerEventId.split(':')[1];
+    const paymentId =
+      input.providerPaymentId ??
+      (claimedPaymentId && claimedPaymentId.startsWith('pay_') ? claimedPaymentId : null);
     await updateBillingOrder(db, order.id, {
       status: 'paid',
-      provider_payment_id: paymentId && paymentId.startsWith('pay_') ? paymentId : order.providerPaymentId,
+      provider_payment_id: paymentId ?? order.providerPaymentId,
       paid_at: occurredIso,
     });
     return;
