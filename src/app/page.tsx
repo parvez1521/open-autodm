@@ -868,6 +868,11 @@ export default function LandingPage() {
                             </motion.a>
                         </Reveal>
 
+                        {/* Vertical fix (2026-11-08, owner feedback ~18:18 IST):
+                            the band boxes stack vertically and each box's
+                            content flows top-to-bottom in one column — the
+                            old name|price|features|arrow row read as
+                            horizontal. Same rule as /pricing. */}
                         <div className="mt-10 space-y-4">
                             {PLANS.map((plan, i) =>
                                 plan.customPricing ? (
@@ -878,7 +883,7 @@ export default function LandingPage() {
                                         <motion.div
                                             whileHover={LIFT_HOVER}
                                             transition={SPRING_SNAPPY}
-                                            className="grid gap-2 border border-border p-5 sm:px-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]"
+                                            className="grid gap-2 border border-border p-5 sm:px-6"
                                         >
                                             <span className="font-heading text-[15px] font-semibold text-foreground">
                                                 {plan.name}
@@ -909,7 +914,7 @@ export default function LandingPage() {
                                             href="/pricing"
                                             whileHover={LIFT_HOVER}
                                             transition={SPRING_SNAPPY}
-                                            className="grid gap-2 border border-border p-5 sm:px-6 transition-colors hover:bg-muted/40 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-6 lg:grid-cols-[14rem_10rem_minmax(0,1fr)_auto]"
+                                            className="grid gap-2 border border-border p-5 sm:px-6 transition-colors hover:bg-muted/40"
                                         >
                                             <span className="flex items-center gap-2.5 font-heading text-[15px] font-semibold text-foreground">
                                                 {plan.name}
@@ -925,7 +930,7 @@ export default function LandingPage() {
                                                 {plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month ·{" "}
                                                 Creator Studio included
                                             </span>
-                                            <ArrowRight className="hidden h-4 w-4 text-muted-foreground lg:block" />
+                                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
                                         </motion.a>
                                     </Reveal>
                                 ),

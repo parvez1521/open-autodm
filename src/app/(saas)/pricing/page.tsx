@@ -24,6 +24,13 @@
  * the price figure flips vertically when the period changes —
  * all from the shared motion system (lib/motion/presets), on the
  * `motion` package. Figures and copy unchanged.
+ * Vertical fix (2026-11-08, owner feedback ~18:18 IST): the
+ * round-7 boxes read as HORIZONTAL bands because each box split
+ * into two side-by-side columns on desktop. The owner's standing
+ * rule is pricing stays VERTICAL — boxes stacked one below
+ * another, each its own flat outline, and each box's content now
+ * flows top-to-bottom in a single column too. No two-column
+ * split inside a plan box. Figures and copy unchanged.
  * All figures come from lib/billing/catalogue.
  *
  * Single-file on purpose: the customer-journey render harness
@@ -115,7 +122,7 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
       <motion.div
         layout
         variants={staggerChild}
-        className="grid gap-5 border border-border p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12 lg:p-7"
+        className="grid gap-5 border border-border p-6 lg:p-7"
         data-testid={`plan-${plan.id}`}
       >
         <div>
@@ -151,7 +158,7 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
     <motion.div
       layout
       variants={staggerChild}
-      className="grid gap-5 border border-border p-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] lg:gap-12 lg:p-7"
+      className="grid gap-5 border border-border p-6 lg:p-7"
       data-testid={`plan-${plan.id}`}
     >
       <div>
@@ -215,7 +222,7 @@ function PlanRow({ plan, period, signedIn }: { plan: Plan; period: BillingPeriod
           </a>
         )}
       </div>
-      <div className="grid gap-x-10 gap-y-4 sm:grid-cols-2">
+      <div className="space-y-4">
         <ul className="space-y-1 text-[13px] text-muted-foreground">
           <li>{plan.limits.instagramAccounts} Instagram account(s) · {plan.limits.teamSeats} seat(s)</li>
           <li>{plan.limits.activeAutomations} active automations · {plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</li>

@@ -403,3 +403,31 @@ describe("design pass round 7 — shared motion system (motion package)", () => 
     expect(saas).toContain("ScrollProgress");
   });
 });
+
+/**
+ * Vertical pricing fix (2026-11-08, owner feedback ~18:18 IST).
+ *
+ * After round 7 the owner reported the plan boxes read as
+ * HORIZONTAL: the boxes were stacked, but each box split into
+ * side-by-side columns on desktop (and the landing band laid each
+ * plan out as a name|price|features|arrow row). The owner's
+ * standing rule: pricing stays VERTICAL — boxes stacked one below
+ * another, each in its own flat outline, content flowing
+ * top-to-bottom in a single column. The toggle (shared layoutId
+ * pill), stagger and price flips from round 7 are unchanged.
+ */
+describe("vertical pricing — boxes stack, one column inside each box", () => {
+  const page = read("app/page.tsx");
+  const pricing = read("app/(saas)/pricing/page.tsx");
+
+  it("/pricing boxes stack vertically with no two-column split inside", () => {
+    expect(pricing).toContain("space-y-5");
+    expect(pricing).not.toContain("lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]");
+    expect(pricing).toContain("border border-border");
+  });
+
+  it("the landing band boxes stack vertically with no horizontal plan row", () => {
+    expect(page).toContain("space-y-4");
+    expect(page).not.toContain("14rem_10rem");
+  });
+});
