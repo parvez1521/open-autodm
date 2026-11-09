@@ -127,7 +127,12 @@ export function WorkspaceSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                                     : (selectedWorkspace?.name ?? "No workspace")}
                             </span>
                             <span className="text-[10px] text-muted-foreground leading-tight">
-                                {workspaces.length} workspace{workspaces.length === 1 ? "" : "s"}
+                                {/* A load in flight is not "0 workspaces"
+                                    (round-2 QA fix, 2026-11-09): the count
+                                    renders only once the list has settled. */}
+                                {loading
+                                    ? "Loading…"
+                                    : `${workspaces.length} workspace${workspaces.length === 1 ? "" : "s"}`}
                             </span>
                         </div>
                         {selectedWorkspace && (
@@ -156,7 +161,7 @@ export function WorkspaceSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                     <div className="px-1.5 pb-1.5 max-h-56 overflow-y-auto">
                         {workspaces.length === 0 && (
                             <p className="px-2 py-2 text-[12px] text-muted-foreground">
-                                No workspaces yet.
+                                {loading ? "Loading workspaces…" : "No workspaces yet."}
                             </p>
                         )}
                         {workspaces.map((w, idx) => {

@@ -46,7 +46,16 @@ export default function DashboardPage() {
     // active workspace — the dashboard previously derived plan state
     // from other signals, so it could contradict /billing (Starter
     // there, "Free" here) or render no plan card at all.
-    const { data: billingStatus, isLoading: billingLoading, isError: billingError } = useBillingStatus();
+    // Round-2 QA fix (2026-11-09): the card keys off isPending, not
+    // isLoading. While the workspace selection is still resolving
+    // the billing query is DISABLED (scope 'unavailable'), and a
+    // disabled React Query query reports isLoading=false with no
+    // data and no error — the old `!billingStatus` branch read that
+    // window as a failure and flashed "Your plan could not be
+    // loaded here" on every cold load. isPending stays true until
+    // the query has data or has actually failed, which is exactly
+    // the loading-vs-error distinction the card needs.
+    const { data: billingStatus, isPending: billingPending, isError: billingError } = useBillingStatus();
 
     // Audit fix: while the numbers are in flight, the stats and the
     // System rows render neutral skeletons — never literal 0s or a
@@ -82,7 +91,7 @@ export default function DashboardPage() {
                         {connectedAccount ? <>Welcome back, <span className="text-primary">@{connectedAccount.username}</span></> : "Welcome"}
                     </h1>
                     <p className="text-[13px] text-muted-foreground mt-1">
-                        Your self-hosted Instagram automation console.
+                        Turn comments into customers on autopilot.
                     </p>
                 </div>
                 <Link
@@ -296,7 +305,7 @@ export default function DashboardPage() {
                     billing-status resolution as /billing. */}
                 <div className="bg-card border border-border rounded-xl p-5" data-testid="dashboard-plan-card">
                     <h2 className="text-[14px] font-heading font-semibold text-foreground mb-1">Plan</h2>
-                    {billingLoading ? (
+                    {billingPending ? (
                         <div className="h-6 w-28 rounded bg-muted animate-pulse mt-2" aria-label="Loading plan" />
                     ) : billingError || !billingStatus ? (
                         <>

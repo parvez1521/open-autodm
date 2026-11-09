@@ -34,6 +34,16 @@ const RANGES = [
     { label: "90d", days: 90 },
 ] as const;
 
+/**
+ * The one default range (round-2 QA fix, 2026-11-09): 30 days,
+ * everywhere, for every workspace — the dashboard's analytics read
+ * is fixed at 30d and the API route's own default window is 30d,
+ * so this page's default is pinned to the same value by name. A
+ * range the user picks in the toggle above is a per-session choice
+ * and may differ; the DEFAULT may not.
+ */
+const DEFAULT_RANGE_DAYS = 30;
+
 function fmtDay(iso: string): string {
     const d = new Date(iso + "T00:00:00Z");
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -89,7 +99,7 @@ export default function AnalyticsPage() {
     } = useWorkspace();
     const noWorkspace =
         workspaceRuntimeEnabled && !workspaceLoading && workspaces.length === 0;
-    const [rangeDays, setRangeDays] = useState<number>(30);
+    const [rangeDays, setRangeDays] = useState<number>(DEFAULT_RANGE_DAYS);
     const [automationId, setAutomationId] = useState<string>("all");
 
     const { from, to } = useMemo(() => {
@@ -111,7 +121,16 @@ export default function AnalyticsPage() {
     // workspace selected it loads (zero-activity workspaces get the
     // honest empty state in the success branch, NOT this panel), and
     // the error panel below is reserved for genuine fetch failures.
-    const { data, isLoading, isError, error, refetch, isFetching } = useAnalytics({ from, to, automationId, accountId });
+    // Round-2 QA fix (2026-11-09): the loading branch keys off
+    // isPending, not isLoading — while the workspace scope is
+    // 'unavailable' the query is disabled, and a disabled query
+    // reports isLoading=false with no data and no error, which the
+    // old branch order could read as the error state during first
+    // load. isPending covers the whole no-data-yet window; the
+    // error panel below now renders only after a fetch has
+    // actually failed (isError) — the same distinction the
+    // dashboard plan card makes.
+    const { data, isPending, isError, error, refetch, isFetching } = useAnalytics({ from, to, automationId, accountId });
 
     const gridStroke = resolvedTheme === "light" ? "#EDEDEF" : "#232329";
     const axisTick = { fontSize: 10.5, fill: "#898781" } as const;
@@ -193,7 +212,7 @@ export default function AnalyticsPage() {
                         Go to workspace settings
                     </Link>
                 </div>
-            ) : isLoading || (workspaceRuntimeEnabled && workspaceLoading) ? (
+            ) : isPending || (workspaceRuntimeEnabled && workspaceLoading) ? (
                 <div className="py-24 flex justify-center">
                     <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>

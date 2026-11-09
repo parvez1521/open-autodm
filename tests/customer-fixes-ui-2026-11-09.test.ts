@@ -128,7 +128,12 @@ describe('G — /analytics always settles', () => {
     // The lone-spinner-forever shape is gone: loading is its own branch.
     // (2026-11-09, workspace-scope fix: the branch gained the
     // provider-resolving condition — the pin follows the new shape.)
-    expect(src).toContain('isLoading || (workspaceRuntimeEnabled && workspaceLoading) ? (');
+    // (2026-11-09, round-2 fix: the branch keys off isPending, not
+    // isLoading — a scope-disabled query reports isLoading=false
+    // with no data and no error, which the error branch could read
+    // as a failure during first load. The pin follows the new
+    // shape; see tests/customer-fixes-round2-2026-11-09.test.ts.)
+    expect(src).toContain('isPending || (workspaceRuntimeEnabled && workspaceLoading) ? (');
   });
 
   // 2026-11-09 — the live bug behind this fix: with a workspace

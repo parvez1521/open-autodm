@@ -90,7 +90,15 @@ export function WorkspaceProvider({
 }) {
     const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
     const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    // Loading starts TRUE when the runtime is enabled (round-2 QA
+    // fix, 2026-11-09): the first refresh runs from an effect, so a
+    // false initial value painted one frame of "No workspace /
+    // 0 workspaces" in the switcher before the fetch even began —
+    // a load in flight must read as loading from the first paint,
+    // never as an empty account. The flag-off provider stays inert
+    // (initial false, and refreshWorkspaces returns before touching
+    // the state), so the legacy sidebar is unchanged.
+    const [loading, setLoading] = useState(workspaceRuntimeEnabled);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [droppedWorkspaceId, setDroppedWorkspaceId] = useState<string | null>(null);
     const selectedRef = useRef<string | null>(null);

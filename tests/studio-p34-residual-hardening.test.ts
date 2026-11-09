@@ -333,7 +333,13 @@ describe('Programme 34 §4 UX-2 — workspace UI accessibility fixes', () => {
     expect(members).toContain('aria-label="Invitee email address"');
     expect(members).toContain('aria-label="Invitation token"');
     expect(members).toContain('aria-label="New workspace name"');
-    expect(members).toContain('aria-label={`Remove ${m.email ?? m.userId}`}');
+    // Updated 2026-11-09 (round-2 customer fix): the Remove label's
+    // identity fallback is no longer the raw member UUID — since
+    // memberships store no email, `m.email ?? m.userId` put the
+    // UUID into the accessible name in practice. Labels now resolve
+    // through memberLabel (email, else the row position). The §4
+    // posture is preserved: labels are still per-member.
+    expect(members).toContain('aria-label={`Remove ${memberLabel}`}');
   });
 
   it('invite button contrast: the white-on-primary 2.80:1 pairing is replaced', () => {

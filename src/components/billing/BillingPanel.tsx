@@ -25,12 +25,23 @@
  * webhook has confirmed the payment server-side, and the panel shows
  * exactly what the server then reports.
  *
- * Workspace selection: the status route resolves the caller's single
- * workspace server-side; only when the server asks for an explicit
- * selection (400 workspace-context-required) does this panel list the
- * caller's workspaces (GET /api/workspaces) and let them pick — the
- * chosen id is sent as the x-workspace-id SELECTOR and re-validated
- * by the server on every request.
+ * Workspace selection (round-2 QA fix, 2026-11-09): this panel
+ * follows the console's SHARED active-workspace selection — the
+ * WorkspaceProvider's persisted choice (localStorage key
+ * WORKSPACE_SELECTION_STORAGE_KEY, the provider's own persistence
+ * mechanism). The stored id is loaded first and sent as the
+ * x-workspace-id SELECTOR (re-validated server-side on every
+ * request); the in-panel picker, when used, writes the same key so
+ * the console adopts the choice. Only when there is no usable
+ * stored selection does the panel fall back to server resolution:
+ * a single workspace resolves server-side, and when the server
+ * asks for an explicit selection (400 workspace-context-required)
+ * the panel lists the caller's workspaces (GET /api/workspaces)
+ * and lets them pick. A stored id the caller no longer belongs to
+ * (403 not-a-member) is forgotten and resolution restarts
+ * server-side. While a newly selected workspace's status loads,
+ * the panel shows its loading state — never the previous
+ * workspace's plan as if it were current.
  *
  * Display rules (owner instruction, 2026-11-08 ~19:38 IST): prices
  * render MONTHLY only — the monthly/annual toggle is gone — in the
@@ -50,6 +61,7 @@ import {
 } from "@/lib/billing/catalogue";
 import { formatPriceMinor } from "@/lib/billing/geo";
 import { useDisplayCurrency } from "@/lib/billing/useDisplayCurrency";
+import { WORKSPACE_SELECTION_STORAGE_KEY } from "@/components/workspace/WorkspaceProvider";
 
 const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
@@ -176,13 +188,18 @@ export default function BillingPanel() {
   const [error, setError] = useState<string | null>(null);
   const pollTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const fetchStatus = useCallback(async (wsId: string | null): Promise<StatusPayload | "needs-workspace" | null> => {
+  const fetchStatus = useCallback(async (wsId: string | null): Promise<StatusPayload | "needs-workspace" | "stale-workspace" | null> => {
     try {
       const res = await fetch("/api/billing/status", {
         headers: wsId ? { "x-workspace-id": wsId } : {},
       });
       const data = (await res.json().catch(() => null)) as (StatusPayload & { code?: string }) | null;
       if (res.status === 400 && data?.code === "workspace-context-required") return "needs-workspace";
+      // An explicit selector the caller no longer belongs to (a
+      // stored selection whose membership was revoked): not a
+      // billing failure — the caller of load() forgets the stored
+      // id and restarts with server-side resolution.
+      if (wsId && res.status === 403 && data?.code === "not-a-member") return "stale-workspace";
       if (!res.ok || !data?.ok) {
         setError(data && "message" in data ? String((data as { message?: string }).message ?? "Could not load billing.") : "Could not load billing.");
         return null;
@@ -196,7 +213,23 @@ export default function BillingPanel() {
 
   const load = useCallback(async (wsId: string | null) => {
     setLoading(true);
-    const result = await fetchStatus(wsId);
+    // Stale-plan guard (round-2 QA fix, 2026-11-09): when the load
+    // targets a DIFFERENT workspace than the status on screen, drop
+    // the old payload first — the render then takes the loading
+    // branch instead of presenting the previous workspace's plan as
+    // current while the switch is in flight (a wrong-workspace
+    // upgrade was one click away in that window). Same-workspace
+    // reloads (polling, post-checkout) keep the payload.
+    setStatus((prev) => (prev && wsId && prev.workspaceId !== wsId ? null : prev));
+    let result = await fetchStatus(wsId);
+    if (result === "stale-workspace") {
+      try {
+        window.localStorage.removeItem(WORKSPACE_SELECTION_STORAGE_KEY);
+      } catch {
+        /* storage unavailable — the in-memory fallback below still applies */
+      }
+      result = await fetchStatus(null);
+    }
     if (result === "needs-workspace") {
       try {
         const res = await fetch("/api/workspaces");
@@ -206,14 +239,14 @@ export default function BillingPanel() {
         if (list.length > 0) {
           setWorkspaceId(list[0]!.id);
           const withFirst = await fetchStatus(list[0]!.id);
-          if (withFirst && withFirst !== "needs-workspace") setStatus(withFirst);
+          if (withFirst && typeof withFirst === "object") setStatus(withFirst);
         } else {
           setError("No workspace was found for this account.");
         }
       } catch {
         setError("Could not list your workspaces.");
       }
-    } else if (result) {
+    } else if (result && typeof result === "object") {
       setStatus(result);
       setWorkspaceId(result.workspaceId);
     }
@@ -221,7 +254,15 @@ export default function BillingPanel() {
   }, [fetchStatus]);
 
   useEffect(() => {
-    void load(null);
+    // First load follows the shared selection (see the header
+    // comment): the console's persisted workspace, when one exists.
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(WORKSPACE_SELECTION_STORAGE_KEY);
+    } catch {
+      stored = null;
+    }
+    void load(stored);
     const timers = pollTimers.current;
     return () => timers.forEach(clearTimeout);
   }, [load]);
@@ -229,6 +270,14 @@ export default function BillingPanel() {
   const pickWorkspace = (id: string) => {
     setWorkspaceId(id);
     setNotice(null);
+    // The in-panel pick updates the SHARED selection, so the
+    // console (WorkspaceProvider) adopts it on its next load
+    // instead of the two surfaces diverging.
+    try {
+      window.localStorage.setItem(WORKSPACE_SELECTION_STORAGE_KEY, id);
+    } catch {
+      /* storage unavailable — the panel-local selection still applies */
+    }
     void load(id);
   };
 

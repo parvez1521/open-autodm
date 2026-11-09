@@ -276,7 +276,16 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                     <p className="text-sm text-muted-foreground">No members found.</p>
                 ) : (
                     <ul className="divide-y divide-border">
-                        {members.map((m, idx) => (
+                        {members.map((m, idx) => {
+                            // Accessible-name identity (round-2 QA fix,
+                            // 2026-11-09): memberships store no email
+                            // (see the row copy below), so the old
+                            // email-or-userId fallback put the raw
+                            // member UUID into the Role/Remove accessible
+                            // names. Fall back to the row's position —
+                            // distinct, human, and free of internal ids.
+                            const memberLabel = m.email ?? `member ${idx + 1}`;
+                            return (
                             <li key={m.userId ?? `member-${idx}`} className="py-2.5 flex items-center gap-3">
                                 <div className="flex flex-col min-w-0 flex-1">
                                     <span className="text-[13px] font-medium truncate">
@@ -314,7 +323,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                                 {canManageMembers && m.userId && (
                                     <>
                                         <select
-                                            aria-label={`Role for ${m.email ?? m.userId}`}
+                                            aria-label={`Role for ${memberLabel}`}
                                             defaultValue={m.role ?? "member"}
                                             onChange={(e) => void handleRoleChange(m.userId!, e.target.value)}
                                             className="text-[12px] rounded-md border border-border bg-background px-2 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -327,7 +336,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                                         </select>
                                         <button
                                             onClick={() => void handleRemove(m.userId!)}
-                                            aria-label={`Remove ${m.email ?? m.userId}`}
+                                            aria-label={`Remove ${memberLabel}`}
                                             className="rounded-sm px-1 text-[12px] font-medium text-destructive hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                         >
                                             Remove
@@ -335,7 +344,8 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                                     </>
                                 )}
                             </li>
-                        ))}
+                            );
+                        })}
                     </ul>
                 )}
                 {!canManageMembers && (

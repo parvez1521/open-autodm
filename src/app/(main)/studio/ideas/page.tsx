@@ -53,7 +53,15 @@ const AI_NOTES: Partial<Record<AiIdeasOutcome["status"], string>> = {
 export default function VideoIdeasPage() {
   const router = useRouter();
   const [topic, setTopic] = useState("");
-  const [category, setCategory] = useState<StudioCategory>("Tech & AI Tools");
+  // Category defaults to NONE (round-2 QA fix, 2026-11-09): the old
+  // "Tech & AI Tools" default silently skewed every generation —
+  // offline titles and the AI prompt alike — toward tech no matter
+  // what topic the creator typed. Blank means "let the topic
+  // decide"; generation resolves blank to the taxonomy's neutral
+  // "Other" bucket (the engines and the generate route's enum
+  // require a category), which carries no topical skew of its own.
+  const [category, setCategory] = useState<StudioCategory | "">("");
+  const effectiveCategory: StudioCategory = category === "" ? "Other" : category;
   const [mode, setMode] = useState<IdeaMode>("proven");
   const [aiIdeas, setAiIdeas] = useState<IdeaItem[] | null>(null);
   const [aiNote, setAiNote] = useState<string | null>(null);
@@ -62,8 +70,8 @@ export default function VideoIdeasPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const offlineIdeas = useMemo(
-    () => (topic.trim() ? generateIdeas({ topic, category, mode, count: 8 }) : []),
-    [topic, category, mode]
+    () => (topic.trim() ? generateIdeas({ topic, category: effectiveCategory, mode, count: 8 }) : []),
+    [topic, effectiveCategory, mode]
   );
   const ideas = aiIdeas ?? offlineIdeas;
   const engine = aiIdeas ? "free-ai" : "built-in";
@@ -72,7 +80,7 @@ export default function VideoIdeasPage() {
     if (!topic.trim()) return;
     setAiBusy(true);
     setAiNote(null);
-    const outcome = await requestAiIdeas({ topic, category, mode, count: 8 });
+    const outcome = await requestAiIdeas({ topic, category: effectiveCategory, mode, count: 8 });
     setAiBusy(false);
     if (outcome.status === "ok") {
       setAiIdeas(outcome.ideas);
@@ -93,7 +101,7 @@ export default function VideoIdeasPage() {
         kind: "ideas",
         title: idea.title,
         summary: `${idea.format} · ${IDEA_MODE_LABELS[idea.mode]} · via ${idea.engine === "free-ai" ? "Free AI" : "built-in engine"}`,
-        payload: { topic, category, ideas: [idea] },
+        payload: { topic, category: effectiveCategory, ideas: [idea] },
       });
       setSavedIds((prev) => new Set(prev).add(idea.title));
       setSaveError(null);
@@ -147,10 +155,11 @@ export default function VideoIdeasPage() {
               className={studioInputClass}
               value={category}
               onChange={(e) => {
-                setCategory(e.target.value as StudioCategory);
+                setCategory(e.target.value as StudioCategory | "");
                 setAiIdeas(null);
               }}
             >
+              <option value="">Any category — topic decides</option>
               {STUDIO_CATEGORIES.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
