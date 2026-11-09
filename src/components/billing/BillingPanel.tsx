@@ -68,6 +68,8 @@ interface StatusPayload {
   subscription: {
     planId: string;
     status: string;
+    /** Bug 1 (2026-11-09): stored row still active but its paid period ended — server reports effective status 'expired'. */
+    periodLapsed?: boolean;
     billingPeriod: string | null;
     currency: string;
     currentPeriodEnd: string | null;
@@ -404,9 +406,11 @@ export default function BillingPanel() {
         <p className="mt-1 text-sm text-muted-foreground">
           {paidActive && `Active subscription${sub?.billingPeriod ? ` — ${sub.billingPeriod} billing` : ""}. Current period ends ${formatDate(sub?.currentPeriodEnd ?? null)}.`}
           {trialing && `Free trial — ${status.trial.daysRemaining} day(s) left, ends ${formatDate(status.trial.endsAt)}. No card on file; nothing will be charged when it ends.`}
-          {!paidActive && !trialing && (status.trial.lapsed
-            ? "Your free trial has ended, so the workspace is on Free limits. Subscribe below to restore the paid plan — nothing was charged."
-            : "This workspace is on Free limits. Start a free trial or subscribe below — access upgrades itself as soon as a trial starts or a payment is confirmed.")}
+          {!paidActive && !trialing && (sub?.periodLapsed
+            ? `Your ${PLANS.find((p) => p.id === sub.planId)?.name ?? "paid"} subscription ended on ${formatDate(sub?.currentPeriodEnd ?? null)}, so the workspace is on Free limits. Subscribe below to renew — access upgrades itself as soon as a payment is confirmed.`
+            : status.trial.lapsed
+              ? "Your free trial has ended, so the workspace is on Free limits. Subscribe below to restore the paid plan — nothing was charged."
+              : "This workspace is on Free limits. Start a free trial or subscribe below — access upgrades itself as soon as a trial starts or a payment is confirmed.")}
         </p>
         <p className="mt-3 text-[13px] text-muted-foreground">
           Included now: {status.entitlement.limits.instagramAccounts} Instagram account(s) ·{" "}

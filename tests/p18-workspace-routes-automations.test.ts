@@ -276,3 +276,126 @@ describe('flag ON — workspace mode', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ── Bug 2 enforcement (owner-approved 2026-11-09) ──────────────────
+// Before this fix, plan limits were display-only: no mutation path
+// consulted the entitlement service, so a Free workspace could create
+// unlimited active automations (public-readiness-audit.md Bug 2).
+// The gate (lib/entitlements/guard.ts) engages only with
+// ENTITLEMENTS_ENFORCED=true; flag off ⇒ behaviour is unchanged.
+describe('Bug 2 enforcement — automations (2026-11-09)', () => {
+  let savedEnforced: string | undefined;
+  beforeEach(() => {
+    savedEnforced = process.env['ENTITLEMENTS_ENFORCED'];
+    process.env['ENTITLEMENTS_ENFORCED'] = 'true';
+    // seedAll() does not manage `subscriptions` (the fake is a module
+    // singleton) — start every enforcement test from "no subscription
+    // row" (Free) unless the test seeds one itself.
+    fake.replaceRows('subscriptions', []);
+  });
+  afterEach(() => {
+    if (savedEnforced === undefined) delete process.env['ENTITLEMENTS_ENFORCED'];
+    else process.env['ENTITLEMENTS_ENFORCED'] = savedEnforced;
+  });
+
+  const postAuto = (name: string, extra: Record<string, unknown> = {}, ws = true) =>
+    POST(
+      new Request(`https://app.opendm.in/api/automations${ws ? `?workspace=${WS_A}` : ''}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instagramAccountId: ACCT_A, name, type: 'comment_dm', ...extra }),
+      }),
+    );
+
+  describe('workspace mode', () => {
+    beforeEach(() => setFlag(true));
+
+    it('Free workspace: creating active automations is blocked at the plan limit (3); inactive creates are never gated', async () => {
+      mockAuth.mockResolvedValue(MEMBER_A);
+      // WS_A already holds 2 active automations (auto-a1, auto-a2).
+      const third = await postAuto('Third active');
+      expect(third.status).toBe(201);
+      const fourth = await postAuto('Fourth active');
+      expect(fourth.status).toBe(403);
+      const body = (await fourth.json()) as { code?: string; limit?: number; used?: number };
+      expect(body.code).toBe('PLAN_LIMIT_REACHED');
+      expect(body.limit).toBe(3);
+      expect(body.used).toBe(3);
+      expect(fake.rows('automations').some((r) => r['name'] === 'Fourth active')).toBe(false);
+      // An INACTIVE create consumes no slot ⇒ allowed even at the limit.
+      const inactive = await postAuto('Draft one', { isActive: false });
+      expect(inactive.status).toBe(201);
+    });
+
+    it('Free workspace: activating an automation beyond the limit is blocked; editing an active one is not', async () => {
+      fake.replaceRows('automations', [
+        ...fake.rows('automations'),
+        { id: 'auto-a3-off', user_id: OWNER_A.id, workspace_id: WS_A, instagram_account_id: ACCT_A, name: 'A three (off)', type: 'comment_dm', is_active: false, flow_graph: null, created_at: '2026-11-05T08:00:00Z' },
+      ]);
+      mockAuth.mockResolvedValue(MEMBER_A);
+      const third = await postAuto('Third active');
+      expect(third.status).toBe(201); // workspace now at the Free limit of 3 actives
+
+      const activate = await PUT(
+        new Request(`https://app.opendm.in/api/automations/auto-a3-off?workspace=${WS_A}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: true }),
+        }),
+        byId('auto-a3-off'),
+      );
+      expect(activate.status).toBe(403);
+      expect(((await activate.json()) as { code?: string }).code).toBe('PLAN_LIMIT_REACHED');
+      expect(fake.rows('automations').find((r) => r['id'] === 'auto-a3-off')!['is_active']).toBe(false);
+
+      // Editing an already-active automation consumes no new slot.
+      const edit = await PUT(
+        new Request(`https://app.opendm.in/api/automations/auto-a1?workspace=${WS_A}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'A one renamed', is_active: true }),
+        }),
+        byId('auto-a1'),
+      );
+      expect(edit.status).toBe(200);
+    });
+
+    it('paid plan limits are respected (creator-pro: 50 active automations — Free would have blocked)', async () => {
+      fake.replaceRows('subscriptions', [
+        {
+          id: 'sub-ws-a', workspace_id: WS_A, plan_id: 'creator-pro', lifecycle_status: 'active',
+          provider: 'razorpay', billing_period: 'monthly', amount_minor: 50_000, currency: 'INR',
+          current_period_start: '2026-11-01T00:00:00.000Z', current_period_end: '2027-01-01T00:00:00.000Z',
+          trial_ends_at: null,
+        },
+      ]);
+      mockAuth.mockResolvedValue(MEMBER_A);
+      expect((await postAuto('Paid third')).status).toBe(201);
+      expect((await postAuto('Paid fourth')).status).toBe(201);
+      expect((await postAuto('Paid fifth')).status).toBe(201);
+    });
+
+    it('ENTITLEMENTS_ENFORCED off ⇒ over-limit creates pass exactly as before the fix', async () => {
+      delete process.env['ENTITLEMENTS_ENFORCED'];
+      mockAuth.mockResolvedValue(MEMBER_A);
+      expect((await postAuto('Off third')).status).toBe(201);
+      expect((await postAuto('Off fourth')).status).toBe(201);
+      expect((await postAuto('Off fifth')).status).toBe(201);
+    });
+  });
+
+  describe('legacy mode', () => {
+    beforeEach(() => setFlag(false));
+
+    it('Free user at the user-scoped limit (3 active incl. legacy rows) is blocked on an active create; inactive passes', async () => {
+      mockAuth.mockResolvedValue(OWNER_A);
+      // OWNER_A owns auto-a1, auto-a2 and auto-legacy — all active.
+      const blocked = await postAuto('Legacy fourth', {}, false);
+      expect(blocked.status).toBe(403);
+      expect(((await blocked.json()) as { code?: string }).code).toBe('PLAN_LIMIT_REACHED');
+      expect(fake.rows('automations').some((r) => r['name'] === 'Legacy fourth')).toBe(false);
+      const inactive = await postAuto('Legacy draft', { isActive: false }, false);
+      expect(inactive.status).toBe(201);
+    });
+  });
+});

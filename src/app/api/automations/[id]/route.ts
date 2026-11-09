@@ -13,6 +13,13 @@ import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
 import { resolveRouteWorkspaceContext, requireCapability } from '@/lib/tenancy/routeContext';
 import { createTenantRepository } from '@/lib/tenancy/repository';
 import { WorkspaceAccessError } from '@/lib/tenancy/context';
+import {
+  evaluateEntitlementGate,
+  planLimitResponse,
+  countUserActiveAutomations,
+  countWorkspaceActiveAutomations,
+} from '@/lib/entitlements/guard';
+import { billingWorkspaceSelector, resolveBillingWorkspace } from '@/lib/billing/access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -75,12 +82,30 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
 
   const { data: existing, error: fetchError } = await db
     .from('automations')
-    .select('id, user_id, type, post_id, keywords, dm_opening_message, dm_opening_message_button_title, dm_responses, flow_graph')
+    .select('id, user_id, type, is_active, post_id, keywords, dm_opening_message, dm_opening_message_button_title, dm_responses, flow_graph')
     .eq('id', id)
     .eq('user_id', user.id)
     .single();
   if (fetchError || !existing) {
     return Response.json({ error: 'Automation not found' }, { status: 404 });
+  }
+
+  // Bug 2 enforcement (2026-11-09): only an inactive→active
+  // transition consumes a new plan slot, so only that transition is
+  // gated. Edits of an already-active automation and deactivations
+  // are never gated (lib/entitlements/guard.ts; flag off ⇒ no-op).
+  if (parsed.data.is_active === true && existing.is_active !== true) {
+    const gate = await evaluateEntitlementGate(db, {
+      dimension: 'activeAutomations',
+      resolveContext: async () => {
+        const ws = await resolveBillingWorkspace(db, user.id, billingWorkspaceSelector(request));
+        return {
+          workspaceId: ws.ok ? ws.ctx.workspaceId : null,
+          usage: { activeAutomations: await countUserActiveAutomations(db, user.id) },
+        };
+      },
+    });
+    if (gate.blocked) return planLimitResponse(gate);
   }
 
   // ── Flow graph guard (Phase 5, row 19) ──────────────────────────────────
@@ -230,6 +255,20 @@ async function p18UpdateAutomation(
   }
   if (!existing) {
     return Response.json({ error: 'Automation not found' }, { status: 404 });
+  }
+
+  // Bug 2 enforcement (2026-11-09): inactive→active transitions are
+  // gated on the workspace's active-automation limit — same rule as
+  // the legacy handler (lib/entitlements/guard.ts; flag off ⇒ no-op).
+  if (parsed.data.is_active === true && existing['is_active'] !== true) {
+    const gate = await evaluateEntitlementGate(db, {
+      dimension: 'activeAutomations',
+      resolveContext: async () => ({
+        workspaceId: resolved.ctx.workspaceId,
+        usage: { activeAutomations: await countWorkspaceActiveAutomations(db, resolved.ctx.workspaceId) },
+      }),
+    });
+    if (gate.blocked) return planLimitResponse(gate);
   }
 
   // Flow-graph guard: identical rules to the legacy handler (validate a

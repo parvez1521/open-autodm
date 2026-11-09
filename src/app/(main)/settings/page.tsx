@@ -69,6 +69,7 @@ function SettingsContent() {
                 access_denied: "Instagram connection was cancelled.",
                 no_instagram_business_account: "No Instagram Business or Creator account found. Switch your Instagram to a professional account first.",
                 account_already_connected: "This Instagram account is already connected to another user on this instance.",
+                plan_limit_reached: "Your current plan's Instagram account limit has been reached. Upgrade your plan in Billing to connect another account.",
                 state_mismatch: "The connection expired. Try again.",
                 setup_required: "Save your Meta app credentials in the Setup Wizard first.",
                 server_error: "Something went wrong. Check the details and try again.",

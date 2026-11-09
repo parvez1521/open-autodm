@@ -604,3 +604,85 @@ describe('POST /api/billing/webhook', () => {
     expect(((await retry.json()) as { entitlementGranted: boolean }).entitlementGranted).toBe(true);
   });
 });
+
+// ══ 7. Period lapse (Bug 1 fix, owner-approved 2026-11-09) ═══════════
+// Before this fix, an `active` subscription granted its paid plan
+// forever: resolution never compared current_period_end to now, and
+// payments are one-time orders (no autopay), so a lapsed customer
+// kept paid limits indefinitely (public-readiness-audit.md Bug 1).
+// The fix is resolution-time only — reads never rewrite the stored
+// row, so a renewal payment re-activates the same row.
+describe('period lapse — status read + renewal (Bug 1, 2026-11-09)', () => {
+  const LAPSED_WS = WS2; // OWNER2 owns WS2
+  const pastEnd = () => new Date(Date.now() - 86_400_000).toISOString();
+  const seedLapsed = (overrides: Record<string, unknown> = {}) => {
+    fake.rows('subscriptions').push({
+      id: 'sub-lapsed', workspace_id: LAPSED_WS, plan_id: 'creator-pro', lifecycle_status: 'active',
+      provider: 'razorpay', provider_subscription_id: 'order_old', billing_period: 'monthly',
+      amount_minor: 50_000, currency: 'INR',
+      current_period_start: new Date(Date.now() - 31 * 86_400_000).toISOString(),
+      current_period_end: pastEnd(),
+      trial_ends_at: null, last_provider_event_at: null,
+      ...overrides,
+    });
+  };
+
+  it('status read: lapsed active resolves Free + reports expired/periodLapsed; the STORED row stays active', async () => {
+    holder.user = OWNER2;
+    seedLapsed();
+    const res = await statusGET(statusReq(LAPSED_WS));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      entitlement: { planId: string; resolution: string };
+      subscription: { planId: string; status: string; periodLapsed: boolean } | null;
+    };
+    expect(body.entitlement.planId).toBe('free');
+    expect(body.entitlement.resolution).toBe('free-default-period-ended');
+    expect(body.subscription?.planId).toBe('creator-pro');
+    expect(body.subscription?.status).toBe('expired');
+    expect(body.subscription?.periodLapsed).toBe(true);
+    // Resolution-time only: the payment record is NOT rewritten.
+    expect(fake.rows('subscriptions')[0]).toMatchObject({ lifecycle_status: 'active' });
+  });
+
+  it('a renewal payment (checkout + captured webhook) re-activates the same workspace with a fresh period end', async () => {
+    holder.user = OWNER2;
+    seedLapsed();
+    const { res: cres, body: cbody } = await doCheckout('creator-pro', LAPSED_WS);
+    expect(cres.status).toBe(200);
+    const orderId = (cbody as { order: { id: string } }).order.id;
+    const stub = razorpayOrders.get(orderId)!;
+    stub.status = 'paid';
+    stub.amount_paid = stub.amount;
+    const wres = await webhookPOST(webhookReq(capturedPayload(orderId, 'pay_renewal')));
+    expect(wres.status).toBe(200);
+    expect(((await wres.json()) as { entitlementGranted: boolean }).entitlementGranted).toBe(true);
+
+    const sres = await statusGET(statusReq(LAPSED_WS));
+    const sbody = (await sres.json()) as {
+      entitlement: { planId: string };
+      subscription: { status: string; periodLapsed: boolean; currentPeriodEnd: string } | null;
+    };
+    expect(sbody.entitlement.planId).toBe('creator-pro');
+    expect(sbody.subscription?.status).toBe('active');
+    expect(sbody.subscription?.periodLapsed).toBe(false);
+    expect(Date.parse(sbody.subscription!.currentPeriodEnd)).toBeGreaterThan(Date.now());
+  });
+
+  it('trial start: a period-lapsed paid subscription that never trialed may start one', async () => {
+    holder.user = OWNER2;
+    seedLapsed(); // trial_ends_at: null — never trialed
+    const res = await trialPOST(trialReq({ planId: 'agency', workspaceId: LAPSED_WS }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { subscription: { status: string } };
+    expect(body.subscription.status).toBe('trialing');
+  });
+
+  it('trial start: a period-lapsed subscription that already used its trial still gets TRIAL_ALREADY_USED', async () => {
+    holder.user = OWNER2;
+    seedLapsed({ trial_ends_at: new Date(Date.now() - 40 * 86_400_000).toISOString() });
+    const res = await trialPOST(trialReq({ planId: 'agency', workspaceId: LAPSED_WS }));
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { code: string }).code).toBe('TRIAL_ALREADY_USED');
+  });
+});

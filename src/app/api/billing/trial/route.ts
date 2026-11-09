@@ -45,6 +45,7 @@ import {
   trialWindow,
   trialDaysRemaining,
 } from "@/lib/billing/trial";
+import { applyPeriodLapse } from "@/lib/billing/lifecycle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -116,9 +117,24 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const existing = await getWorkspaceSubscription(db, workspaceId);
-    const view = existing
-      ? { planId: existing.planId, status: existing.status, trialEndsAt: existing.trialEndsAt }
-      : null;
+    // Period lapse (Bug 1 fix, 2026-11-09): the decision reads the
+    // EFFECTIVE state — an `active` row whose paid period has ended
+    // is expired for decision purposes, not "already subscribed"
+    // (it falls through to the trial-marker rules below instead:
+    // a workspace that never trialed may trial; one that converted
+    // from a trial still hits TRIAL_ALREADY_USED). The stored row
+    // itself is not rewritten by this read.
+    const view = applyPeriodLapse(
+      existing
+        ? {
+            planId: existing.planId,
+            status: existing.status,
+            trialEndsAt: existing.trialEndsAt,
+            currentPeriodEnd: existing.currentPeriodEnd,
+          }
+        : null,
+      new Date(),
+    );
 
     // Idempotent re-post: already trialing THIS plan → return the
     // running trial unchanged (no window extension, no state change).

@@ -179,3 +179,74 @@ describe('entitlements: catalogue-driven limits', () => {
     expect(after.allowed).toBe(true);
   });
 });
+
+// ── Period lapse (Bug 1 fix, owner-approved 2026-11-09) ───────────
+// Payments are one-time orders with NO autopay: once the recorded
+// current_period_end passes, the paid plan stops granting until a
+// renewal payment writes a later end. Before this fix, resolution
+// granted on status='active' alone (public-readiness-audit.md Bug 1:
+// "paid plans never expire").
+describe('entitlements: period lapse (Bug 1, 2026-11-09)', () => {
+  const NOW = new Date('2026-11-09T10:00:00Z');
+  const PAST = '2026-11-08T10:00:00Z';
+  const FUTURE = '2026-12-09T10:00:00Z';
+
+  it('active + period end in the past ⇒ Free with resolution free-default-period-ended', () => {
+    const r = resolveEntitlement(
+      { workspaceId: 'ws-1', planId: 'creator-pro', status: 'active', currentPeriodEnd: PAST },
+      NOW,
+    );
+    expect(r.plan.id).toBe('free');
+    expect(r.resolution).toBe('free-default-period-ended');
+    expect(r.entitled).toBe(true);
+  });
+
+  it('active + period end in the future ⇒ paid plan still grants', () => {
+    const r = resolveEntitlement(
+      { workspaceId: 'ws-1', planId: 'creator-pro', status: 'active', currentPeriodEnd: FUTURE },
+      NOW,
+    );
+    expect(r.plan.id).toBe('creator-pro');
+    expect(r.resolution).toBe('active-subscription');
+  });
+
+  it('active + no recorded period end ⇒ paid plan still grants (no lapse evidence — pre-fix behaviour)', () => {
+    const withNull = resolveEntitlement(
+      { workspaceId: 'ws-1', planId: 'creator-pro', status: 'active', currentPeriodEnd: null },
+      NOW,
+    );
+    expect(withNull.plan.id).toBe('creator-pro');
+    const omitted = resolveEntitlement({ workspaceId: 'ws-1', planId: 'creator-pro', status: 'active' }, NOW);
+    expect(omitted.plan.id).toBe('creator-pro');
+  });
+
+  it('active + unparseable period end ⇒ paid plan still grants (never strip on bad evidence)', () => {
+    const r = resolveEntitlement(
+      { workspaceId: 'ws-1', planId: 'creator-pro', status: 'active', currentPeriodEnd: 'not-a-date' },
+      NOW,
+    );
+    expect(r.plan.id).toBe('creator-pro');
+  });
+
+  it('trialing + current period end in the past ⇒ Free (period ended)', () => {
+    const r = resolveEntitlement(
+      { workspaceId: 'ws-1', planId: 'starter', status: 'trialing', currentPeriodEnd: PAST },
+      NOW,
+    );
+    expect(r.plan.id).toBe('free');
+    expect(r.resolution).toBe('free-default-period-ended');
+  });
+
+  it('checkEntitlement honours the lapse: usage over the FREE limit blocks once the paid period has ended', () => {
+    const lapsed = { workspaceId: 'ws-1', planId: 'creator-pro', status: 'active' as const, currentPeriodEnd: PAST };
+    const live = { ...lapsed, currentPeriodEnd: FUTURE };
+    // creator-pro allows 3 Instagram accounts; Free allows 1. At 2 used:
+    expect(
+      checkEntitlement(live, 'instagramAccounts', { instagramAccounts: 2 }, { flags: ENFORCED, now: NOW }).allowed,
+    ).toBe(true);
+    const blocked = checkEntitlement(lapsed, 'instagramAccounts', { instagramAccounts: 2 }, { flags: ENFORCED, now: NOW });
+    expect(blocked.planId).toBe('free');
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.limit).toBe(getPlan('free').limits.instagramAccounts);
+  });
+});

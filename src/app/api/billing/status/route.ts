@@ -21,6 +21,16 @@
  * is lazily persisted as `expired` and reported as lapsed, resolving
  * to Free limitations — no cron needed for correctness of reads.
  *
+ * Period lapse is applied here too (Bug 1 fix, 2026-11-09): an
+ * `active` row past its current_period_end — possible since payments
+ * are one-time orders with no autopay — is reported with the
+ * EFFECTIVE status `expired` (payload field `periodLapsed`) and
+ * resolves to Free. Unlike trial lapse it is deliberately NOT
+ * persisted: the stored row remains the payment record exactly as
+ * the webhook flow left it, and a renewal payment (which writes a
+ * fresh period end through that same flow) makes the very same row
+ * resolve as paid again with no reader-side repair.
+ *
  * Deliberately NOT flag-503-gated: the billing page needs this read to
  * render its honest "not enabled yet" state for a signed-in user, so
  * the flags are data in the payload, not a gate. Mutations live in the
@@ -47,6 +57,7 @@ import {
 } from "@/lib/billing/persistence";
 import { hasCapability } from "@/lib/tenancy/routeContext";
 import { applyTrialLapse, isTrialLapsed, trialDaysRemaining } from "@/lib/billing/trial";
+import { applyPeriodLapse, isPeriodLapsed } from "@/lib/billing/lifecycle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,21 +87,34 @@ export async function GET(request: Request): Promise<Response> {
       row = await upsertWorkspaceSubscription(db, ctx.workspaceId, { status: "expired" });
       lapsed = true;
     }
-    const effective = applyTrialLapse(
-      row ? { planId: row.planId, status: row.status, trialEndsAt: row.trialEndsAt } : null,
-      now,
-    );
+    const viewOf = (r: WorkspaceSubscriptionRow) => ({
+      planId: r.planId,
+      status: r.status,
+      trialEndsAt: r.trialEndsAt,
+      currentPeriodEnd: r.currentPeriodEnd,
+    });
+    const trialEffective = applyTrialLapse(row ? viewOf(row) : null, now);
+    // Period lapse (Bug 1): resolution-time only — the row is NOT
+    // rewritten (see header). The composed view gives the REPORTED
+    // status; resolveEntitlement receives the pre-period-lapse view
+    // (with its period end) so the SERVICE applies the period check
+    // and reports resolution 'free-default-period-ended' — one source
+    // of lapse truth.
+    const periodLapsed = isPeriodLapsed(trialEffective, now);
+    const effective = applyPeriodLapse(trialEffective, now);
 
     const entitlement = resolveEntitlement(
-      effective
+      trialEffective
         ? {
             workspaceId: ctx.workspaceId,
-            planId: effective.planId,
+            planId: trialEffective.planId,
             // The table's 'free' default is not a lifecycle state; the
             // entitlement service reads null as "no granting state".
-            status: effective.status === 'free' ? null : effective.status,
+            status: trialEffective.status === 'free' ? null : trialEffective.status,
+            currentPeriodEnd: trialEffective.currentPeriodEnd,
           }
         : null,
+      now,
     );
     const orders = await listBillingOrders(db, ctx.workspaceId, 5);
     const billing = readBillingFlags(process.env);
@@ -114,6 +138,10 @@ export async function GET(request: Request): Promise<Response> {
         ? {
             planId: row.planId,
             status: effective?.status ?? row.status,
+            // Bug 1 (2026-11-09): true when the stored row still says
+            // active/trialing but its paid period has ended — the UI
+            // shows the plan as lapsed (Free limits + renew CTA).
+            periodLapsed,
             provider: row.provider,
             billingPeriod: row.billingPeriod,
             amountMinor: row.amountMinor,

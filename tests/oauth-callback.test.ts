@@ -9,7 +9,7 @@
  * owned by a DIFFERENT user must be rejected with zero writes.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { FakeSupabase } from './helpers/fakeSupabase';
 import { decrypt } from '@/lib/crypto';
 
@@ -151,5 +151,78 @@ describe('GET /api/instagram/callback ownership guard', () => {
     const updates = fake.callsFor('instagram_accounts', 'update');
     expect(updates).toHaveLength(1);
     expect(updates[0]!.filters).toContainEqual({ column: 'id', op: 'eq', value: 'row-winner' });
+  });
+});
+
+// ── Bug 2 enforcement: plan Instagram-account limit (2026-11-09) ───
+// Before this fix, connecting accounts never consulted the
+// entitlement service, so Free users (limit: 1 account) could bind
+// unlimited accounts (public-readiness-audit.md Bug 2). The gate sits
+// in the callback — the one server point where a NEW account row is
+// created — and only with ENTITLEMENTS_ENFORCED=true. Reconnects of
+// an existing row are never gated (no new slot is consumed).
+describe('GET /api/instagram/callback — plan account limit (Bug 2, 2026-11-09)', () => {
+  const WS_ID = 'ws-callback-1';
+  let savedEnforced: string | undefined;
+
+  beforeEach(() => {
+    savedEnforced = process.env['ENTITLEMENTS_ENFORCED'];
+    process.env['ENTITLEMENTS_ENFORCED'] = 'true';
+    fake.replaceRows('workspace_memberships', []);
+    fake.replaceRows('subscriptions', []);
+  });
+  afterEach(() => {
+    if (savedEnforced === undefined) delete process.env['ENTITLEMENTS_ENFORCED'];
+    else process.env['ENTITLEMENTS_ENFORCED'] = savedEnforced;
+  });
+
+  it('legacy connect at the Free limit (1 active account) ⇒ plan_limit_reached, zero writes', async () => {
+    fake.seed('instagram_accounts', [
+      { id: 'row-first', user_id: CALLER_ID, instagram_user_id: 'IG-OTHER', username: 'first', access_token_encrypted: 'enc', is_active: true },
+    ]);
+    const res = await GET(callbackRequest());
+    expect(res.status).toBe(302);
+    expect(location(res)).toContain('instagram_error=plan_limit_reached');
+    expect(fake.callsFor('instagram_accounts', 'insert')).toHaveLength(0);
+    expect(fake.callsFor('instagram_accounts', 'update')).toHaveLength(0);
+    expect(fake.callsFor('profiles')).toHaveLength(0);
+    expect(mockSubscribe).not.toHaveBeenCalled();
+    expect(fake.rows('instagram_accounts')).toHaveLength(1);
+  });
+
+  it('same seed with ENTITLEMENTS_ENFORCED off ⇒ the connect succeeds exactly as before the fix', async () => {
+    delete process.env['ENTITLEMENTS_ENFORCED'];
+    fake.seed('instagram_accounts', [
+      { id: 'row-first', user_id: CALLER_ID, instagram_user_id: 'IG-OTHER', username: 'first', access_token_encrypted: 'enc', is_active: true },
+    ]);
+    const res = await GET(callbackRequest());
+    expect(res.status).toBe(302);
+    expect(location(res)).toContain('instagram_connected=true');
+    expect(fake.rows('instagram_accounts')).toHaveLength(2);
+  });
+
+  it('workspace connect at the Free limit ⇒ plan_limit_reached, zero writes', async () => {
+    mockVerifyState.mockResolvedValue({ userId: CALLER_ID, workspaceId: WS_ID });
+    fake.seed('workspace_memberships', [
+      { workspace_id: WS_ID, user_id: CALLER_ID, role: 'owner' },
+    ]);
+    fake.seed('instagram_accounts', [
+      { id: 'row-ws-first', user_id: 'member-2', workspace_id: WS_ID, instagram_user_id: 'IG-OTHER', username: 'first', access_token_encrypted: 'enc', is_active: true },
+    ]);
+    const res = await GET(callbackRequest());
+    expect(res.status).toBe(302);
+    expect(location(res)).toContain('instagram_error=plan_limit_reached');
+    expect(fake.callsFor('instagram_accounts', 'insert')).toHaveLength(0);
+    expect(mockSubscribe).not.toHaveBeenCalled();
+  });
+
+  it('reconnect of the SAME account at the limit is never gated (no new slot)', async () => {
+    fake.seed('instagram_accounts', [
+      { id: 'row-own', user_id: CALLER_ID, instagram_user_id: IG_ID, username: 'creator', access_token_encrypted: 'old', is_active: true },
+    ]);
+    const res = await GET(callbackRequest());
+    expect(res.status).toBe(302);
+    expect(location(res)).toContain('instagram_connected=true');
+    expect(fake.callsFor('instagram_accounts', 'update')).toHaveLength(1);
   });
 });

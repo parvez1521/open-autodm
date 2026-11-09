@@ -37,6 +37,12 @@ import { getAppUrl, getEnv } from '@/lib/env';
 import { createLogger } from '@/lib/logger';
 import { debugLog } from '@/lib/debugLog';
 import { resolveWorkspaceContext, requireWorkspaceRole } from '@/lib/tenancy/context';
+import {
+  evaluateEntitlementGate,
+  countUserInstagramAccounts,
+  countWorkspaceInstagramAccounts,
+} from '@/lib/entitlements/guard';
+import { resolveBillingWorkspace } from '@/lib/billing/access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -164,6 +170,49 @@ export async function GET(request: Request): Promise<Response> {
           { userId, workspaceId }
         );
         return settingsRedirect('instagram_error=account_already_connected');
+      }
+    }
+
+    // Bug 2 enforcement (2026-11-09): a BRAND-NEW account binding
+    // consumes one of the plan's Instagram-account slots, so it is
+    // gated here — the one server point where a new account is
+    // created. Reconnects/refreshes of an existing row are NEVER
+    // gated (they consume no new slot). ENTITLEMENTS_ENFORCED off
+    // (default) ⇒ the gate is a pass-through and nothing below runs
+    // (lib/entitlements/guard.ts). Workspace connects count the
+    // workspace's bound accounts; legacy connects count the user's
+    // accounts against their billing workspace's plan.
+    if (!existingAccount) {
+      const gate = await evaluateEntitlementGate(db, {
+        dimension: 'instagramAccounts',
+        resolveContext: async () => {
+          if (workspaceId) {
+            return {
+              workspaceId,
+              usage: { instagramAccounts: await countWorkspaceInstagramAccounts(db, workspaceId) },
+            };
+          }
+          const ws = await resolveBillingWorkspace(db, userId, null);
+          return {
+            workspaceId: ws.ok ? ws.ctx.workspaceId : null,
+            usage: { instagramAccounts: await countUserInstagramAccounts(db, userId) },
+          };
+        },
+      });
+      if (gate.blocked) {
+        logger.warn(
+          { userId, username: profile.username, workspaceId: workspaceId ?? null, planId: gate.check?.planId, limit: gate.check?.limit },
+          'Instagram connect rejected - plan Instagram-account limit reached'
+        );
+        debugLog(
+          'oauth',
+          'warn',
+          'oauth_rejected',
+          'error',
+          `Connect rejected for @${profile.username} - plan Instagram account limit reached`,
+          { userId }
+        );
+        return settingsRedirect('instagram_error=plan_limit_reached');
       }
     }
 

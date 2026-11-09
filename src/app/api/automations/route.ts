@@ -15,6 +15,13 @@ import { resolveRouteWorkspaceContext, requireCapability } from '@/lib/tenancy/r
 import { createTenantRepository } from '@/lib/tenancy/repository';
 import { WorkspaceAccessError } from '@/lib/tenancy/context';
 import { withTransientQueryRetry } from '@/lib/supabase/queryRetry';
+import {
+  evaluateEntitlementGate,
+  planLimitResponse,
+  countUserActiveAutomations,
+  countWorkspaceActiveAutomations,
+} from '@/lib/entitlements/guard';
+import { billingWorkspaceSelector, resolveBillingWorkspace } from '@/lib/billing/access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -174,6 +181,26 @@ export async function POST(request: Request): Promise<Response> {
     .single();
   if (igError || !igAccount) {
     return Response.json({ error: 'Instagram account not found or not yours' }, { status: 403 });
+  }
+
+  // Bug 2 enforcement (2026-11-09): creating an automation that
+  // starts ACTIVE consumes one of the plan's active-automation slots.
+  // ENTITLEMENTS_ENFORCED off (default) ⇒ the gate is a pass-through
+  // and nothing below runs (lib/entitlements/guard.ts). Legacy usage
+  // is user-scoped like the data itself; the plan comes from the
+  // caller's billing workspace (single-membership default).
+  if (data.isActive) {
+    const gate = await evaluateEntitlementGate(db, {
+      dimension: 'activeAutomations',
+      resolveContext: async () => {
+        const ws = await resolveBillingWorkspace(db, user.id, billingWorkspaceSelector(request));
+        return {
+          workspaceId: ws.ok ? ws.ctx.workspaceId : null,
+          usage: { activeAutomations: await countUserActiveAutomations(db, user.id) },
+        };
+      },
+    });
+    if (gate.blocked) return planLimitResponse(gate);
   }
 
   const { data: created, error } = await db
@@ -358,6 +385,22 @@ async function p18CreateAutomation(
   }
   if (igAccount['is_active'] === false) {
     return Response.json({ error: 'Instagram account not found or not yours' }, { status: 403 });
+  }
+
+  // Bug 2 enforcement (2026-11-09): creating an ACTIVE automation
+  // consumes a workspace plan slot — same gate as the legacy handler,
+  // with workspace-scoped usage. Inactive creates are never gated
+  // (activation is gated in the [id] PUT instead). Flag off ⇒
+  // pass-through, zero behaviour change (lib/entitlements/guard.ts).
+  if (data.isActive) {
+    const gate = await evaluateEntitlementGate(db, {
+      dimension: 'activeAutomations',
+      resolveContext: async () => ({
+        workspaceId: ctx.workspaceId,
+        usage: { activeAutomations: await countWorkspaceActiveAutomations(db, ctx.workspaceId) },
+      }),
+    });
+    if (gate.blocked) return planLimitResponse(gate);
   }
 
   try {

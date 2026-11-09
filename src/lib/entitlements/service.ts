@@ -9,6 +9,14 @@
  *    (src/lib/billing/catalogue.ts) + its subscription state, using the
  *    Phase 12 lifecycle rule: ONLY `active` / `trialing` grant the paid
  *    plan's entitlements (lifecycle.ts `grantsEntitlement`).
+ *  - Period lapse (Bug 1 fix, owner-approved 2026-11-09): a granting
+ *    subscription whose recorded `currentPeriodEnd` is in the past
+ *    resolves to Free with resolution 'free-default-period-ended'.
+ *    Payments are one-time orders (no autopay), so the period end on
+ *    the row IS the entitlement end; a renewal payment writes a later
+ *    period end and the same row grants again. A missing/unparseable
+ *    period end never strips a plan (no evidence of lapse ⇒ the
+ *    stored status rules, exactly as before this fix).
  *  - Missing / unknown / unconfigured plan, and cancelled / expired /
  *    past_due / paused / incomplete subscriptions, all resolve to the
  *    **Free** plan — the limited default. Exactly ONE dimension is
@@ -33,7 +41,7 @@
  * verification, or moderation on this service.
  */
 import { getPlan, PLANS, type Plan, type PlanId, type SupportLevel } from '../billing/catalogue';
-import { grantsEntitlement, type SubscriptionStatus } from '../billing/lifecycle';
+import { grantsEntitlement, isPeriodLapsed, type SubscriptionStatus } from '../billing/lifecycle';
 import { readSaasFlags, type SaasFlags } from '../billing/flags';
 
 /** Subscription state the service needs — mirrors the Phase 12/13 `subscriptions` row shape. */
@@ -42,6 +50,13 @@ export interface WorkspaceSubscription {
   /** Catalogue plan id. Unknown/missing values resolve to Free. */
   planId: string | null | undefined;
   status: SubscriptionStatus | null | undefined;
+  /**
+   * Recorded end of the current paid period (ISO string), when the
+   * caller has it. A granting status past this instant resolves to
+   * Free (period lapse — see the header). Omitted/null ⇒ no lapse
+   * evidence, the stored status rules (pre-fix behaviour).
+   */
+  currentPeriodEnd?: string | null;
 }
 
 /** Every limit dimension the service can check. */
@@ -74,7 +89,7 @@ export interface ResolvedEntitlement {
   /** True when the subscription state actually grants this plan (active/trialing, or Free). */
   entitled: boolean;
   /** Why the plan resolved as it did — for logs/support, never secret. */
-  resolution: 'active-subscription' | 'trialing-subscription' | 'free-default-no-subscription' | 'free-default-inactive-subscription' | 'free-default-unknown-plan';
+  resolution: 'active-subscription' | 'trialing-subscription' | 'free-default-no-subscription' | 'free-default-inactive-subscription' | 'free-default-unknown-plan' | 'free-default-period-ended';
   dataRetentionDays: number;
   supportLevel: SupportLevel;
 }
@@ -108,8 +123,12 @@ function isKnownPlanId(id: string | null | undefined): id is PlanId {
 /**
  * Resolve a workspace's effective plan. Pure and synchronous: pass the
  * subscription row (or null) and get the plan + qualitative tiers.
+ * `now` is injectable for tests; production callers omit it.
  */
-export function resolveEntitlement(sub: WorkspaceSubscription | null | undefined): ResolvedEntitlement {
+export function resolveEntitlement(
+  sub: WorkspaceSubscription | null | undefined,
+  now: Date = new Date(),
+): ResolvedEntitlement {
   if (!sub || sub.planId == null || sub.status == null) {
     return { plan: FREE_PLAN, entitled: true, resolution: 'free-default-no-subscription', dataRetentionDays: FREE_PLAN.dataRetentionDays, supportLevel: FREE_PLAN.supportLevel };
   }
@@ -123,6 +142,12 @@ export function resolveEntitlement(sub: WorkspaceSubscription | null | undefined
   if (!grantsEntitlement(sub.status)) {
     // cancelled / expired / past_due / paused / incomplete ⇒ Free default.
     return { plan: FREE_PLAN, entitled: true, resolution: 'free-default-inactive-subscription', dataRetentionDays: FREE_PLAN.dataRetentionDays, supportLevel: FREE_PLAN.supportLevel };
+  }
+  if (isPeriodLapsed({ status: sub.status, currentPeriodEnd: sub.currentPeriodEnd ?? null }, now)) {
+    // Bug 1 fix (2026-11-09): the paid period recorded on the row has
+    // ended and no renewal has extended it ⇒ Free, however fresh the
+    // stored `active` status looks.
+    return { plan: FREE_PLAN, entitled: true, resolution: 'free-default-period-ended', dataRetentionDays: FREE_PLAN.dataRetentionDays, supportLevel: FREE_PLAN.supportLevel };
   }
   return {
     plan,
@@ -172,10 +197,10 @@ export function checkEntitlement(
   sub: WorkspaceSubscription | null | undefined,
   dimension: EntitlementDimension,
   usage: UsageSnapshot,
-  opts: { requested?: number; flags?: SaasFlags; env?: Record<string, string | undefined> } = {},
+  opts: { requested?: number; flags?: SaasFlags; env?: Record<string, string | undefined>; now?: Date } = {},
 ): EntitlementCheckResult {
   const flags = opts.flags ?? readSaasFlags(opts.env ?? (typeof process !== 'undefined' ? process.env : {}));
-  const resolved = resolveEntitlement(sub);
+  const resolved = resolveEntitlement(sub, opts.now);
   const limit = limitFor(resolved.plan, dimension);
   const used = usedFor(usage, dimension);
   const requested = opts.requested ?? 1;
@@ -200,14 +225,14 @@ export function checkEntitlement(
 export function evaluateAllEntitlements(
   sub: WorkspaceSubscription | null | undefined,
   usage: UsageSnapshot,
-  opts: { flags?: SaasFlags; env?: Record<string, string | undefined> } = {},
+  opts: { flags?: SaasFlags; env?: Record<string, string | undefined>; now?: Date } = {},
 ): { resolved: ResolvedEntitlement; checks: EntitlementCheckResult[] } {
   const dimensions: EntitlementDimension[] = [
     'instagramAccounts', 'activeAutomations', 'dmsPerMonth', 'aiDrafting',
     'scriptWriter', 'teamSeats', 'followUpsPerMonth', 'contactsPerMonth', 'workspaces',
   ];
   return {
-    resolved: resolveEntitlement(sub),
+    resolved: resolveEntitlement(sub, opts.now),
     checks: dimensions.map((d) => checkEntitlement(sub, d, usage, opts)),
   };
 }
