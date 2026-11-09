@@ -199,14 +199,16 @@ describe("design pass round 4 — KeywordTicker, images, pricing band", () => {
   });
 
   it("the pricing page renders the comparison table from the catalogue (toggle removed 2026-11-08 ~19:38 IST)", () => {
-    // Single-file on purpose (see the page header): the render
-    // harness cannot parse a statically imported JSX subcomponent,
-    // so the table lives in the pricing page itself.
+    // Single-file on purpose (see the component header): the
+    // render harness cannot parse a statically imported JSX
+    // subcomponent, so the table lives in the pricing client
+    // component itself (the route file is only a server wrapper
+    // since the 2026-11-08 checkout-gate fix).
     // Owner instruction, 2026-11-08 ~19:38 IST: pricing is
     // MONTHLY ONLY — the monthly/annual toggle this test used to
     // pin (aria-pressed) was removed entirely, so the pin now
     // asserts its absence alongside the surviving table pins.
-    const pricing = read("app/(saas)/pricing/page.tsx");
+    const pricing = read("components/pricing/PricingClient.tsx");
     expect(pricing).not.toContain('aria-pressed');
     expect(pricing).not.toContain("billing-period-pill");
     expect(pricing).toContain("Compare every limit");
@@ -299,7 +301,7 @@ describe("design pass round 5 — motion kit, hero choreography, pipeline packet
 
 describe("design pass round 5 — approved pricing on the landing band", () => {
   const page = read("app/page.tsx");
-  const pricing = read("app/(saas)/pricing/page.tsx");
+  const pricing = read("components/pricing/PricingClient.tsx");
 
   it("the band offers the trial and Studio inclusion from the catalogue", () => {
     expect(page).toContain("TRIAL_DAYS");
@@ -322,8 +324,20 @@ describe("design pass round 5 — approved pricing on the landing band", () => {
   it("the pricing page states the trial and keeps checkout honesty", () => {
     expect(pricing).toContain("TRIAL_DAYS");
     expect(pricing).toContain("no card needed");
-    expect(pricing).toContain("Checkout is being switched on");
     expect(pricing).toContain("CATALOGUE_STATUS");
+    // Checkout honesty (rewritten 2026-11-08, launch fix): the
+    // "being switched on" sentence used to be static copy and went
+    // stale the moment checkout was wired and the flags flipped
+    // on. It still exists in the client — but renders ONLY while
+    // checkout is closed; the server wrapper page computes
+    // checkoutLive from the same billing state the checkout route
+    // enforces (flags + configured provider).
+    expect(pricing).toContain("Checkout is being switched on");
+    expect(pricing).toContain("checkoutLive");
+    const pricingPage = read("app/(saas)/pricing/page.tsx");
+    expect(pricingPage).toContain("readBillingFlags");
+    expect(pricingPage).toContain("resolveActiveBillingProvider");
+    expect(pricingPage).toContain("checkoutLive");
   });
 });
 
@@ -361,7 +375,7 @@ describe("design pass round 7 — shared motion system (motion package)", () => 
   const presets = read("lib/motion/presets.ts");
   const primitives = read("components/motion/primitives.tsx");
   const page = read("app/page.tsx");
-  const pricing = read("app/(saas)/pricing/page.tsx");
+  const pricing = read("components/pricing/PricingClient.tsx");
   const providers = read("components/providers/Providers.tsx");
 
   it("the site depends on the motion package, not framer-motion", () => {
@@ -404,7 +418,10 @@ describe("design pass round 7 — shared motion system (motion package)", () => 
     expect(pricing).not.toContain("Annual");
     expect(pricing).toContain("useDisplayCurrency");
     expect(pricing).toContain("staggerParent");
-    // The catalogue figures and honesty lines did not move.
+    // The catalogue figures did not move. The honesty line is no
+    // longer static (2026-11-08 launch fix): it renders only while
+    // the server-side checkout gate is closed — see the round-5
+    // describe's rewritten pin for the wrapper assertions.
     expect(pricing).toContain("Checkout is being switched on");
     expect(pricing).toContain("OWNER-APPROVED");
   });
@@ -439,7 +456,7 @@ describe("design pass round 7 — shared motion system (motion package)", () => 
  */
 describe("pricing columns — tall vertical columns side by side", () => {
   const page = read("app/page.tsx");
-  const pricing = read("app/(saas)/pricing/page.tsx");
+  const pricing = read("components/pricing/PricingClient.tsx");
 
   it("/pricing lays the five plans out as side-by-side columns, not stacked bands", () => {
     expect(pricing).toContain("grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5");
@@ -486,7 +503,7 @@ describe("pricing columns — tall vertical columns side by side", () => {
  */
 describe("de-clutter + geo currency + monthly-only (owner, 2026-11-08 ~19:38 IST)", () => {
   const page = read("app/page.tsx");
-  const pricing = read("app/(saas)/pricing/page.tsx");
+  const pricing = read("components/pricing/PricingClient.tsx");
   const panel = read("components/billing/BillingPanel.tsx");
   const middleware = read("middleware.ts");
 

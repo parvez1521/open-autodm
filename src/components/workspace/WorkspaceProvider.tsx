@@ -19,6 +19,18 @@
  * stored id that is no longer in the member-derived list is dropped
  * and surfaced via `droppedWorkspaceId` (the "you no longer have
  * access" state).
+ *
+ * First-workspace provisioning (launch fix, 2026-11-08 —
+ * lib/tenancy/provisioning.ts): signup never created a workspace,
+ * so a fresh customer (or any account predating the SaaS wiring)
+ * arrived here with an empty list and every workspace-scoped
+ * surface dead-ended. When the loaded list is EMPTY, the provider
+ * now creates the first workspace through POST /api/workspaces —
+ * the app's own creation route (create_workspace RPC: workspace +
+ * owner membership) — and re-reads the list, at most once per
+ * provider mount (so a user who deliberately leaves their only
+ * workspace is not handed a new one mid-session, and a failed
+ * creation simply leaves the honest empty state in place).
  */
 
 import {
@@ -32,6 +44,7 @@ import {
     type ReactNode,
 } from "react";
 import { apiClient, ApiError } from "@/lib/api/client";
+import { provisionIfEmpty } from "@/lib/tenancy/provisioning";
 import type { WorkspaceRole } from "@/lib/tenancy/context";
 
 export const WORKSPACE_SELECTION_STORAGE_KEY = "opendm:selected-workspace-id";
@@ -82,6 +95,12 @@ export function WorkspaceProvider({
     const [droppedWorkspaceId, setDroppedWorkspaceId] = useState<string | null>(null);
     const selectedRef = useRef<string | null>(null);
     selectedRef.current = selectedWorkspaceId;
+    // First-workspace provisioning is attempted at most once per
+    // mount (see the header comment): refreshWorkspaces is also the
+    // reload path after leaving/removing a workspace, and neither a
+    // deliberate leave nor a transient creation failure should turn
+    // every refresh into a creation attempt.
+    const provisionAttemptedRef = useRef(false);
 
     const applyList = useCallback((list: WorkspaceSummary[]) => {
         setWorkspaces(list);
@@ -114,8 +133,24 @@ export function WorkspaceProvider({
         if (!workspaceRuntimeEnabled) return;
         setLoading(true);
         try {
-            const data = await apiClient<{ workspaces: WorkspaceSummary[] }>("/workspaces");
-            applyList(data.workspaces ?? []);
+            const fetchList = async (): Promise<WorkspaceSummary[]> => {
+                const data = await apiClient<{ workspaces: WorkspaceSummary[] }>("/workspaces");
+                return data.workspaces ?? [];
+            };
+            let list = await fetchList();
+            if (list.length === 0 && !provisionAttemptedRef.current) {
+                provisionAttemptedRef.current = true;
+                const ensured = await provisionIfEmpty(list, {
+                    create: (name) =>
+                        apiClient("/workspaces", {
+                            method: "POST",
+                            body: JSON.stringify({ name }),
+                        }),
+                    relist: fetchList,
+                });
+                list = ensured.workspaces;
+            }
+            applyList(list);
             setLoadError(null);
         } catch (err) {
             setLoadError(err instanceof ApiError ? err.message : "Could not load workspaces");

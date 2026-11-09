@@ -33,6 +33,26 @@ async function renderPage(relPath: string): Promise<string> {
     fs.unlinkSync(path.join(tmpDir, name));
   }
 }
+
+/** renderPage variant for components that take props (e.g. the
+ * pricing client, whose checkoutLive boolean comes from the server
+ * wrapper page). */
+async function renderComponent(relPath: string, props: Record<string, unknown>): Promise<string> {
+  const src = fs.readFileSync(path.resolve(process.cwd(), relPath), 'utf8');
+  const { code } = transformSync(src, { loader: 'tsx', jsx: 'automatic', format: 'esm', target: 'es2022' });
+  const tmpDir = path.resolve(process.cwd(), 'tests/.p13-tmp');
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const name = `page-${Math.random().toString(36).slice(2)}.mjs`;
+  fs.writeFileSync(path.join(tmpDir, name), code);
+  try {
+    const mod = (await import(`./.p13-tmp/${name}`)) as {
+      default: React.ComponentType<Record<string, unknown>>;
+    };
+    return renderToStaticMarkup(React.createElement(mod.default, props));
+  } finally {
+    fs.unlinkSync(path.join(tmpDir, name));
+  }
+}
 import {
   JOURNEY_STEPS,
   ONBOARDING_STEP_IDS,
@@ -105,7 +125,13 @@ describe('prototype pages under default flags (all OFF)', () => {
     expect(html).toContain('Billing is not enabled');
   });
   it('pricing page renders every catalogue plan at the owner-approved prices', async () => {
-    const html = await renderPage('src/app/(saas)/pricing/page.tsx');
+    // The route file is now a thin server wrapper (it computes the
+    // checkoutLive gate from the billing flags); the harness renders
+    // the client component it loads, with checkout CLOSED — the
+    // default-flags posture.
+    const html = await renderComponent('src/components/pricing/PricingClient.tsx', {
+      checkoutLive: false,
+    });
     for (const id of ['free', 'starter', 'creator-pro', 'agency', 'enterprise']) {
       expect(html).toContain(`plan-${id}`);
     }
@@ -130,6 +156,28 @@ describe('prototype pages under default flags (all OFF)', () => {
     expect(html).toContain('For Business / Agency');
     expect(html).toContain('Contact us');
     expect(html).toContain('15-day free trial');
+    // While checkout is closed, the header says so (the sentence is
+    // gated on the server-side billing state — see the next test).
+    expect(html).toContain('Checkout is being switched on');
+  });
+  it('pricing drops the "being switched on" note once checkout is live (2026-11-08 fix)', async () => {
+    // The note was STATIC copy until this fix: it kept claiming no
+    // plan could be purchased after the owner wired Cashfree and
+    // turned the billing flags on. The server wrapper now passes
+    // checkoutLive (BILLING_ENABLED + PAYMENTS_LIVE_MODE + a
+    // configured provider — the checkout route's own gate) and the
+    // sentence renders only while that gate is closed.
+    const html = await renderComponent('src/components/pricing/PricingClient.tsx', {
+      checkoutLive: true,
+    });
+    expect(html).not.toContain('Checkout is being switched on');
+    expect(html).not.toContain('no plan can be purchased');
+    // The catalogue attribution line itself stays, in both states.
+    expect(html).toContain('Catalogue status');
+    expect(html).toContain('these prices were set by the');
+    for (const id of ['free', 'starter', 'creator-pro', 'agency', 'enterprise']) {
+      expect(html).toContain(`plan-${id}`);
+    }
   });
   it('onboarding page renders the checklist in journey order', async () => {
     const html = await renderPage('src/app/(saas)/onboarding/page.tsx');

@@ -91,7 +91,7 @@ describe('QA fix 3 — Settings Instagram accounts: failure is not "no accounts"
 });
 
 describe('QA fix 2 — /pricing: one catalogue source, honest Free action', () => {
-  const pricing = readSrc('app/(saas)/pricing/page.tsx');
+  const pricing = readSrc('components/pricing/PricingClient.tsx');
   // Code-only view: the page's header comment legitimately DOCUMENTS
   // the approved figures and the old label; the pins below are about
   // what the code renders, so comments are stripped first.
