@@ -168,7 +168,8 @@ describe('G — /analytics always settles', () => {
 });
 
 describe('H — dashboard plan card reads billing status', () => {
-  const page = readSrc('app/(main)/dashboard/page.tsx');
+  // 2026-11-10: dashboard UI moved to components/dashboard/DashboardClient.tsx (route page = server wrapper).
+  const page = readSrc('components/dashboard/DashboardClient.tsx');
   const hook = readSrc('hooks/useBillingStatus.ts');
   it('the hook hits the same /api/billing/status endpoint as /billing', () => {
     expect(hook).toContain('/api/billing/status');

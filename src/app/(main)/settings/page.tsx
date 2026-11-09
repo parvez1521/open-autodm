@@ -72,7 +72,13 @@ function SettingsContent() {
                 account_already_connected: "This Instagram account is already connected to another user on open-autoDM.",
                 plan_limit_reached: "Your current plan's Instagram account limit has been reached. Upgrade your plan in Billing to connect another account.",
                 state_mismatch: "The connection expired. Try again.",
-                setup_required: "Save your Meta app credentials in the Setup Wizard first.",
+                // Owner directive (2026-11-10): the Setup Wizard is
+                // platform-admin only. Admins get the pointer to it;
+                // customers get the honest state — the platform
+                // setup is not theirs to complete.
+                setup_required: setup?.isAdmin
+                    ? "Save your Meta app credentials in the Setup Wizard first."
+                    : "Instagram cannot connect yet — the platform setup is not complete.",
                 server_error: "Something went wrong. Check the details and try again.",
                 invalid_callback: "Invalid callback. Try again.",
                 test_user_required: "Add this Instagram account as a test user to use the automation tool. In your Meta app, go to App Roles > Roles > Add People > Instagram Tester, then accept the invite in Instagram (Settings > Apps and websites > Tester invites) and connect again.",
@@ -84,7 +90,7 @@ function SettingsContent() {
             });
             window.history.replaceState({}, "", "/settings");
         }
-    }, [searchParams, queryClient]);
+    }, [searchParams, queryClient, setup?.isAdmin]);
 
     useEffect(() => {
         if (!banner) return;
@@ -189,7 +195,13 @@ function SettingsContent() {
                 </div>
             )}
 
-            {/* Meta app */}
+            {/* Meta app — PLATFORM administration (owner directive,
+                2026-11-10): the platform's Meta config and its Setup
+                Wizard link render for admins only. Customers never
+                see this section; their Instagram connection lives in
+                the section below. Hidden until the setup status
+                resolves, so a non-admin never flashes it. */}
+            {setup?.isAdmin && (
             <section className="bg-card border border-border rounded-xl p-5 flex items-center justify-between gap-4">
                 <div className="min-w-0">
                     <h2 className="text-[14px] font-heading font-semibold text-foreground">Meta app</h2>
@@ -212,6 +224,7 @@ function SettingsContent() {
                     {setup?.configured ? "Setup Wizard" : "Complete setup"}
                 </Link>
             </section>
+            )}
 
             {/* Instagram accounts */}
             <section className="bg-card border border-border rounded-xl p-5 space-y-4">

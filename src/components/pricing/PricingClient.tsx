@@ -95,6 +95,34 @@ import type { CurrencyCode } from "@/lib/billing/catalogue";
 const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
 
 /**
+ * Plan-choice recording (owner directive, 2026-11-10): in welcome
+ * mode this page IS the one-time plan picker the dashboard routes
+ * new users to. Any choice interaction — a plan CTA, Continue
+ * with Free, or the dismiss — records the choice server-side
+ * (POST /api/billing/plan-choice stamps app_metadata), after
+ * which the dashboard never force-routes again. Cookie transport
+ * authenticates the call, exactly like the session probe below.
+ * Fire-and-forget for navigations the browser performs itself
+ * (billing / mailto); awaited when WE navigate (Free / dismiss),
+ * so the stamp lands before the dashboard re-evaluates — and the
+ * navigation happens even if the stamp fails.
+ */
+function recordPlanChoice(): void {
+  void fetch("/api/billing/plan-choice", { method: "POST" }).catch(() => {
+    /* best effort — a failed stamp only means the picker may re-offer */
+  });
+}
+
+async function recordPlanChoiceAndGoToDashboard(): Promise<void> {
+  try {
+    await fetch("/api/billing/plan-choice", { method: "POST" });
+  } catch {
+    /* navigate regardless — never trap the user on this page */
+  }
+  window.location.href = "/dashboard";
+}
+
+/**
  * Check marker for the key-facts lists — Phosphor's regular
  * Check glyph (256 viewBox; path data from the icon set, which
  * the rest of the site draws via "@/components/phosphor") drawn
@@ -192,7 +220,7 @@ const ENTERPRISE_FACTS: readonly string[] = [
  * ~18:36 IST) is the highlighted pick: a flat brand "Best value"
  * banner across the top of its column and a stronger outline.
  */
-function PlanColumn({ plan, currency, signedIn }: { plan: Plan; currency: CurrencyCode; signedIn: boolean }) {
+function PlanColumn({ plan, currency, signedIn, welcome = false }: { plan: Plan; currency: CurrencyCode; signedIn: boolean; welcome?: boolean }) {
   const highlighted = plan.id === "creator-pro";
   const columnClassName = `flex h-full flex-col p-6 ${
     highlighted ? "border-2 border-primary" : "border border-border"
@@ -218,6 +246,7 @@ function PlanColumn({ plan, currency, signedIn }: { plan: Plan; currency: Curren
           </p>
           <a
             href={CONTACT_HREF}
+            onClick={welcome && signedIn ? recordPlanChoice : undefined}
             className="mt-5 flex h-10 items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
           >
             Contact us
@@ -262,6 +291,20 @@ function PlanColumn({ plan, currency, signedIn }: { plan: Plan; currency: Curren
         )}
         {signedIn ? (
           plan.id === "free" ? (
+            welcome ? (
+              // Plan picker (2026-11-10): in welcome mode Free is a
+              // real CHOICE, not just the current state — choosing
+              // it records the plan choice and returns to the
+              // dashboard. Outside welcome mode the QA-fix marker
+              // below stands.
+              <button
+                type="button"
+                onClick={() => void recordPlanChoiceAndGoToDashboard()}
+                className="mt-5 flex h-10 w-full items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+              >
+                Continue with Free
+              </button>
+            ) : (
             // QA fix (2026-11-08): the Free column used to offer "Manage
             // billing" — a promise of a working billing console while
             // BILLING_ENABLED is off and /billing renders its inert
@@ -273,9 +316,11 @@ function PlanColumn({ plan, currency, signedIn }: { plan: Plan; currency: Curren
             >
               Current plan
             </span>
+            )
           ) : (
             <a
               href={`/billing?plan=${plan.id}`}
+              onClick={welcome ? recordPlanChoice : undefined}
               className="mt-5 flex h-10 items-center justify-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90"
             >
               Start free trial
@@ -304,7 +349,7 @@ function PlanColumn({ plan, currency, signedIn }: { plan: Plan; currency: Curren
   );
 }
 
-export default function PricingClient({ checkoutLive }: { checkoutLive: boolean }) {
+export default function PricingClient({ checkoutLive, welcome = false }: { checkoutLive: boolean; welcome?: boolean }) {
   const currency = useDisplayCurrency();
   const [signedIn, setSignedIn] = useState(false);
 
@@ -346,6 +391,26 @@ export default function PricingClient({ checkoutLive }: { checkoutLive: boolean 
             on this page yet.
           </p>
         )}
+        {/* Plan-picker banner (owner directive, 2026-11-10):
+            renders only in welcome mode for a signed-in user —
+            this page is their one-time plan-choice step. Choosing
+            any plan records the choice; so does dismissing. */}
+        {welcome && signedIn && (
+          <div className="mt-4 max-w-2xl rounded-xl border border-primary/30 bg-primary/5 p-4" data-testid="plan-picker-banner">
+            <p className="font-heading text-[15px] font-semibold">Choose your plan</p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              One step before your console: pick a plan for your workspace. Paid plans start
+              with a free trial, and you can change plans any time in Billing.
+            </p>
+            <button
+              type="button"
+              onClick={() => void recordPlanChoiceAndGoToDashboard()}
+              className="mt-3 inline-flex h-9 items-center justify-center rounded-lg border border-border px-4 text-[13px] font-semibold transition-colors hover:bg-muted"
+            >
+              Decide later — go to my dashboard
+            </button>
+          </div>
+        )}
       </motion.div>
 
       {/* The plan columns break out of the shell's narrow main
@@ -359,7 +424,7 @@ export default function PricingClient({ checkoutLive }: { checkoutLive: boolean 
           animate="show"
         >
           {PLANS.map((plan) => (
-            <PlanColumn key={plan.id} plan={plan} currency={currency} signedIn={signedIn} />
+            <PlanColumn key={plan.id} plan={plan} currency={currency} signedIn={signedIn} welcome={welcome} />
           ))}
         </motion.div>
       </div>

@@ -7,6 +7,7 @@ import { PageTransition } from "@/components/motion/primitives";
 import { readWorkspaceFlags } from "@/lib/tenancy/workspaceFlags";
 import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 import { createServerClient } from "@/lib/supabase";
+import { isAdminEmail } from "@/lib/admin/panel";
 
 /**
  * The signed-in console is never indexed (SEO pass, 2026-11-10):
@@ -48,15 +49,22 @@ export default async function MainLayout({
     // changes, no layout shift).
     const workspaceRuntimeEnabled = readWorkspaceFlags(process.env).workspaceRuntimeEnabled;
     const userEmail = await readUserEmail();
+    // Setup Wizard visibility (owner directive, 2026-11-10): the
+    // wizard administers the PLATFORM's Meta config, so its nav
+    // item renders only for admins — the same ADMIN_EMAILS gate
+    // as /admin, computed here server-side and passed down as a
+    // bare boolean (the allowlist itself never reaches the
+    // browser). The /setup route enforces the same gate itself.
+    const isAdmin = isAdminEmail(userEmail, process.env);
     return (
         <WorkspaceProvider workspaceRuntimeEnabled={workspaceRuntimeEnabled}>
         <div className="h-screen bg-background text-foreground flex overflow-hidden">
 
             {/* Desktop Sidebar (Collapsible) */}
-            <Sidebar workspaceRuntimeEnabled={workspaceRuntimeEnabled} userEmail={userEmail} />
+            <Sidebar workspaceRuntimeEnabled={workspaceRuntimeEnabled} userEmail={userEmail} isAdmin={isAdmin} />
 
             {/* Mobile drawer (opened by the Topbar hamburger) */}
-            <MobileSidebar workspaceRuntimeEnabled={workspaceRuntimeEnabled} userEmail={userEmail} />
+            <MobileSidebar workspaceRuntimeEnabled={workspaceRuntimeEnabled} userEmail={userEmail} isAdmin={isAdmin} />
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden relative z-10">

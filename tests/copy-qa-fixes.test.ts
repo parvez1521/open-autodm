@@ -160,10 +160,17 @@ describe('QA fix 4 — the (saas) shell nav is session-aware', () => {
 });
 
 describe('QA fix 5 — dashboard getting-started steps are label↔target truthful', () => {
-  const dashboard = readSrc('app/(main)/dashboard/page.tsx');
+  // 2026-11-10: the dashboard UI moved to
+  // components/dashboard/DashboardClient.tsx (the route page is now
+  // a server wrapper), and the first step changed under the owner's
+  // directive the same day: "Save your Meta app credentials" (→ the
+  // then-public Setup Wizard) became "Choose your plan" (→ /pricing)
+  // — the hosted journey starts with a plan, not a Meta app.
+  const dashboard = readSrc('components/dashboard/DashboardClient.tsx');
 
   it('every checklist step links to the surface its label names', () => {
-    expect(dashboard).toContain('{ label: "Save your Meta app credentials", done: !!setup?.configured, href: "/setup" }');
+    expect(dashboard).toContain('{ label: "Choose your plan", done: planChoiceDone || billingPlanChosen, href: "/pricing" }');
+    expect(dashboard).not.toContain('Save your Meta app credentials');
     expect(dashboard).toContain('{ label: "Connect your Instagram account", done: !!connectedAccount, href: "/settings" }');
     expect(dashboard).toContain('{ label: "Create your first automation", done: (automations?.length ?? 0) > 0, href: "/automations" }');
     expect(dashboard).toContain('{ label: "Activate it", done: activeCount > 0, href: "/automations" }');

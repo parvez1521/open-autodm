@@ -53,19 +53,34 @@ const NAV = {
  * Shared nav groups, used by both the desktop sidebar and the mobile
  * drawer. The active item is marked by its filled row surface and
  * medium weight only.
+ *
+ * Setup Wizard (owner directive, 2026-11-10): the item renders ONLY
+ * when `isAdmin` — a server-computed boolean from the (main) layout
+ * (the ADMIN_EMAILS gate, same as /admin). It defaults to false, so
+ * any render path that does not prove adminship hides the item; the
+ * /setup route additionally 404s non-admins server-side.
  */
 function NavGroups({
     collapsed,
     onNavigate,
+    isAdmin = false,
 }: {
     collapsed: boolean;
     onNavigate?: () => void;
+    isAdmin?: boolean;
 }) {
     const pathname = usePathname();
+    const visibleNav = Object.entries(NAV).map(
+        ([group, items]) =>
+            [
+                group,
+                isAdmin ? items : items.filter((item) => item.href !== "/setup"),
+            ] as const,
+    );
 
     return (
         <>
-            {Object.entries(NAV).map(([group, items]) => (
+            {visibleNav.map(([group, items]) => (
                 <div key={group} className="mb-5">
                     {!collapsed && (
                         <div className="micro-label px-4 mb-1.5 opacity-70">{group}</div>
@@ -108,7 +123,7 @@ function NavGroups({
     );
 }
 
-export function Sidebar({ workspaceRuntimeEnabled = false, userEmail = null }: { workspaceRuntimeEnabled?: boolean; userEmail?: string | null } = {}) {
+export function Sidebar({ workspaceRuntimeEnabled = false, userEmail = null, isAdmin = false }: { workspaceRuntimeEnabled?: boolean; userEmail?: string | null; isAdmin?: boolean } = {}) {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     return (
@@ -149,7 +164,7 @@ export function Sidebar({ workspaceRuntimeEnabled = false, userEmail = null }: {
 
             {/* Nav */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none py-4">
-                <NavGroups collapsed={isCollapsed} />
+                <NavGroups collapsed={isCollapsed} isAdmin={isAdmin} />
             </div>
 
             {/* Workspace switcher — Programme 18 Phase G, flag-gated:
@@ -174,7 +189,7 @@ export function Sidebar({ workspaceRuntimeEnabled = false, userEmail = null }: {
  * Mobile navigation drawer (< lg). Opened by the Topbar hamburger via
  * useUiStore; closes on backdrop tap, the X button, Escape, or navigation.
  */
-export function MobileSidebar({ workspaceRuntimeEnabled = false, userEmail = null }: { workspaceRuntimeEnabled?: boolean; userEmail?: string | null } = {}) {
+export function MobileSidebar({ workspaceRuntimeEnabled = false, userEmail = null, isAdmin = false }: { workspaceRuntimeEnabled?: boolean; userEmail?: string | null; isAdmin?: boolean } = {}) {
     const isOpen = useUiStore((s) => s.mobileSidebarOpen);
     const close = useUiStore((s) => s.closeMobileSidebar);
     const pathname = usePathname();
@@ -232,7 +247,7 @@ export function MobileSidebar({ workspaceRuntimeEnabled = false, userEmail = nul
 
                         {/* Nav */}
                         <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none py-4">
-                            <NavGroups collapsed={false} onNavigate={close} />
+                            <NavGroups collapsed={false} onNavigate={close} isAdmin={isAdmin} />
                         </div>
 
                         {/* Workspace switcher — flag-gated, as desktop. */}

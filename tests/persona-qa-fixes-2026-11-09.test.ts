@@ -116,7 +116,8 @@ describe('PQ-6 — the internal catalogue line is off the public pricing page', 
 
 describe('PQ-7 — plan dates on the dashboard; trial offered only to the never-subscribed', () => {
   it('the dashboard plan card renders period/trial/lapse dates', () => {
-    const dash = readSrc('app/(main)/dashboard/page.tsx');
+    // 2026-11-10: dashboard UI moved to components/dashboard/DashboardClient.tsx (route page = server wrapper).
+    const dash = readSrc('components/dashboard/DashboardClient.tsx');
     expect(dash).toContain('Current period ends ${formatPlanDate(');
     expect(dash).toContain('day(s) left, ends ${formatPlanDate(billingStatus.trial.endsAt)}');
     expect(dash).toContain('Subscription ended on ${formatPlanDate(');

@@ -86,7 +86,8 @@ describe('R2-2 — BillingPanel follows the shared workspace selection', () => {
 
 describe('R2-3 — loading is modelled as loading, never as an error or an empty list', () => {
   it('dashboard plan card: skeleton on isPending, error copy only on isError', () => {
-    const page = readSrc('app/(main)/dashboard/page.tsx');
+    // 2026-11-10: dashboard UI moved to components/dashboard/DashboardClient.tsx (route page = server wrapper).
+    const page = readSrc('components/dashboard/DashboardClient.tsx');
     expect(page).toContain('isPending: billingPending');
     expect(page).toContain('billingPending ? (');
     expect(page).not.toContain('billingLoading');
@@ -112,7 +113,7 @@ describe('R2-3 — loading is modelled as loading, never as an error or an empty
 
 describe('R2-4 — dashboard copy is the hosted product', () => {
   it('no self-hosted claim; the landing line is reused', () => {
-    const page = readSrc('app/(main)/dashboard/page.tsx');
+    const page = readSrc('components/dashboard/DashboardClient.tsx');
     expect(page).not.toContain('self-hosted Instagram automation console');
     expect(page).toContain('Turn comments into customers on autopilot.');
   });

@@ -103,7 +103,9 @@ describe('audit fix 6 — support + legal links inside the app shell', () => {
 
 describe('audit fixes 7–14 — the half-wired controls', () => {
   it('dashboard renders skeletons instead of 0 / Not connected flashes', () => {
-    const src = readSrc('app/(main)/dashboard/page.tsx');
+    // 2026-11-10: the dashboard UI moved to components/dashboard/DashboardClient.tsx
+    // (the route page is now a server wrapper — plan-choice routing + admin gate props).
+    const src = readSrc('components/dashboard/DashboardClient.tsx');
     expect(src).toContain('statsLoading');
     expect(src).toContain('systemLoading');
     expect(src).toContain('animate-pulse');
@@ -141,11 +143,13 @@ describe('audit fixes 7–14 — the half-wired controls', () => {
     expect(readSrc('components/dashboard/Topbar.tsx')).toContain('"/script-writer": "Script Writer"');
     expect(readSrc('components/dashboard/Topbar.tsx')).not.toContain('Viral Script Writer');
     expect(readSrc('app/(main)/script-writer/page.tsx')).not.toContain('Viral Script Writer');
-    expect(readSrc('app/(main)/dashboard/page.tsx')).not.toContain('Viral Script Writer');
+    expect(readSrc('components/dashboard/DashboardClient.tsx')).not.toContain('Viral Script Writer');
   });
 
   it('the setup wizard no longer references a nonexistent debug panel', () => {
-    const setup = readSrc('app/(main)/setup/page.tsx');
+    // 2026-11-10: the wizard UI moved to components/setup/SetupWizard.tsx
+    // (the route page is now the server-side ADMIN_EMAILS gate).
+    const setup = readSrc('components/setup/SetupWizard.tsx');
     expect(setup).not.toContain('debug panel shows');
     expect(setup).toContain('signature mismatch');
   });

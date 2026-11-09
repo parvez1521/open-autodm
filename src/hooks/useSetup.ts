@@ -5,6 +5,8 @@ import { apiClient } from '@/lib/api/client';
 
 export interface SetupStatus {
   configured: boolean;
+  /** Caller's own ADMIN_EMAILS membership (2026-11-10) — gates platform-admin affordances in client surfaces. */
+  isAdmin?: boolean;
   metaAppId: string | null;
   webhookVerifyToken: string | null;
   webhookUrl: string;

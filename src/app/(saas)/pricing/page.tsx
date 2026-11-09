@@ -50,12 +50,25 @@ const PricingClient = dynamic(() => import("@/components/pricing/PricingClient")
  * while the gate is closed, so the copy tracks reality on every
  * deployment without a code change when flags flip.
  */
-export default function PricingPage() {
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ welcome?: string | string[] }>;
+}) {
   const flags = readBillingFlags(process.env);
   const checkoutLive =
     flags.billingEnabled &&
     flags.paymentsLiveMode &&
     resolveActiveBillingProvider(process.env) !== null;
 
-  return <PricingClient checkoutLive={checkoutLive} />;
+  // Plan-picker mode (owner directive, 2026-11-10): the dashboard
+  // routes brand-new users here ONCE with ?welcome=1 when they
+  // have no plan state and no recorded choice. The client renders
+  // the plan-choice banner + choice-recording actions for
+  // signed-in users in that mode; a plain public visit is
+  // unchanged.
+  const params = await searchParams;
+  const welcome = params.welcome === "1";
+
+  return <PricingClient checkoutLive={checkoutLive} welcome={welcome} />;
 }

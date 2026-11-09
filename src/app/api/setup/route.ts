@@ -21,6 +21,7 @@ import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import { getMetaSettings, saveMetaSettings } from '@/lib/settings';
 import { isInstanceOwner } from '@/lib/owner';
+import { isAdminEmail } from '@/lib/admin/panel';
 import { randomToken } from '@/lib/crypto';
 import { getAppUrl, getEnv } from '@/lib/env';
 
@@ -83,6 +84,12 @@ export async function GET(request: Request): Promise<Response> {
 
   return Response.json({
     configured: !!settings,
+    // Caller-admin flag (owner directive, 2026-11-10): whether THIS
+    // caller's email is in ADMIN_EMAILS. Client surfaces (settings,
+    // dashboard) use it to show or hide platform-admin affordances
+    // like the Setup Wizard link — the allowlist itself is never
+    // serialized, only the caller's own boolean.
+    isAdmin: isAdminEmail(user.email, process.env),
     metaAppId: (row?.meta_app_id as string | null) ?? null,
     webhookVerifyToken: maySeeToken ? ((row?.webhook_verify_token as string | null) ?? null) : null,
     webhookUrl: `${appUrl}/api/webhook`,
