@@ -10,6 +10,7 @@
  */
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -19,6 +20,7 @@ import { CircleNotch, ChatCircle, PaperPlaneTilt, Image as ImageIcon, Users, Use
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 
 /* Validated categorical palette - fixed slot order, per-mode steps */
 const PALETTE = {
@@ -71,6 +73,22 @@ export default function AnalyticsPage() {
     const colors = PALETTE[resolvedTheme === "light" ? "light" : "dark"];
 
     const { account, accountId } = useActiveAccount();
+    // No-workspace state (2026-11-09): with the workspace runtime on
+    // and the provider's list loaded EMPTY (provisioning could not
+    // create one, or the account belongs to none), the analytics
+    // query stays scope-gated off — that is a distinct state from a
+    // fetch failure and from "still loading", and it renders its own
+    // panel below instead of falling into the error branch. While
+    // the provider is still loading, the scope is unresolved and the
+    // page stays on the spinner.
+    const {
+        workspaceRuntimeEnabled,
+        loading: workspaceLoading,
+        loadError: workspaceLoadError,
+        workspaces,
+    } = useWorkspace();
+    const noWorkspace =
+        workspaceRuntimeEnabled && !workspaceLoading && workspaces.length === 0;
     const [rangeDays, setRangeDays] = useState<number>(30);
     const [automationId, setAutomationId] = useState<string>("all");
 
@@ -88,6 +106,11 @@ export default function AnalyticsPage() {
     // any error (or a workspace with no connected accounts erroring
     // the route) showed a lone spinner indefinitely. The query's
     // error state is now rendered as an honest, retryable panel.
+    // Workspace scope (2026-11-09): the query itself now rides the
+    // shared workspace request scope (see useAnalytics) — with a
+    // workspace selected it loads (zero-activity workspaces get the
+    // honest empty state in the success branch, NOT this panel), and
+    // the error panel below is reserved for genuine fetch failures.
     const { data, isLoading, isError, error, refetch, isFetching } = useAnalytics({ from, to, automationId, accountId });
 
     const gridStroke = resolvedTheme === "light" ? "#EDEDEF" : "#232329";
@@ -155,7 +178,22 @@ export default function AnalyticsPage() {
                 </div>
             </div>
 
-            {isLoading ? (
+            {noWorkspace ? (
+                <div className="py-16 flex flex-col items-center text-center gap-3" role="status">
+                    <ChartBar className="w-6 h-6 text-muted-foreground/50" />
+                    <p className="text-[13.5px] font-medium text-foreground">No workspace yet</p>
+                    <p className="text-[12.5px] text-muted-foreground max-w-sm">
+                        {workspaceLoadError ??
+                            "Analytics is organised by workspace, and this account doesn't belong to one yet. Create a workspace and connect an Instagram account — the numbers will appear here."}
+                    </p>
+                    <Link
+                        href="/settings/workspace"
+                        className="mt-1 inline-flex h-8 items-center rounded-lg border border-border px-3 text-[12.5px] font-medium text-foreground hover:bg-muted transition-colors"
+                    >
+                        Go to workspace settings
+                    </Link>
+                </div>
+            ) : isLoading || (workspaceRuntimeEnabled && workspaceLoading) ? (
                 <div className="py-24 flex justify-center">
                     <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>

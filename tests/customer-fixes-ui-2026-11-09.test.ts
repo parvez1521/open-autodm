@@ -10,7 +10,10 @@
  *  F  Automation editor: no-account blocker banner + disabled Save,
  *     full-width mutation error bar (never a silent failure).
  *  G  /analytics settles: error state with Retry + honest empty
- *     state; the spinner is gated on isLoading only.
+ *     state; the spinner is gated on isLoading only. (Later
+ *     2026-11-09: the read now rides the workspace request scope
+ *     and the page distinguishes no-workspace / resolving / error —
+ *     see the dated pins in describe G.)
  *  H  Dashboard reads the same /api/billing/status resolution as
  *     /billing (useBillingStatus) and ALWAYS renders the plan card.
  *  I  BillingPanel: inline phone error at the field; dismissible
@@ -123,7 +126,39 @@ describe('G — /analytics always settles', () => {
     expect(src).toContain('refetch');
     expect(src).toContain('No activity in this range yet');
     // The lone-spinner-forever shape is gone: loading is its own branch.
-    expect(src).toContain('isLoading ? (');
+    // (2026-11-09, workspace-scope fix: the branch gained the
+    // provider-resolving condition — the pin follows the new shape.)
+    expect(src).toContain('isLoading || (workspaceRuntimeEnabled && workspaceLoading) ? (');
+  });
+
+  // 2026-11-09 — the live bug behind this fix: with a workspace
+  // selected, /analytics settled on "A workspace context is
+  // required: no workspace was specified" because useAnalytics was
+  // the last read still issuing a plain unscoped apiClient call —
+  // the route (workspace mode) fails closed without the selector.
+  it('the analytics read rides the shared workspace request scope, like its siblings', () => {
+    const hook = readSrc('hooks/useAnalytics.ts');
+    expect(hook).toContain('workspaceRequestScopeFromSelection');
+    expect(hook).toContain('sendWorkspaceRequest<AnalyticsPayload>');
+    expect(hook).toContain("enabled: requestScope.kind !== 'unavailable'");
+    // The cache key names the workspace in workspace mode, so a
+    // workspace switch can never render the previous one's numbers.
+    expect(hook).toContain('requestScope.workspaceId');
+    // The old unscoped transport is gone from the hook entirely
+    // (no api/client import, no direct apiClient call).
+    expect(hook).not.toContain("from '@/lib/api/client'");
+    expect(hook).not.toContain('apiClient<AnalyticsPayload>');
+  });
+
+  it('the page keeps the three states distinct: no-workspace ≠ loading ≠ fetch error', () => {
+    // No-workspace-at-all (provider loaded, list empty) has its own
+    // panel and is checked BEFORE the loading/error branches.
+    expect(src).toContain('noWorkspace');
+    expect(src).toContain('No workspace yet');
+    expect(src).toContain('/settings/workspace');
+    expect(src.indexOf('noWorkspace ? (')).toBeLessThan(src.indexOf('isError || !data ? ('));
+    // The genuine-failure error state survives untouched.
+    expect(src).toContain('Analytics could not be loaded');
   });
 });
 

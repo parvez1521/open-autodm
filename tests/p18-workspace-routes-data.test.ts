@@ -32,6 +32,9 @@ const mockAuth = vi.mocked(getAuthenticatedUser);
 
 const WS_A = '11111111-1111-4111-8111-111111111111';
 const WS_B = '22222222-2222-4222-8222-222222222222';
+// WS_C (2026-11-09): OWNER_A's second workspace with NO Instagram
+// accounts, automations or jobs — the /analytics empty-state case.
+const WS_C = '33333333-3333-4333-8333-333333333333';
 const ACCT_A = 'acct-a';
 const ACCT_B = 'acct-b';
 
@@ -47,6 +50,7 @@ function seedAll(): void {
     { workspace_id: WS_A, user_id: OWNER_A.id, role: 'owner' },
     { workspace_id: WS_A, user_id: MEMBER_A.id, role: 'member' },
     { workspace_id: WS_A, user_id: VIEWER_A.id, role: 'viewer' },
+    { workspace_id: WS_C, user_id: OWNER_A.id, role: 'owner' },
   ]);
   fake.replaceRows('instagram_accounts', [
     { id: ACCT_A, user_id: OWNER_A.id, workspace_id: WS_A, username: 'acct-a', name: 'A', profile_picture_url: null, is_active: true, token_expires_at: null, paused_until: null, pause_reason: null, access_token_encrypted: 'SECRET-A', created_at: '2026-11-01T00:00:00Z' },
@@ -131,6 +135,42 @@ describe('analytics (workspace mode)', () => {
       new Request(`https://app.opendm.in/api/analytics?workspace=${WS_A}&accountId=${ACCT_B}`),
     );
     expect(foreignAcct.status).toBe(404);
+  });
+
+  // 2026-11-09 (/analytics workspace-scope fix): the client now
+  // sends the selector as the x-workspace-id HEADER (the sibling
+  // hooks' convention). A selected workspace with no Instagram
+  // accounts is the empty-state case: 200 with zero totals — NOT an
+  // error. This is the server half of the live bug, where the page
+  // showed "A workspace context is required" for a selected
+  // workspace because the request carried no selector at all.
+  it('header selector + workspace with NO accounts ⇒ 200, zero totals (empty state, not an error)', async () => {
+    mockAuth.mockResolvedValue(OWNER_A);
+    const res = await analyticsGET(
+      new Request('https://app.opendm.in/api/analytics?from=2026-11-01&to=2026-11-30', {
+        headers: { 'x-workspace-id': WS_C },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      totals: { triggers: number; delivered: number; newContacts: number };
+      perAutomation: unknown[];
+      automations: unknown[];
+    };
+    expect(body.totals).toMatchObject({ triggers: 0, delivered: 0, newContacts: 0 });
+    expect(body.perAutomation).toEqual([]);
+    expect(body.automations).toEqual([]);
+  });
+
+  it('no selector at all ⇒ 400 workspace-context-required (the exact live failure, fail-closed)', async () => {
+    mockAuth.mockResolvedValue(OWNER_A);
+    const res = await analyticsGET(
+      new Request('https://app.opendm.in/api/analytics?from=2026-11-01&to=2026-11-30'),
+    );
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code?: string; error?: string };
+    expect(body.code).toBe('workspace-context-required');
+    expect(body.error).toContain('no workspace was specified');
   });
 });
 
