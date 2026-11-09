@@ -41,7 +41,7 @@ export function WaitlistForm() {
 
     if (state === "joined" || state === "already") {
         return (
-            <p className="mt-5 flex items-center justify-center gap-2 text-[13.5px] font-medium text-foreground" role="status">
+            <p className="animate-caption-pop mt-5 flex items-center justify-center gap-2 text-[13.5px] font-medium text-foreground" role="status">
                 <CheckCircle className="h-4.5 w-4.5 shrink-0" />
                 {state === "joined"
                     ? "You are on the list. We will write to this address when a slot opens."

@@ -245,7 +245,10 @@ describe('M — no user-visible prototype wording on live surfaces', () => {
 describe('P — motion entrances fail visible', () => {
   it('shared presets start near-visible with short durations', () => {
     const presets = readSrc('lib/motion/presets.ts');
-    expect(presets).toContain('hidden: { opacity: 0.3, y: 10 }');
+    // Rise retimed 10px -> 12px on 2026-11-09 (owner directive
+    // "Open Caption style adopt": entrances match the reference
+    // fade-in-up, 0.45s cubic-bezier(0.16,1,0.3,1), 12px rise).
+    expect(presets).toContain('hidden: { opacity: 0.3, y: 12 }');
     expect(presets).toContain('staggerChildren: 0.04');
     expect(presets).not.toContain('hidden: { opacity: 0, y: 24 }');
   });
@@ -261,9 +264,22 @@ describe('P — motion entrances fail visible', () => {
     expect(css).toContain('translateY(12px) scale(0.94) rotate(-1.5deg)');
     expect(css).not.toContain('translateY(30px) scale(0.78) rotate(-5deg)');
   });
-  it('the landing hero items start near-visible', () => {
+  it('the landing hero entrance cannot trap content', () => {
+    // Superseded 2026-11-09 (owner directive: Open Caption style +
+    // animation concepts adopt). The hero entrance is no longer
+    // motion variants — it is the reference's pure-CSS [data-hero]
+    // system, whose fail-visible guarantees are structural: the
+    // animations are CSS (they run with or without hydration),
+    // reduced-motion disables them outright, and coarse pointers
+    // paint the sub/CTA copy immediately. The pins below stand in
+    // for the old near-visible-variant pin.
     const page = readSrc('app/page.tsx');
-    expect(page).toContain('hidden: { opacity: 0.3, y: 12 }');
+    const css = readSrc('app/globals.css');
+    expect(page).toContain('data-hero="word"');
+    expect(page).toContain('data-hero="sub"');
+    expect(css).toContain('@keyframes hero-up');
+    expect(css).toContain('@media (pointer: coarse) { [data-hero="sub"], [data-hero="cta"] { animation: none; } }');
+    expect(css).toContain('[data-hero] { animation: none !important; }');
   });
 });
 

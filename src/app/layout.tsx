@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, Bricolage_Grotesque, IBM_Plex_Mono } from "next/font/google";
+import { Instrument_Serif, Plus_Jakarta_Sans } from "next/font/google";
 import { AppProviders } from "@/components/providers/Providers";
+import { introScript } from "@/components/home/intro";
 import "./globals.css";
 
-const hanken = Hanken_Grotesk({
-  variable: "--font-hanken",
+/**
+ * Two fonts (Open Caption system, adopted 2026-11-09 by owner
+ * directive): Plus Jakarta Sans for everything, Instrument Serif
+ * Italic as the accent. Hanken Grotesk / Bricolage / IBM Plex Mono
+ * were retired here; mono survives only as a system stack token
+ * for code/IDs (see globals.css).
+ */
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-accent-sys",
   subsets: ["latin"],
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: "400",
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -32,8 +37,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Brand intro gate (landing only, once per session): must
+            run before first paint — see components/home/intro.ts. */}
+        <script dangerouslySetInnerHTML={{ __html: introScript }} />
+      </head>
       <body
-        className={`${hanken.variable} ${bricolage.variable} ${plexMono.variable} font-sans antialiased bg-background text-foreground transition-colors duration-300`}
+        className={`${jakarta.variable} ${instrumentSerif.variable} font-sans antialiased bg-background text-foreground transition-colors duration-300`}
       >
         <AppProviders>
           {children}

@@ -93,7 +93,7 @@ export function DeletionStatusBanner({ confirmationCode }: { confirmationCode: s
   if (state.kind === 'completed') {
     return (
       <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-foreground mb-6 space-y-2">
-        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold text-base">
+        <div className="flex items-center gap-2 text-emerald-600 font-semibold text-base">
           <CheckCircle className="w-5 h-5 shrink-0" />
           <span>Data Deletion Request Status: Completed</span>
         </div>
@@ -126,7 +126,7 @@ export function DeletionStatusBanner({ confirmationCode }: { confirmationCode: s
   if (state.kind === 'in_progress') {
     return (
       <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-foreground mb-6 space-y-2">
-        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-semibold text-base">
+        <div className="flex items-center gap-2 text-amber-600 font-semibold text-base">
           <Clock className="w-5 h-5 shrink-0" />
           <span>Data Deletion Request Status: In progress ({state.status})</span>
         </div>
@@ -142,7 +142,7 @@ export function DeletionStatusBanner({ confirmationCode }: { confirmationCode: s
   if (state.kind === 'failed') {
     return (
       <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-foreground mb-6 space-y-2">
-        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-semibold text-base">
+        <div className="flex items-center gap-2 text-red-600 font-semibold text-base">
           <XCircle className="w-5 h-5 shrink-0" />
           <span>Data Deletion Request Status: Failed</span>
         </div>

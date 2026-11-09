@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SaasNavAccount } from "@/components/saas/SaasNavAccount";
+import { LogoWordmark } from "@/components/ui/Logo";
 import { PageTransition, ScrollProgress } from "@/components/motion/primitives";
 
 /**
@@ -21,9 +22,7 @@ export default function SaasPrototypeLayout({ children }: { children: React.Reac
       <ScrollProgress />
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <span className="text-sm font-semibold">
-            open-autoDM
-          </span>
+          <LogoWordmark className="text-sm" />
           <nav className="flex gap-4 text-[13px] text-muted-foreground">
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
             <SaasNavAccount />

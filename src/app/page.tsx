@@ -32,7 +32,7 @@ import { DemoShowcase } from "@/components/home/DemoShowcase";
 import { FlowBuilder } from "@/components/home/FlowBuilder";
 import { CountUp } from "@/components/home/CountUp";
 import { useEffect, useState, type ComponentType } from "react";
-import { AnimatePresence, MotionConfig, motion, type Variants } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { FaqSection } from "@/components/home/FaqSection";
 import { KeywordTicker } from "@/components/home/KeywordTicker";
 import { Reveal, RevealRule, Parallax } from "@/components/home/Reveal";
@@ -44,6 +44,7 @@ import { formatPriceMinor } from "@/lib/billing/geo";
 import { useDisplayCurrency } from "@/lib/billing/useDisplayCurrency";
 import { ScriptSampleShowcase } from "@/components/home/ScriptSampleShowcase";
 import { WaitlistForm } from "@/components/home/WaitlistForm";
+import { BrandIntro } from "@/components/home/BrandIntro";
 
 const FEATURES = [
     {
@@ -242,25 +243,17 @@ function HeroLoopChip() {
 const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
 
 /**
- * Round 5 (2026-11-08) — hero entrance choreography. The owner
- * asked for a proper motion-graphics feel: the hero now arrives as
- * a staged sequence (headline, sub, actions, loop line) instead of
- * a static block. Transform/opacity only; MotionConfig
- * reducedMotion="user" collapses it for reduced-motion visitors.
+ * Hero entrance choreography — the reference [data-hero] CSS
+ * system (Open Caption animation concepts, adopted 2026-11-09 by
+ * owner directive, replacing the round-5 motion variants): the
+ * headline's words rise masked one by one, the serif accent word
+ * then runs the gradient text sweep, and sub / CTAs / proof fade
+ * in after — all pure CSS from globals.css, held paused while the
+ * brand intro plays (html[data-intro="play"] until .ce-out).
+ * Fail-visible law still holds: the animations are CSS (they run
+ * with or without hydration), reduced-motion visitors get the
+ * static page, and coarse pointers paint sub/CTA immediately.
  */
-const heroContainer: Variants = {
-    hidden: {},
-    show: { transition: { staggerChildren: 0.06, delayChildren: 0 } },
-};
-// Fail-visible tuning (2026-11-09): the hero used to start at
-// opacity 0 / y 26 over 0.7s per item, so first paint read as a
-// blank, near-invisible page until the sequence finished. Items
-// now start near-visible (0.3 / y 12) and settle in 0.5s — the
-// staged arrival is unchanged, the wait is gone.
-const heroItem: Variants = {
-    hidden: { opacity: 0.3, y: 12 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-};
 
 export default function LandingPage() {
     // Geo display currency for the pricing band (INR until the
@@ -272,6 +265,7 @@ export default function LandingPage() {
     return (
         <MotionConfig reducedMotion="user">
         <div className="relative min-h-screen bg-background text-foreground overflow-x-clip">
+            <BrandIntro />
             <ScrollMorph />
             <ScrollProgress />
 
@@ -326,65 +320,60 @@ export default function LandingPage() {
                 {/* ── Hero ─────────────────────────────────────────── */}
                 <section className="mx-auto max-w-7xl px-6 pb-20 pt-14 lg:px-10 lg:pb-28 lg:pt-20">
                     <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)] lg:gap-16">
-                        <motion.div
-                            className="max-w-3xl"
-                            variants={heroContainer}
-                            initial="hidden"
-                            animate="show"
-                        >
-                        <motion.h1
-                            variants={heroItem}
-                            className="font-heading text-[40px] font-semibold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[56px]"
-                        >
-                            Turn comments into customers on autopilot
-                        </motion.h1>
-                        <motion.p
-                            variants={heroItem}
+                        <div className="max-w-3xl">
+                        <h1 className="font-heading text-[40px] font-bold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[56px]">
+                            <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "0ms" } as React.CSSProperties}>Turn</span></span>{" "}
+                            <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "75ms" } as React.CSSProperties}>comments</span></span>{" "}
+                            <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "150ms" } as React.CSSProperties}>into</span></span>{" "}
+                            <span className="hero-mask"><em data-hero="word2" className="gradient-text-sweep" style={{ "--hero-d": "225ms" } as React.CSSProperties}>customers</em></span>{" "}
+                            <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "300ms" } as React.CSSProperties}>on</span></span>{" "}
+                            <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "375ms" } as React.CSSProperties}>autopilot</span></span>
+                        </h1>
+                        <p
+                            data-hero="sub"
                             className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground lg:text-lg lg:leading-relaxed"
                         >
                             open-autoDM is open-source, self-hosted Instagram automation
                             software. It runs on your own Meta app, database, and domain,
                             no per-seat pricing, and no third party holding your tokens.
-                        </motion.p>
-                        <motion.div variants={heroItem} className="mt-8 flex flex-wrap items-center gap-3">
-                            <motion.a
-                                href="/login"
-                                whileHover={PRESS_HOVER}
-                                whileTap={PRESS_TAP}
-                                transition={SPRING_PRESS}
-                                className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-                            >
-                                Sign in to your console
-                                <ArrowRight className="h-4 w-4" />
-                            </motion.a>
+                        </p>
+                        <div data-hero="cta" className="mt-8 flex flex-wrap items-center gap-3">
+                            <span className="conic-glow-pill">
+                                <motion.a
+                                    href="/login"
+                                    whileHover={PRESS_HOVER}
+                                    whileTap={PRESS_TAP}
+                                    transition={SPRING_PRESS}
+                                    className="inline-flex h-11 items-center gap-2 rounded-full border border-obsidian/30 bg-side px-5 text-sm font-bold text-obsidian"
+                                >
+                                    Sign in to your console
+                                    <ArrowRight className="h-4 w-4" />
+                                </motion.a>
+                            </span>
                             <motion.a
                                 href="#platform"
                                 whileHover={PRESS_HOVER}
                                 whileTap={PRESS_TAP}
                                 transition={SPRING_PRESS}
-                                className="inline-flex h-11 items-center rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                                className="inline-flex h-11 items-center rounded-full border border-border bg-background px-5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
                             >
                                 Explore the platform
                             </motion.a>
-                        </motion.div>
-                        <motion.p variants={heroItem} className="mt-6 text-[13px] text-muted-foreground">
+                        </div>
+                        <p data-hero="points" className="mt-6 text-[13px] text-muted-foreground">
                             MIT licensed · Self-hosted · Your data stays on your instance
-                        </motion.p>
-                        <motion.div variants={heroItem}>
+                        </p>
+                        <div data-hero="points">
                             <HeroLoopChip />
-                        </motion.div>
-                        </motion.div>
+                        </div>
+                        </div>
 
                         {/* Round 4 (2026-11-08): the human side of the loop —
                             a generated editorial photograph, no text in frame.
-                            Round 5: it now arrives with the hero sequence —
-                            a slow settle from a slight scale, no hover motion. */}
-                        <motion.figure
-                            className="hidden lg:block"
-                            initial={{ opacity: 0.3, scale: 1.02 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.55, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-                        >
+                            2026-11-09: it arrives with the reference "stream"
+                            motion (rise + settle, then a subtle float) via
+                            data-hero="stream" — see globals.css. */}
+                        <figure data-hero="stream" className="hidden lg:block">
                             <img
                                 src={HERO_CREATOR_IMG}
                                 alt="A creator recording a short video on a phone mounted on a tripod"
@@ -395,11 +384,11 @@ export default function LandingPage() {
                                 <span>Fig. 01 — The creator</span>
                                 <span>Filmed on a phone</span>
                             </figcaption>
-                        </motion.figure>
+                        </figure>
                     </div>
 
                     {/* The product, doing its thing: drag the hub */}
-                    <div className="mt-14 hidden lg:block">
+                    <div data-hero="stream" className="mt-14 hidden lg:block">
                         <NodeEditor />
                     </div>
 
@@ -454,7 +443,7 @@ export default function LandingPage() {
                         <Reveal className="max-w-2xl">
                             <p className="micro-label">Before / after</p>
                             <h2 className="mt-4 font-heading text-3xl font-semibold leading-[1.05] sm:text-4xl">
-                                The same launch evening, twice
+                                The same launch evening, <em>twice</em>
                             </h2>
                             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
                                 A reel takes off at 7 pm and the comments fill with one
@@ -523,7 +512,7 @@ export default function LandingPage() {
                             <Reveal>
                                 <p className="micro-label">The platform</p>
                                 <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
-                                    One platform, three jobs
+                                    One platform, <em>three jobs</em>
                                 </h2>
                                 <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">
                                     One console for the whole creator loop: the automation
@@ -620,7 +609,7 @@ export default function LandingPage() {
                         <Reveal>
                         <p className="micro-label">Live demo</p>
                         <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
-                            Watch a comment become a customer
+                            Watch a comment become a <em>customer</em>
                         </h2>
                         <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
                             This is the whole product in ten seconds. Pick a keyword,
@@ -700,7 +689,7 @@ export default function LandingPage() {
                                 <Reveal>
                                 <p className="micro-label">Spotlight</p>
                                 <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
-                                    The script comes first
+                                    The script comes <em>first</em>
                                 </h2>
                                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
                                     The Script Writer lives inside the console. Give it a
@@ -852,7 +841,7 @@ export default function LandingPage() {
                             <div className="max-w-2xl">
                                 <p className="micro-label">Pricing</p>
                                 <h2 className="mt-4 font-heading text-2xl font-semibold tracking-tight text-foreground lg:text-3xl">
-                                    Simple, honest pricing
+                                    Simple, <em>honest</em> pricing
                                 </h2>
                                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
                                     Self-host open-autoDM free on your own infrastructure — the
@@ -1002,23 +991,25 @@ export default function LandingPage() {
                     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
                         <div className="mx-auto max-w-2xl text-center">
                             <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-4xl">
-                                Ready to turn comments into customers?
+                                Ready to turn comments into <em>customers</em>?
                             </h2>
                             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
                                 Sign in to your console, or run your own instance. The
                                 code is open-source and MIT licensed.
                             </p>
                             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                                <motion.a
-                                    href="/login"
-                                    whileHover={PRESS_HOVER}
-                                    whileTap={PRESS_TAP}
-                                    transition={SPRING_PRESS}
-                                    className="inline-flex h-11 items-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-                                >
-                                    Get started
-                                    <ArrowRight className="h-4 w-4" />
-                                </motion.a>
+                                <span className="conic-glow-pill">
+                                    <motion.a
+                                        href="/login"
+                                        whileHover={PRESS_HOVER}
+                                        whileTap={PRESS_TAP}
+                                        transition={SPRING_PRESS}
+                                        className="inline-flex h-11 items-center gap-2 rounded-full border border-obsidian/30 bg-side px-5 text-sm font-bold text-obsidian"
+                                    >
+                                        Get started
+                                        <ArrowRight className="h-4 w-4" />
+                                    </motion.a>
+                                </span>
                                 <motion.a
                                     href="/login"
                                     whileHover={PRESS_HOVER}

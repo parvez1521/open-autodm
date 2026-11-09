@@ -173,8 +173,8 @@ export default function DashboardPage() {
                                             "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider shrink-0",
                                             act.status === "sent" ? "bg-secondary/15 text-secondary" :
                                             act.status === "scheduled" ? "bg-primary/15 text-primary" :
-                                            act.status === "held" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
-                                            act.status === "waiting_response" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
+                                            act.status === "held" ? "bg-amber-500/15 text-amber-600" :
+                                            act.status === "waiting_response" ? "bg-amber-500/15 text-amber-600" :
                                             act.status === "failed" ? "bg-destructive/15 text-destructive" :
                                             "bg-muted text-muted-foreground"
                                         )}>

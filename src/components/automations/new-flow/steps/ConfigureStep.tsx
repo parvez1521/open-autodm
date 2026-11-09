@@ -210,7 +210,7 @@ function KeywordInput({ keywords, onChange, anyMode, onAnyModeChange, copy }: {
             </div>
 
             {anyMode && copy.anyModeHint && (
-                <div className="flex items-start gap-2 text-[12px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2">
+                <div className="flex items-start gap-2 text-[12px] text-amber-600 bg-amber-500/10 rounded-lg px-3 py-2">
                     <Warning className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                     {copy.anyModeHint}
                 </div>
@@ -759,7 +759,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                     )}
 
                                     {!data.dmOpeningMessageEnabled && data.dmResponses.length >= 1 && (
-                                        <div className="text-[12px] text-amber-600 dark:text-amber-400 bg-amber-500/10 rounded-lg px-3 py-2 font-medium">
+                                        <div className="text-[12px] text-amber-600 bg-amber-500/10 rounded-lg px-3 py-2 font-medium">
                                             Opening message is off - only one response is sent.
                                         </div>
                                     )}

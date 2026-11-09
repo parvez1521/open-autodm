@@ -192,7 +192,10 @@ describe("design pass round 4 — KeywordTicker, images, pricing band", () => {
   });
 
   it("the before/after chapter is present and labelled illustrative", () => {
-    expect(page).toContain("The same launch evening, twice");
+    // 2026-11-09 (Open Caption style adopt): "twice" is wrapped in
+    // <em> for the serif accent — markup only, the words are
+    // unchanged, so the pin follows the markup.
+    expect(page).toContain("The same launch evening, <em>twice</em>");
     expect(page).toContain("One illustrative evening");
     expect(page).toContain("Links actually delivered");
     expect(page).toContain("On autopilot");
@@ -249,6 +252,7 @@ describe("design pass round 4 — KeywordTicker, images, pricing band", () => {
  */
 describe("design pass round 5 — motion kit, hero choreography, pipeline packet", () => {
   const page = read("app/page.tsx");
+  const css = read("app/globals.css");
   const reveal = read("components/home/Reveal.tsx");
   const pipeline = read("components/home/PipelineShowcase.tsx");
   const demo = read("components/home/DemoShowcase.tsx");
@@ -263,15 +267,27 @@ describe("design pass round 5 — motion kit, hero choreography, pipeline packet
     }
   });
 
-  it("the hero arrives as a staggered sequence under a reduced-motion-aware MotionConfig", () => {
+  it("the hero arrives as a staggered word sequence under a reduced-motion-aware MotionConfig", () => {
     expect(page).toContain('reducedMotion="user"');
-    expect(page).toContain("heroContainer");
-    expect(page).toContain("heroItem");
-    expect(page).toContain("staggerChildren");
-    expect(page).toContain("motion.h1");
-    // Exactly one h1, copy unchanged.
-    expect(page.match(/<motion\.h1/g)).toHaveLength(1);
-    expect(page).toContain("Turn comments into customers on autopilot");
+    // Open Caption animation concepts (owner directive 2026-11-09):
+    // the hero entrance moved from motion variants to the
+    // reference's pure-CSS [data-hero] system — headline words rise
+    // masked one by one, the serif accent word runs the gradient
+    // text sweep, the primary CTA carries the conic pill, and the
+    // brand intro holds the sequence until its sheet lifts.
+    expect(page).toContain('data-hero="word"');
+    expect(page).toContain('data-hero="word2"');
+    expect(page).toContain("gradient-text-sweep");
+    expect(page).toContain("conic-glow-pill");
+    expect(page).toContain("BrandIntro");
+    expect(css).toContain("@keyframes hero-up");
+    expect(css).toContain('html[data-intro="play"]:not(.ce-out) [data-hero]');
+    // Exactly one h1, copy unchanged (the words now sit in
+    // per-word mask spans, so they are pinned word by word).
+    expect(page.match(/<h1/g)).toHaveLength(1);
+    for (const w of ["Turn", "comments", "into", "customers", "on", "autopilot"]) {
+      expect(page).toContain(`>${w}<`);
+    }
   });
 
   it("a packet travels the pipeline rail while the loop plays", () => {

@@ -71,7 +71,7 @@ export function RevealRule({ className }: { className?: string }) {
       initial={{ scaleX: 0 }}
       whileInView={{ scaleX: 1 }}
       viewport={{ once: true, margin: "0px" }}
-      transition={{ duration: 0.5, ease: EASE }}
+      transition={{ duration: 0.45, ease: EASE }}
     />
   );
 }

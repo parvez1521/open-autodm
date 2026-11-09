@@ -11,12 +11,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useTheme } from "next-themes";
 import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
 } from "recharts";
-import { CircleNotch, ChatCircle, PaperPlaneTilt, Image as ImageIcon, Users, UserCheck, Warning, ChartBar } from "@/components/phosphor";
+import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Users, UserCheck, Warning, ChartBar } from "@/components/phosphor";
+import { BrandWave } from "@/components/ui/BrandWave";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
@@ -79,8 +79,10 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 export default function AnalyticsPage() {
-    const { resolvedTheme } = useTheme();
-    const colors = PALETTE[resolvedTheme === "light" ? "light" : "dark"];
+    // Light throughout (Open Caption restyle, 2026-11-09): the
+    // chart palette's light steps are the only steps now — the
+    // product has no dark surface for the dark steps to sit on.
+    const colors = PALETTE.light;
 
     const { account, accountId } = useActiveAccount();
     // No-workspace state (2026-11-09): with the workspace runtime on
@@ -132,9 +134,9 @@ export default function AnalyticsPage() {
     // dashboard plan card makes.
     const { data, isPending, isError, error, refetch, isFetching } = useAnalytics({ from, to, automationId, accountId });
 
-    const gridStroke = resolvedTheme === "light" ? "#EDEDEF" : "#232329";
+    const gridStroke = "#E4E4D0";
     const axisTick = { fontSize: 10.5, fill: "#898781" } as const;
-    const surface = resolvedTheme === "light" ? "#FFFFFF" : "#101013";
+    const surface = "#FFFFEB";
 
     const totals = data?.totals;
     const funnel = totals
@@ -214,7 +216,7 @@ export default function AnalyticsPage() {
                 </div>
             ) : isPending || (workspaceRuntimeEnabled && workspaceLoading) ? (
                 <div className="py-24 flex justify-center">
-                    <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
+                    <BrandWave />
                 </div>
             ) : isError || !data ? (
                 <div className="py-16 flex flex-col items-center text-center gap-3" role="alert">
@@ -234,7 +236,7 @@ export default function AnalyticsPage() {
             ) : (
                 <>
                     {data.truncated && (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 text-[12px] font-medium text-amber-600 dark:text-amber-400">
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 text-[12px] font-medium text-amber-600">
                             <Warning className="w-3.5 h-3.5" />
                             Very large range - numbers are computed from the first 20,000 events.
                         </div>

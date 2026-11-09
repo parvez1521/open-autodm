@@ -244,7 +244,7 @@ function PlanColumn({ plan, currency, signedIn }: { plan: Plan; currency: Curren
       data-testid={`plan-${plan.id}`}
     >
       {highlighted && (
-        <p className="-mx-6 -mt-6 mb-6 bg-primary px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-foreground">
+        <p className="animate-caption-pop -mx-6 -mt-6 mb-6 bg-primary px-3 py-1.5 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-primary-foreground">
           Best value
         </p>
       )}

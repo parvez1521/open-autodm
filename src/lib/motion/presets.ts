@@ -27,8 +27,10 @@
 
 import type { Transition, Variants } from "motion/react";
 
-/** The site's entrance ease — fast start, long settle. */
-export const EASE_OUT = [0.22, 1, 0.36, 1] as const;
+/** The site's entrance ease — fast start, long settle. Retimed
+ *  2026-11-09 to the reference curve (Open Caption animation
+ *  concepts, owner directive): cubic-bezier(0.16, 1, 0.3, 1). */
+export const EASE_OUT = [0.16, 1, 0.3, 1] as const;
 
 /** Symmetric ease for exit/enter pairs (accordions, price flips). */
 export const EASE_IN_OUT = [0.65, 0, 0.35, 1] as const;
@@ -56,13 +58,15 @@ export const LIFT_HOVER = { y: -3 } as const;
  * start at opacity 0 with a 24px offset over 0.65s (+ stagger
  * delays), so a slow hydration or a delayed scroll-trigger left
  * pages blank/ghosted for seconds. Entrances now start NEAR-visible
- * (opacity 0.3, 10px) and settle in 0.45s: even if an animation is
+ * (opacity 0.3, 12px) and settle in 0.45s: even if an animation is
  * interrupted, delayed, or never runs, the content stays readable
  * the whole time. The motion language is unchanged — same ease,
- * same rise — just never at the cost of visibility.
+ * same rise — just never at the cost of visibility. (Rise retimed
+ * 10px -> 12px on 2026-11-09 to match the reference fade-in-up,
+ * owner directive "Open Caption style adopt".)
  */
 export const fadeUp: Variants = {
-  hidden: { opacity: 0.3, y: 10 },
+  hidden: { opacity: 0.3, y: 12 },
   show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE_OUT } },
 };
 

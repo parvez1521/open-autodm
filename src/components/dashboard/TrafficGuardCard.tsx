@@ -85,7 +85,7 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
     )}>
       {/* Top Banner Alert when in High Traffic or Recovered */}
       {isHighTraffic && !isPaused && (
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-rose-500/15 border-b border-rose-500/20 text-rose-600 dark:text-rose-400 text-[13px] font-medium">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-rose-500/15 border-b border-rose-500/20 text-rose-600 text-[13px] font-medium">
           <div className="flex items-center gap-2">
             <ShieldWarning className="w-4 h-4 shrink-0 animate-pulse" />
             <span>Unusually high comment traffic ({currentCount} unique comments in last 60s)</span>
@@ -97,7 +97,7 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
       )}
 
       {isRecovered && isPaused && (
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-sky-500/15 border-b border-sky-500/20 text-sky-600 dark:text-sky-400 text-[13px] font-medium">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-sky-500/15 border-b border-sky-500/20 text-sky-600 text-[13px] font-medium">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 shrink-0" />
             <span>Traffic has normalized (&lt; {recoveryThreshold} comments/60s for 5m). Ready to resume.</span>

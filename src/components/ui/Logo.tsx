@@ -1,6 +1,10 @@
 /**
- * open-autoDM logo - a chat bubble with a lightning bolt, in the
- * Instagram-sunset gradient. Used in the sidebar, login page, and favicon.
+ * open-autoDM logo — a chat bubble with a lightning bolt. The mark
+ * keeps its shape; its gradient moved to the Open Caption palette
+ * (orange -> emerald, no magenta) in the 2026-11-09 restyle. The
+ * wordmark follows the reference's two-part treatment: bold sans
+ * lead + Instrument Serif Italic accent. Used in the sidebar,
+ * login page, and favicon.
  */
 
 import { cn } from '@/lib/utils';
@@ -10,9 +14,8 @@ export function LogoMark({ className }: { className?: string }) {
     <svg viewBox="0 0 64 64" className={cn('w-8 h-8', className)} fill="none" aria-label="open-autoDM logo">
       <defs>
         <linearGradient id="oadm-grad" x1="8" y1="56" x2="56" y2="8" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#f09433" />
-          <stop offset="45%" stopColor="#e6683c" />
-          <stop offset="100%" stopColor="#bc1888" />
+          <stop offset="0%" stopColor="#FFA946" />
+          <stop offset="100%" stopColor="#34D399" />
         </linearGradient>
       </defs>
       {/* Chat bubble */}
@@ -23,7 +26,7 @@ export function LogoMark({ className }: { className?: string }) {
       {/* Lightning bolt */}
       <path
         d="M35.8 15.5 24 32.2c-.4.6 0 1.4.7 1.4h6.4l-2.9 12.6c-.2 1 1.1 1.6 1.7.8L41.9 30c.4-.6 0-1.4-.7-1.4h-6.5l2.8-12.3c.2-1-1.1-1.6-1.7-.8Z"
-        fill="white"
+        fill="#FFFFEB"
       />
     </svg>
   );
@@ -31,12 +34,12 @@ export function LogoMark({ className }: { className?: string }) {
 
 export function LogoWordmark({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
-    <span className={cn('font-heading font-bold tracking-widest uppercase', className)}>
+    <span className={cn('font-heading font-extrabold leading-none tracking-tight', className)}>
       {compact ? (
-        'AutoDM'
+        <span className="font-accent font-normal italic">AutoDM</span>
       ) : (
         <>
-          open-<span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f09433] via-[#e6683c] to-[#bc1888]">autoDM</span>
+          open-<span className="font-accent font-normal italic">autoDM</span>
         </>
       )}
     </span>

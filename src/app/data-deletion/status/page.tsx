@@ -110,7 +110,7 @@ export default async function DataDeletionStatusPage({ searchParams }: StatusPag
 
       {result.kind === 'found' && result.row.status === 'completed' && (
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold text-base">
+          <div className="flex items-center gap-2 text-emerald-600 font-semibold text-base">
             <CheckCircle className="w-5 h-5 shrink-0" />
             <span>Deletion completed</span>
           </div>

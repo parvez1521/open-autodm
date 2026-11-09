@@ -180,7 +180,7 @@ export default async function DataDeletionPage({ searchParams }: DataDeletionPag
           <div className="flex items-start gap-3 p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/25 text-foreground text-[13px] leading-relaxed">
             <Warning className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <strong className="text-amber-600 dark:text-amber-400">Security Warning:</strong> Never send passwords,
+              <strong className="text-amber-600">Security Warning:</strong> Never send passwords,
               private encryption keys, or API secrets via email. We will never ask you for your Instagram or Supabase
               password.
             </div>

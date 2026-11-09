@@ -16,7 +16,7 @@ export default function AdminPrototypeLayout({ children }: { children: React.Rea
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <span className="text-sm font-semibold">
             open-autoDM{" "}
-            <span className="ml-2 rounded bg-red-500/15 px-1.5 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400">
+            <span className="ml-2 rounded bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive">
               PLATFORM ADMIN
             </span>
           </span>

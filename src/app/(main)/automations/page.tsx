@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, CircleNotch } from "@/components/phosphor";
+import { Plus } from "@/components/phosphor";
+import { BrandWave } from "@/components/ui/BrandWave";
 import { cn } from "@/lib/utils";
 import { AutomationsList } from "@/components/automations/AutomationsList";
 import { ContactsList } from "@/components/automations/ContactsList";
@@ -14,7 +15,7 @@ import { AutomationDebugPanel } from "@/components/debug/AutomationDebugPanel";
 
 export default function AutomationsPage() {
     return (
-        <Suspense fallback={<div className="w-full max-w-5xl mx-auto py-24 flex justify-center"><CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" /></div>}>
+        <Suspense fallback={<div className="w-full max-w-5xl mx-auto py-24 flex justify-center"><BrandWave /></div>}>
             <AutomationsContent />
         </Suspense>
     );

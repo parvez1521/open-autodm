@@ -74,8 +74,8 @@ function NavGroups({
                                         "group relative flex items-center h-8 rounded-md text-[13px] transition-colors",
                                         collapsed ? "justify-center" : "px-2.5 gap-2.5",
                                         isActive
-                                            ? "bg-muted text-foreground font-medium"
-                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                            ? "bg-side text-foreground font-semibold"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-side/50"
                                     )}
                                 >
                                     <item.icon className={cn("w-4 h-4 shrink-0", isActive ? "text-foreground" : "")} />
@@ -123,7 +123,7 @@ export function Sidebar({ workspaceRuntimeEnabled = false, userEmail = null }: {
                             exit={{ opacity: 0, x: -6 }}
                             className="truncate"
                         >
-                            <LogoWordmark className="text-[13px] tracking-[0.14em]" />
+                            <LogoWordmark className="text-[13px]" />
                         </motion.span>
                     )}
                 </AnimatePresence>
@@ -201,7 +201,7 @@ export function MobileSidebar({ workspaceRuntimeEnabled = false, userEmail = nul
                         <div className="h-14 flex items-center justify-between border-b border-border pl-4 pr-2">
                             <div className="flex items-center gap-2.5 min-w-0">
                                 <LogoMark className="w-6 h-6 shrink-0" />
-                                <LogoWordmark className="text-[13px] tracking-[0.14em]" />
+                                <LogoWordmark className="text-[13px]" />
                             </div>
                             <button
                                 onClick={close}

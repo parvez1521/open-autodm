@@ -16,7 +16,7 @@ export function EngineBadge({ engine }: { engine: EngineLabel }) {
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-medium",
         engine === "free-ai"
-          ? "border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+          ? "border-emerald-500/40 text-emerald-600"
           : "border-border text-muted-foreground"
       )}
       title={

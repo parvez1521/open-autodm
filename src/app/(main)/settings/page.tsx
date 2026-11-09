@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { InstagramLogo, CheckCircle, XCircle, CircleNotch, LinkBreak, Warning, ArrowsClockwise, Wrench, PauseCircle } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
+import { BrandWave } from "@/components/ui/BrandWave";
 import { createBrowserClient } from "@/lib/supabase";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { IgAvatar } from "@/components/dashboard/IgAvatar";
@@ -15,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 export default function SettingsPage() {
     return (
-        <Suspense fallback={<div className="w-full max-w-3xl mx-auto py-24 flex justify-center"><CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" /></div>}>
+        <Suspense fallback={<div className="w-full max-w-3xl mx-auto py-24 flex justify-center"><BrandWave /></div>}>
             <SettingsContent />
         </Suspense>
     );
@@ -272,7 +273,7 @@ function SettingsContent() {
                                         "flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-[12px] font-medium",
                                         account.token_status === "expired"
                                             ? "bg-destructive/10 text-destructive"
-                                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                            : "bg-amber-500/10 text-amber-600"
                                     )}>
                                         <div className="flex items-center gap-2 min-w-0">
                                             <Warning className="w-3.5 h-3.5 shrink-0" />
@@ -356,7 +357,7 @@ function SettingsContent() {
                                             ? "bg-destructive/10 text-destructive"
                                             : subStatus[account.id]?.hasComments
                                             ? "bg-secondary/10 text-secondary"
-                                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                            : "bg-amber-500/10 text-amber-600"
                                     )}>
                                         {subStatus[account.id] === null ? (
                                             <span>Couldn&apos;t fetch subscription status from Meta.</span>

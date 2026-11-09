@@ -61,7 +61,7 @@ export function NotificationCenter() {
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-heading font-semibold text-foreground">Traffic Guard Alerts</span>
               {unreadCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-500/15 text-rose-600 dark:text-rose-400">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-500/15 text-rose-600">
                   {unreadCount} unread
                 </span>
               )}

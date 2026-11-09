@@ -381,7 +381,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                             here, never as truncated header microcopy. */}
                         {step === 2 && noAccountBlocker && (
                             <div role="alert" className="shrink-0 border-b border-border bg-amber-500/10 px-4 py-2.5 flex items-center gap-2">
-                                <Warning className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <Warning className="w-4 h-4 text-amber-600 shrink-0" />
                                 <p className="text-[12.5px] font-medium text-foreground">
                                     No Instagram account is connected to this workspace, so this automation cannot be saved yet.{" "}
                                     <a href="/settings" className="underline underline-offset-2">Connect an account in Settings</a>{" "}

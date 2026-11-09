@@ -32,9 +32,9 @@ function TickerRow({ hidden }: { hidden?: boolean }) {
             {ITEMS.map((item) => (
                 <span
                     key={item.lead}
-                    className="flex items-center gap-2.5 whitespace-nowrap px-6 py-3 font-mono text-[12px]"
+                    className="flex items-center gap-2.5 whitespace-nowrap px-6 py-3 text-[12px] font-medium"
                 >
-                    <span className="h-1.5 w-1.5 shrink-0 bg-primary" />
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                     <span className="font-semibold text-foreground">{item.lead}</span>
                     <span className="text-muted-foreground">{item.rest}</span>
                 </span>

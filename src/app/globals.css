@@ -2,9 +2,50 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Open Caption design language — adopted 2026-11-09 by owner
+ * directive ("Open Caption style adopt": the owner pointed at the
+ * Open Caption site and ordered the same style AND animation
+ * concepts for Open AutoDM, copy/content unchanged).
+ *
+ * Palette (from the reference globals, exact): cream #FFFFEB,
+ * lavender #F0D7FF, emerald #34D399, orange #FFA946, obsidian
+ * #1A1A1A, muted beige #E4E4D0, plus the derived warm sand scale.
+ * Type: Plus Jakarta Sans for everything; Instrument Serif Italic
+ * is the accent (every <em> / .italic / .font-accent). LIGHT
+ * throughout — the .dark block below intentionally mirrors :root
+ * so a persisted theme preference cannot resurrect the old dark
+ * palette.
+ */
+
 @theme {
-  --color-primary-base: #F97316;
-  --color-secondary-base: #22C55E;
+  /* Reference palette */
+  --color-major: #FFFFEB;
+  --color-side: #F0D7FF;
+  --color-emerald-accent: #34D399;
+  --color-orange-accent: #FFA946;
+  --color-obsidian: #1A1A1A;
+  --color-muted-beige: #E4E4D0;
+
+  /* Warm neutral scale (cream -> beige -> obsidian), derived in the
+     reference from the six palette colours alone. */
+  --color-sand-50: #FFFFEB;
+  --color-sand-100: #F4F4E0;
+  --color-sand-200: #E4E4D0;
+  --color-sand-300: #D2D2BF;
+  --color-sand-400: #A9A99C;
+  --color-sand-500: #8C8C83;
+  --color-sand-600: #6E6E67;
+  --color-sand-700: #4C4C47;
+  --color-sand-800: #33332F;
+  --color-sand-900: #1A1A1A;
+
+  /* Pure white is remapped to cream (as in the reference) so stray
+     bg-white / text-white classes stay on-palette. */
+  --color-white: #FFFFEB;
+
+  --color-primary-base: #FFA946;
+  --color-secondary-base: #34D399;
   --color-danger-base: #EF4444;
 
   --color-background: var(--background);
@@ -27,77 +68,103 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-heading: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-heading: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-accent: var(--font-accent-sys), Georgia, serif;
+  /* Mono survives only as a system stack for code/IDs (webhook URLs,
+     spec labels) — no mono webfont is loaded any more. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* Reference radii: cards sit at 2rem; anything up to ~64px tall
+     (buttons, inputs, chips, banners) becomes a true pill. */
+  --radius: 2rem;
   --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-xl: 2rem;
+  --radius-2xl: 2.5rem;
+  --radius-3xl: 3rem;
+
+  /* Warm elevation (reference values). The generic shadow scale is
+     remapped onto them so existing shadow-* classes warm up too. */
+  --shadow-sand-soft: 0 1px 2px rgba(31, 31, 26, 0.04), 0 8px 24px -12px rgba(31, 31, 26, 0.18);
+  --shadow-sand-deep: 0 2px 4px rgba(31, 31, 26, 0.06), 0 24px 64px -24px rgba(31, 31, 26, 0.35);
+  --shadow-sm: 0 1px 2px rgba(31, 31, 26, 0.04), 0 8px 24px -12px rgba(31, 31, 26, 0.18);
+  --shadow-md: 0 2px 4px rgba(31, 31, 26, 0.05), 0 16px 40px -16px rgba(31, 31, 26, 0.25);
+  --shadow-lg: 0 2px 4px rgba(31, 31, 26, 0.06), 0 24px 64px -24px rgba(31, 31, 26, 0.35);
+  --shadow-xl: 0 4px 8px rgba(31, 31, 26, 0.06), 0 32px 80px -24px rgba(31, 31, 26, 0.4);
+  --shadow-2xl: 0 4px 8px rgba(31, 31, 26, 0.08), 0 40px 96px -24px rgba(31, 31, 26, 0.45);
+
+  /* Reference motion tokens */
+  --animate-fade-in-up: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-subtle-float: subtle-float 6s ease-in-out infinite;
+  --animate-caption-pop: caption-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-marquee-slow: marquee-left 28s linear infinite;
 }
 
 :root {
-  /* LIGHT - quiet paper console */
-  --background: #FAFAFA;
-  --foreground: #121215;
+  /* LIGHT - cream paper, obsidian ink (Open Caption system) */
+  --background: #FFFFEB;
+  --foreground: #1A1A1A;
 
-  --card: #FFFFFF;
-  --card-foreground: #121215;
+  --card: #FFFFEB;
+  --card-foreground: #1A1A1A;
 
-  --popover: #FFFFFF;
-  --popover-foreground: #121215;
+  --popover: #FFFFEB;
+  --popover-foreground: #1A1A1A;
 
-  --primary: #F97316;
-  --primary-foreground: #FFFFFF;
+  --primary: #FFA946;
+  --primary-foreground: #1A1A1A;
 
-  --secondary: #16A34A;
-  --secondary-foreground: #FFFFFF;
+  --secondary: #34D399;
+  --secondary-foreground: #1A1A1A;
 
-  --muted: #F1F1F3;
-  --muted-foreground: #63636C;
+  --muted: #F4F4E0;
+  --muted-foreground: #5F5F59;
 
-  --accent: #F1F1F3;
-  --accent-foreground: #121215;
+  --accent: #F0D7FF;
+  --accent-foreground: #1A1A1A;
 
   --destructive: #DC2626;
-  --destructive-foreground: #FFFFFF;
+  --destructive-foreground: #FFFFEB;
 
-  --border: #E7E7EA;
-  --input: #E7E7EA;
-  --ring: #F97316;
-
-  --radius: 0.625rem;
+  --border: #E4E4D0;
+  --input: #D2D2BF;
+  --ring: #FFA946;
 }
 
 .dark {
-  /* DARK - near-black console, hairline borders */
-  --background: #0A0A0B;
-  --foreground: #F3F3F5;
+  /* LIGHT throughout (owner directive 2026-11-09): the dark block
+     mirrors :root exactly. The class hook stays so the theme
+     provider and `dark:` variants keep working, but no dark palette
+     exists anywhere in the product any more. */
+  --background: #FFFFEB;
+  --foreground: #1A1A1A;
 
-  --card: #101013;
-  --card-foreground: #F3F3F5;
+  --card: #FFFFEB;
+  --card-foreground: #1A1A1A;
 
-  --popover: #16161A;
-  --popover-foreground: #F3F3F5;
+  --popover: #FFFFEB;
+  --popover-foreground: #1A1A1A;
 
-  --primary: #F97316;
-  --primary-foreground: #FFFFFF;
+  --primary: #FFA946;
+  --primary-foreground: #1A1A1A;
 
-  --secondary: #22C55E;
-  --secondary-foreground: #0A0A0B;
+  --secondary: #34D399;
+  --secondary-foreground: #1A1A1A;
 
-  --muted: #17171B;
-  --muted-foreground: #9C9CA6;
+  --muted: #F4F4E0;
+  --muted-foreground: #5F5F59;
 
-  --accent: #17171B;
-  --accent-foreground: #F3F3F5;
+  --accent: #F0D7FF;
+  --accent-foreground: #1A1A1A;
 
-  --destructive: #EF4444;
-  --destructive-foreground: #FFFFFF;
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFEB;
 
-  --border: #232329;
-  --input: #232329;
-  --ring: #F97316;
+  --border: #E4E4D0;
+  --input: #D2D2BF;
+  --ring: #FFA946;
 }
 
 @layer base {
@@ -112,12 +179,23 @@
   }
 }
 
-/* Motion pass (2026-11-08): text selection takes the brand tint,
-   and in-page anchors glide instead of jumping (window-scrolled
-   surfaces: landing + (saas) shell). Reduced motion keeps the
-   instant jump. */
+/* The accent type: every emphasised word (<em>, .italic) and the
+   .font-accent utility is set in Instrument Serif Italic, never a
+   synthetic slant of the sans (reference rule, adopted 2026-11-09). */
+em,
+.italic,
+.font-accent {
+  font-family: var(--font-accent-sys), Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: 0;
+}
+
+/* Text selection takes the lavender side tint (reference). */
 ::selection {
-  background: color-mix(in srgb, var(--primary) 30%, transparent);
+  background: #F0D7FF;
+  color: #1A1A1A;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -126,13 +204,13 @@
   }
 }
 
-/* Eyebrow / micro label: IBM Plex Mono, uppercase, letter-spaced.
-   The editorial signature: metadata is set like a spec sheet, and
-   hierarchy comes from size and color. */
+/* Eyebrow / micro label: uppercase, letter-spaced — now set in the
+   sans (Plus Jakarta Sans) like the reference's eyebrows; hierarchy
+   still comes from size and colour, not from a second family. */
 .micro-label {
-  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted-foreground);
@@ -144,14 +222,89 @@
   }
 }
 
+@keyframes fade-in-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes subtle-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@keyframes caption-pop { 0% { opacity: 0; transform: scale(0.85); } 100% { opacity: 1; transform: scale(1); } }
+
+/* ── Conic-gradient rotating border pill (reference motif) ──────
+   Razor-thin 1px animated ring in the palette colours around the
+   primary CTA. Driven by the @property --angle technique so the
+   rotation is a real animated gradient, not a spinning box. */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rotate-conic {
+  to {
+    --angle: 360deg;
+  }
+}
+
+.conic-glow-pill {
+  position: relative;
+  border-radius: 9999px;
+  padding: 1px;
+  background: transparent;
+  z-index: 1;
+}
+/* in the components layer so utilities (hidden, sm:block, w-full…) can override it */
+@layer components {
+  .conic-glow-pill { display: inline-flex; }
+}
+
+.conic-glow-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(from var(--angle), #FFA946, #34D399, #F0D7FF, #1A1A1A, #FFA946);
+  animation: rotate-conic 3s linear infinite;
+  z-index: -1;
+}
+
+/* ── Gradient text sweep (reference motif) ──────────────────────
+   Obsidian -> orange -> emerald. Never purple: the sweep is the
+   hero accent word's living colour. */
+@keyframes text-sweep {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-text-sweep {
+  background: linear-gradient(90deg, #1A1A1A, #FFA946, #34D399, #1A1A1A);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-sweep 4s ease infinite;
+}
+
+/* ── Marquee (reference: 28s linear, duplicated content) ─────── */
+@keyframes marquee-left {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 /* ── Keyword ticker (landing, design pass round 4, 2026-11-08) ─────
-   The owner asked for continuous motion on the homepage. The ticker
-   is a slow, linear marquee of real automation moments (keyword ->
-   outcome, plus the shipped safety facts). It is pure CSS: the track
+   A slow, linear marquee of real automation moments (keyword ->
+   outcome, plus the shipped safety facts). Pure CSS: the track
    is two copies of one list translating -50%, so the loop is
-   seamless. No hover states, no transforms on any control. Under
-   prefers-reduced-motion the track is static and the first copy
-   simply reads as a spec strip. */
+   seamless. Retimed 2026-11-09 to the reference marquee pace
+   (28s, was 42s). Under prefers-reduced-motion the track is
+   static and the first copy simply reads as a spec strip. */
 @keyframes ticker-scroll {
   from {
     transform: translateX(0);
@@ -162,13 +315,41 @@
 }
 
 .ticker-track {
-  animation: ticker-scroll 42s linear infinite;
+  animation: ticker-scroll 28s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .ticker-track {
     animation: none;
   }
+}
+
+/* ── Brand wave (reference logo motif) ──────────────────────────
+   The three bars, bouncing: the "something is happening" animation
+   used by the page-level loaders. Transform-only. */
+@keyframes ce-wave { 0%, 100% { transform: scaleY(0.28); } 45% { transform: scaleY(1); } 70% { transform: scaleY(0.6); } }
+.ce-wave { display: inline-flex; align-items: flex-end; }
+.ce-wave > span { display: block; height: 100%; transform-origin: 50% 100%; border-radius: 999px; animation: ce-wave 0.95s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
+.ce-wave > span:nth-child(2) { animation-delay: 0.14s; }
+.ce-wave > span:nth-child(3) { animation-delay: 0.28s; }
+
+/* ── Custom scrollbar (reference flavour) ─────────────────────── */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FFFFEB;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #F0D7FF;
+  border: 2px solid #1A1A1A;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FFA946;
 }
 
 .custom-scrollbar {
@@ -189,6 +370,54 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .conic-glow-pill::before, .gradient-text-sweep, .animate-subtle-float, .animate-caption-pop, .animate-marquee-slow, .ce-wave > span { animation: none !important; }
+}
+
+/* ── Hero entrance (reference [data-hero] system, adopted
+   2026-11-09) ───────────────────────────────────────────────────
+   Pure CSS, so hydration can never reset it. Words rise masked,
+   one by one; the accent word then runs the text sweep; sub, CTAs
+   and proof fade in after. When the brand intro plays
+   (<html data-intro="play">) the sequence is held until the intro
+   exits (html.ce-out), then released as the sheet lifts. On
+   coarse pointers the sub/CTA show at first paint. */
+:root { --hero-at: 60ms; }
+html[data-intro="play"] { --hero-at: 240ms; }
+html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused !important; }
+.hero-mask { display: inline-block; overflow: hidden; vertical-align: bottom; padding-bottom: 0.1em; margin-bottom: -0.1em; }
+[data-hero="word"] { display: inline-block; animation: hero-up 1.1s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + var(--hero-d, 0ms)) both; }
+[data-hero="word2"] { display: inline-block; animation: hero-up 1.1s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + var(--hero-d, 0ms)) both, text-sweep 4s ease calc(var(--hero-at) + 1.3s) infinite; }
+[data-hero="sub"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 340ms) both; }
+[data-hero="cta"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 460ms) both; }
+[data-hero="points"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 560ms) both; }
+[data-hero="stream"] { animation: hero-stream 1.5s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 380ms) both, subtle-float 6s ease-in-out calc(var(--hero-at) + 1.9s) infinite; }
+@media (pointer: coarse) { [data-hero="sub"], [data-hero="cta"] { animation: none; } }
+@keyframes hero-up { from { transform: translateY(110%); } to { transform: none; } }
+@keyframes hero-fade-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes hero-stream { from { opacity: 0; transform: translateY(48px) scale(0.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  [data-hero] { animation: none !important; }
+}
+
+/* ── Brand intro sheet (reference concept, adopted 2026-11-09) ──
+   A brief cream sheet with the wordmark, shown once per session
+   on the landing only (see components/home/intro.ts). It is
+   display:none unless the pre-paint script set data-intro="play",
+   its content starts when .ce-go lands (fonts painted), and the
+   sheet lifts on .ce-out — the script forces .ce-out on a cap, so
+   the page can never be trapped under it. */
+.oadm-intro { display: none; position: fixed; inset: 0; z-index: 100; pointer-events: none; }
+html[data-intro="play"] .oadm-intro { display: block; }
+.oadm-intro [data-sheet] { position: absolute; inset: 0; background: #FFFFEB; pointer-events: auto; }
+html.ce-out .oadm-intro [data-sheet] { pointer-events: none; }
+.oadm-intro [data-inner] { animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+html:not(.ce-go) .oadm-intro [data-inner] { animation-play-state: paused; }
+html.ce-out .oadm-intro [data-inner] { animation: intro-inner-out 0.3s ease-in both; }
+html.ce-out .oadm-intro [data-sheet] { animation: intro-sheet 0.6s cubic-bezier(0.87, 0, 0.13, 1) 0.05s both; }
+@keyframes intro-inner-out { to { opacity: 0; transform: translateY(-24px); } }
+@keyframes intro-sheet { to { transform: translateY(calc(-100% - 16vh)); } }
+@media (prefers-reduced-motion: reduce) {
+  .oadm-intro { display: none !important; }
 }
 
 /* ── Scroll morph reveals (ScrollMorph) ─────────────────────────────
@@ -237,9 +466,9 @@
 
 /* ── Card hover ─────────────────────────────────────────────────────
    Unslop pass: no lift, no colored shadow on hover - a card answers
-   with a quiet border step only. Depth on dark comes from surface
-   steps and hairlines, not from shadows. The morph reveal keeps
-   owning transform while a card is mid-reveal. */
+   with a quiet border step only. Depth comes from surface steps
+   and hairlines; the morph reveal keeps owning transform while a
+   card is mid-reveal. */
 main .bg-card {
   transition: border-color 0.18s ease;
 }
