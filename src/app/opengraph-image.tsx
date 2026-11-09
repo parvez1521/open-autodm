@@ -49,8 +49,17 @@ export default function OpengraphImage() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: 84, fontWeight: 800, lineHeight: 1.05 }}>
-            Instagram{" "}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 22,
+              fontSize: 84,
+              fontWeight: 800,
+              lineHeight: 1.05,
+            }}
+          >
+            <span>Instagram</span>
             <span style={{ fontStyle: "italic", fontWeight: 400 }}>Auto DM</span>
           </div>
           <div
