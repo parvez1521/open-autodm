@@ -6,8 +6,11 @@
  *  - DemoShowcase: a user-driven comment-to-DM simulation with three
  *    keyword scenarios, staged on timers, reduced-motion safe.
  *  - FaqSection: an accessible accordion whose answers stay
- *    product-truthful (free self-hosting, own Meta app, three
- *    permissions, shipped sending caps, hosted plan in preparation).
+ *    product-truthful (Free plan needs no card, own Meta app, three
+ *    permissions, shipped sending caps). Updated 2026-11-10 by
+ *    owner directive: the FAQ's self-hosting / MIT / "in
+ *    preparation" answers were reworded to hosted-service framing —
+ *    no self-hosted / open-source framing anywhere user-visible.
  * These pins keep the additions wired into the page and honest.
  */
 
@@ -57,11 +60,21 @@ describe("design pass — FaqSection", () => {
     expect(src).toContain('type="button"');
   });
 
-  it("answers stay product-truthful: free self-host, own Meta app, three permissions, shipped caps", () => {
-    expect(src).toContain("MIT licence");
+  // Updated 2026-11-10 (owner directive): the old pins asserted the
+  // self-hosting answers ("MIT licence", "in preparation"). The FAQ
+  // now answers in hosted-service framing — Free plan / trial facts,
+  // tokens encrypted at rest — and must carry NO self-hosted /
+  // open-source / MIT wording.
+  it("answers stay product-truthful: Free plan, own Meta app, three permissions, shipped caps — hosted framing (owner, 2026-11-10)", () => {
+    expect(src).toContain("Free plan costs nothing");
+    expect(src).toContain("15-day free trial");
+    expect(src).toContain("AES-256-GCM");
     expect(src).toContain("exactly three Instagram permissions");
     expect(src).toContain("180 DMs per hour");
-    expect(src).toContain("in preparation");
+    expect(src).not.toContain("MIT");
+    expect(src).not.toMatch(/self[- ]host/i);
+    expect(src).not.toMatch(/open[- ]source/i);
+    expect(src).not.toContain("in preparation");
   });
 });
 

@@ -58,7 +58,7 @@ import { cn } from "@/lib/utils";
 
 const POLISH_NOTES: Partial<Record<AiSlidePolishOutcome["status"], string>> = {
   not_configured:
-    "Free AI is not configured on this instance, so the built-in text stays, it is complete as written.",
+    "Free AI is not configured here, so the built-in text stays, it is complete as written.",
   quota_reached:
     "Today's shared free AI quota is used up. Your slide is unchanged and complete as written.",
   daily_quota_reached:
@@ -353,7 +353,7 @@ export default function PresentationsPage() {
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Decks are built by the built-in engine and work fully offline. A slide can
-          optionally be polished with Free AI when it is configured on this instance.
+          optionally be polished with Free AI when it is configured.
         </p>
       </div>
 

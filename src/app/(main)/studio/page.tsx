@@ -278,8 +278,8 @@ export default function StudioHomePage() {
       <section className="border-t border-border pt-6">
         <h2 className="text-sm font-medium">How the Studio stays free</h2>
         <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-muted-foreground">
-          Every tool runs on a built-in engine that works offline and costs nothing. Where an
-          instance has a free AI tier configured, tools can optionally enhance their output
+          Every tool runs on a built-in engine that works offline and costs nothing. Where a
+          free AI tier is configured, tools can optionally enhance their output
           with it. Results are always labelled{" "}
           <span className="text-foreground font-medium">Built-in engine</span> or{" "}
           <span className="text-foreground font-medium">Free AI</span> so you know what

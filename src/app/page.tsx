@@ -288,14 +288,6 @@ export default function LandingPage() {
                         ))}
                     </nav>
                     <div className="flex items-center gap-2">
-                        <a
-                            href="https://github.com/parvez1521/open-autodm"
-                            target="_blank"
-                            rel="noreferrer"
-                            className="hidden h-9 items-center rounded-md px-3 text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
-                        >
-                            GitHub
-                        </a>
                         <ThemeToggle />
                         <a
                             href="/login"
@@ -333,9 +325,9 @@ export default function LandingPage() {
                             data-hero="sub"
                             className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground lg:text-lg lg:leading-relaxed"
                         >
-                            open-autoDM is open-source, self-hosted Instagram automation
-                            software. It runs on your own Meta app, database, and domain,
-                            no per-seat pricing, and no third party holding your tokens.
+                            open-autoDM is Instagram comment-to-DM automation, hosted
+                            and managed for you. No per-seat pricing, and your access
+                            tokens stay encrypted at rest.
                         </p>
                         <div data-hero="cta" className="mt-8 flex flex-wrap items-center gap-3">
                             <span className="conic-glow-pill">
@@ -361,7 +353,7 @@ export default function LandingPage() {
                             </motion.a>
                         </div>
                         <p data-hero="points" className="mt-6 text-[13px] text-muted-foreground">
-                            MIT licensed · Self-hosted · Your data stays on your instance
+                            Hosted for you · No per-seat pricing
                         </p>
                         <div data-hero="points">
                             <HeroLoopChip />
@@ -614,7 +606,7 @@ export default function LandingPage() {
                         <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
                             This is the whole product in ten seconds. Pick a keyword,
                             run the flow, and see exactly what your visitor receives —
-                            simulated here, automatic on your own instance.
+                            simulated here, automatic on your account.
                         </p>
                         <RevealRule className="mt-6 max-w-24" />
                         </Reveal>
@@ -844,8 +836,7 @@ export default function LandingPage() {
                                     Simple, <em>honest</em> pricing
                                 </h2>
                                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-                                    Self-host open-autoDM free on your own infrastructure — the
-                                    code is MIT licensed. The hosted plans below open soon:
+                                    The plans below are hosted and managed for you:
                                     checkout is being switched on, so nothing can be bought
                                     yet. No per-seat pricing and no per-message charges,
                                     either way.
@@ -938,7 +929,7 @@ export default function LandingPage() {
                                                     {plan.limits.instagramAccounts} Instagram account
                                                     {plan.limits.instagramAccounts === 1 ? "" : "s"}
                                                 </span>
-                                                <span>{plan.limits.activeAutomations} active automations</span>
+                                                <span>{plan.limits.activeAutomations === null ? "Unlimited automations" : `${plan.limits.activeAutomations} active automations`}</span>
                                                 <span>{plan.limits.dmsPerMonth === null ? "Unlimited" : plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</span>
                                                 <span>{plan.id === "free" ? "Creator Studio (limited)" : "Creator Studio included"}</span>
                                             </span>
@@ -994,8 +985,8 @@ export default function LandingPage() {
                                 Ready to turn comments into <em>customers</em>?
                             </h2>
                             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-                                Sign in to your console, or run your own instance. The
-                                code is open-source and MIT licensed.
+                                Sign in to your console, connect Instagram, and turn
+                                on your first automation.
                             </p>
                             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                                 <span className="conic-glow-pill">
@@ -1023,9 +1014,9 @@ export default function LandingPage() {
                             <div className="mx-auto mt-12 max-w-md border-t border-border pt-8 text-center">
                                 <p className="micro-label">Waitlist</p>
                                 <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-                                    Not ready to self-host? Public access opens in
-                                    stages. Join the waitlist and we will write to you
-                                    when a slot opens. One email, when it matters.
+                                    Public access opens in stages. Join the waitlist
+                                    and we will write to you when a slot opens. One
+                                    email, when it matters.
                                 </p>
                                 <WaitlistForm />
                             </div>
@@ -1039,18 +1030,10 @@ export default function LandingPage() {
                         <div className="flex items-center gap-2.5">
                             <LogoMark className="h-6 w-6" />
                             <span className="text-[13px] text-muted-foreground">
-                                open-autoDM · MIT licensed · Self-hosted
+                                open-autoDM
                             </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-5 text-[13px] text-muted-foreground">
-                            <a
-                                href="https://github.com/parvez1521/open-autodm"
-                                target="_blank"
-                                rel="noreferrer"
-                                className="transition-colors hover:text-foreground"
-                            >
-                                GitHub
-                            </a>
                             <a href="#demo" className="transition-colors hover:text-foreground">
                                 Live demo
                             </a>

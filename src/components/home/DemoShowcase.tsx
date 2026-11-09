@@ -43,7 +43,7 @@ const SCENARIOS: Scenario[] = [
     keyword: "PRICE",
     comment: "Price please!",
     dmBody:
-      "Hi! Here is the pricing breakdown from the video. The hosted plans are listed on the pricing page, and self-hosting stays free.",
+      "Hi! Here is the pricing breakdown from the video — every plan, Free included, is listed on the pricing page.",
     dmCardTitle: "Pricing — open-autoDM",
     dmCardMeta: "Plans and what each one includes",
   },

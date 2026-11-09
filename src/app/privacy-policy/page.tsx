@@ -47,14 +47,14 @@ export default function PrivacyPolicyPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-heading font-bold text-foreground">1. Overview &amp; Scope</h2>
         <p>
-          open-autoDM is an automation service (open-source, also available as the hosted service at opendm.in)
+          open-autoDM is an automation service (the hosted service at opendm.in)
           designed to help creators and businesses
           manage and automate Instagram comment replies, story reply acknowledgments, and direct messages via the
           official Meta Instagram Graph API.
         </p>
         <p>
-          This Privacy Policy explains how data is collected, processed, secured, and retained by this deployment
-          instance of open-autoDM. It applies to:
+          This Privacy Policy explains how data is collected, processed, secured, and retained by the open-autoDM
+          service. It applies to:
         </p>
         <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
           <li>
@@ -114,7 +114,7 @@ export default function PrivacyPolicyPage() {
               </li>
               <li>
                 <strong>Live Broadcasts:</strong> Comment automation on active Instagram Live broadcasts is disabled in
-                this deployment to strictly respect Meta messaging-window rules.
+                open-autoDM to strictly respect Meta messaging-window rules.
               </li>
             </ul>
           </div>
@@ -170,7 +170,7 @@ export default function PrivacyPolicyPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-heading font-bold text-foreground">4. Storage, Infrastructure &amp; Security</h2>
         <p>
-          This deployment utilizes modern cloud infrastructure and encryption standards to protect data:
+          open-autoDM uses modern cloud infrastructure and encryption standards to protect data:
         </p>
         <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
           <li>
@@ -194,7 +194,7 @@ export default function PrivacyPolicyPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-heading font-bold text-foreground">5. Third-Party Service Providers</h2>
         <p>
-          To deliver its services, this open-autoDM deployment interacts with the following confirmed service
+          To deliver its services, open-autoDM works with the following confirmed service
           providers:
         </p>
         <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
@@ -254,7 +254,7 @@ export default function PrivacyPolicyPage() {
         <h2 className="text-xl font-heading font-bold text-foreground">7. Contact the Operator</h2>
         <p>
           If you have questions regarding this Privacy Policy, wish to exercise your data protection rights, or need to
-          request manual removal of your information, please contact the instance administrator:
+          request manual removal of your information, please contact open-autoDM Administration:
         </p>
         <div className="p-4 rounded-lg bg-muted/30 border border-border flex items-center justify-between flex-wrap gap-3">
           <div>

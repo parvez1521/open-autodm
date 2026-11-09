@@ -19,7 +19,7 @@ export default function TermsOfServicePage() {
       <section className="space-y-3">
         <h2 className="text-xl font-heading font-bold text-foreground">1. Acceptance of Terms</h2>
         <p>
-          By accessing or operating this open-autoDM instance, connecting an Instagram Professional or Creator account,
+          By accessing or using open-autoDM, connecting an Instagram Professional or Creator account,
           or setting up automated replies, you agree to be bound by these Terms of Service. If you do not agree to these
           terms, you must not use or connect accounts to this application.
         </p>
@@ -73,7 +73,7 @@ export default function TermsOfServicePage() {
         <h2 className="text-xl font-heading font-bold text-foreground">3. Account Ownership &amp; Authorization</h2>
         <p>
           You represent and warrant that you are the verified owner of, or have explicit legal authorization to manage,
-          any Instagram Professional or Creator account connected to this instance.
+          any Instagram Professional or Creator account connected to open-autoDM.
         </p>
         <p className="text-muted-foreground">
           You are solely responsible for maintaining the confidentiality of your login credentials, environment
@@ -114,7 +114,7 @@ export default function TermsOfServicePage() {
           <strong className="text-foreground">Settings → Connected Accounts → Disconnect</strong>.
         </p>
         <p className="text-muted-foreground">
-          The instance operator reserves the right to suspend or revoke access to the instance, pause automations, or
+          open-autoDM reserves the right to suspend or revoke access to the service, pause automations, or
           remove connected accounts immediately and without liability if an account is found to be in violation of
           these Terms, generating policy flags, or compromising system stability.
         </p>
@@ -137,7 +137,7 @@ export default function TermsOfServicePage() {
         <h2 className="text-xl font-heading font-bold text-foreground">7. Questions &amp; Support</h2>
         <p>
           For inquiries regarding these Terms of Service or to report misuse of an automation operating through this
-          system, please reach out to the instance administrator:
+          system, please reach out to open-autoDM Administration:
         </p>
         <div className="p-4 rounded-lg bg-muted/30 border border-border flex items-center justify-between flex-wrap gap-3">
           <div>

@@ -82,8 +82,7 @@ export default function LoginPage() {
                         Sign in to open-autoDM
                     </h1>
                     <p className="mt-3 max-w-md text-center text-[15px] leading-relaxed text-muted-foreground">
-                        Your automation console and Creator Studio, running on your own
-                        instance.
+                        Your automation console and Creator Studio, in one place.
                     </p>
                     </FadeIn>
 
@@ -110,7 +109,7 @@ export default function LoginPage() {
             {/* Footer */}
             <footer className="relative z-10">
                 <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-center gap-x-5 gap-y-2 px-6 py-8 text-[13px] text-muted-foreground lg:px-10">
-                    <span>open-autoDM · MIT licensed · Self-hosted</span>
+                    <span>open-autoDM</span>
                     <a href="/privacy-policy" className="transition-colors hover:text-foreground">
                         Privacy Policy
                     </a>

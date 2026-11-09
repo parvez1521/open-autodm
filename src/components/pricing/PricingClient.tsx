@@ -133,7 +133,7 @@ const DIMENSIONS: { label: string; value: (plan: Plan) => string }[] = [
   { label: "Workspaces", value: (p) => orCustom(p, String(p.limits.workspaces)) },
   { label: "Instagram accounts", value: (p) => orCustom(p, String(p.limits.instagramAccounts)) },
   { label: "Team seats", value: (p) => orCustom(p, String(p.limits.teamSeats)) },
-  { label: "Active automations", value: (p) => orCustom(p, String(p.limits.activeAutomations)) },
+  { label: "Active automations", value: (p) => orCustom(p, p.limits.activeAutomations === null ? "Unlimited automations" : String(p.limits.activeAutomations)) },
   { label: "DMs / month", value: (p) => orCustom(p, p.limits.dmsPerMonth === null ? "Unlimited" : p.limits.dmsPerMonth.toLocaleString("en-IN")) },
   { label: "Audience contacts / month", value: (p) => orCustom(p, p.limits.contactsPerMonth.toLocaleString("en-IN")) },
   { label: "AI drafting generations / month", value: (p) => orCustom(p, p.limits.aiDraftingGenerationsPerMonth.toLocaleString("en-IN")) },
@@ -171,7 +171,9 @@ function keyFacts(plan: Plan): string[] {
     plan.limits.dmsPerMonth === null
       ? "Unlimited auto DMs / month"
       : `${plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month`,
-    `${plan.limits.activeAutomations} active automations`,
+    plan.limits.activeAutomations === null
+      ? "Unlimited automations"
+      : `${plan.limits.activeAutomations} active automations`,
     studioFact(plan),
   ];
 }

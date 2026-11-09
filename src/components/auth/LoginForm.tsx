@@ -22,7 +22,7 @@ function humanAuthError(raw: string): string {
         return "That email link has expired. Sign in below, or request a fresh one with “Forgot password?” if it was a reset link.";
     }
     if (/not provisioned/i.test(value)) {
-        return "This account is not provisioned for this instance. Ask the instance owner to add your login first.";
+        return "This account is not provisioned for open-autoDM. Ask an admin to add your login first.";
     }
     if (/invalid|already.*used|not found/i.test(value)) {
         return "That email link is invalid or was already used. Sign in below, or request a fresh link.";
@@ -184,7 +184,7 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
                         </p>
                     ) : (
                         <p className="text-[11.5px] text-muted-foreground leading-relaxed">
-                            No account? Access is invite-only, the instance owner creates users in the
+                            No account? Access is invite-only — an admin creates users in the
                             Supabase dashboard <span className="text-foreground/70 font-medium">(Authentication → Users → Add user)</span>.
                         </p>
                     )}

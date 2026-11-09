@@ -6,11 +6,12 @@
  * Real buttons with aria-expanded; the answer panel animates its
  * height with the shared motion system (motion pass, 2026-11-08 —
  * previously the grid-rows trick). Answers stay strictly
- * product-truthful: self-hosting is free and MIT-licensed, the Meta
- * app is the user's own with exactly three permissions, data lives in
- * the user's own database, sending caps are the shipped ones, and the
- * hosted plan is described as in preparation (it is DRAFT, unapproved
- * — the waitlist is the honest route to it).
+ * product-truthful: the Free plan needs no card, the Meta
+ * app is the user's own with exactly three permissions, data lives
+ * encrypted at rest in the hosted database, and sending caps are
+ * the shipped ones. (Reworded 2026-11-10 by owner directive:
+ * hosted-service framing only — the banned terms are pinned in
+ * tests/owner-directive-2026-11-10.test.ts.)
  */
 
 import { useState } from "react";
@@ -21,7 +22,7 @@ import { EASE_OUT, SPRING_SNAPPY } from "@/lib/motion/presets";
 const FAQS = [
   {
     q: "Is open-autoDM really free?",
-    a: "Self-hosting is free. The code is open-source under the MIT licence and runs on infrastructure you control — your own Meta app, database and domain. A hosted plan, for people who would rather have it managed, is in preparation; the waitlist below is how you hear about it first.",
+    a: "Yes — the Free plan costs nothing and needs no card, with comment-to-DM automations and the limited Creator Studio. Paid plans add more Instagram accounts and higher allowances, and every paid plan starts with a 15-day free trial, no card upfront.",
   },
   {
     q: "Do I need my own Meta app?",
@@ -29,7 +30,7 @@ const FAQS = [
   },
   {
     q: "Where does my audience data live?",
-    a: "In your own database, on your instance. Your access tokens are encrypted with a key only your deployment holds, and no third party — including us — holds your tokens or your audience data.",
+    a: "Inside open-autoDM's hosted database, encrypted at rest. Instagram access tokens are encrypted with AES-256-GCM before they are stored, and your audience data is never sold or shared with third parties.",
   },
   {
     q: "What stops an account from being flagged for spam?",

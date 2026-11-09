@@ -102,7 +102,7 @@ export function LegalLayout({
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-[12px] text-muted-foreground">
           <div className="flex items-center gap-2">
             <LogoMark className="w-4 h-4 opacity-75" />
-            <span>open-autoDM · Self-Hosted &amp; Open Source</span>
+            <span>open-autoDM</span>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <Link href="/privacy-policy" className="hover:text-foreground transition-colors">Privacy Policy</Link>

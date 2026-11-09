@@ -27,7 +27,7 @@ const instrumentSerif = Instrument_Serif({
 export const metadata: Metadata = {
   title: "open-autoDM",
   description:
-    "Open-source, self-hosted Instagram comment-to-DM automation. Your own Meta app, your own Supabase, your own deployment.",
+    "Hosted Instagram comment-to-DM automation with the Creator Studio built in. No per-seat pricing.",
 };
 
 export default function RootLayout({

@@ -55,7 +55,7 @@ import { cn } from "@/lib/utils";
 
 const POLISH_NOTES: Partial<Record<AiPolishOutcome["status"], string>> = {
   not_configured:
-    "Free AI is not configured on this instance, so the built-in text stays, it is complete as written.",
+    "Free AI is not configured here, so the built-in text stays, it is complete as written.",
   quota_reached:
     "Today's shared free AI quota is used up. Your text is unchanged and complete as written.",
   daily_quota_reached:

@@ -204,8 +204,10 @@ export function checkEntitlement(
   const limit = limitFor(resolved.plan, dimension);
   const used = usedFor(usage, dimension);
   const requested = opts.requested ?? 1;
-  // Unlimited dimension (dmsPerMonth — null on every plan since the
-  // owner's 2026-11-09 decision): no usage volume can block.
+  // Unlimited dimensions (dmsPerMonth — null on every plan since
+  // the owner's 2026-11-09 decision; activeAutomations — null on
+  // every plan since the owner's 2026-11-10 decision): no usage
+  // volume can block.
   const allowed = limit === null ? true : used + requested <= limit;
   const reason: EntitlementCheckResult['reason'] = allowed ? 'within-limit' : used >= (limit ?? 0) ? 'at-limit' : 'over-limit';
   const enforced = flags.entitlementsEnforced;

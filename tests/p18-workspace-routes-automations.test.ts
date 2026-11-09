@@ -283,6 +283,13 @@ describe('flag ON — workspace mode', () => {
 // unlimited active automations (public-readiness-audit.md Bug 2).
 // The gate (lib/entitlements/guard.ts) engages only with
 // ENTITLEMENTS_ENFORCED=true; flag off ⇒ behaviour is unchanged.
+//
+// UPDATE (owner directive, 2026-11-10): the activeAutomations
+// dimension is UNLIMITED on every plan (catalogue limit = null), so
+// the gate — still wired on create/activate — never blocks on count
+// any more. The two 2026-11-09 blocking tests below were rewritten
+// to pin the new behaviour; other dimensions (IG accounts, seats,
+// workspaces) keep their caps and their blocking tests elsewhere.
 describe('Bug 2 enforcement — automations (2026-11-09)', () => {
   let savedEnforced: string | undefined;
   beforeEach(() => {
@@ -310,31 +317,29 @@ describe('Bug 2 enforcement — automations (2026-11-09)', () => {
   describe('workspace mode', () => {
     beforeEach(() => setFlag(true));
 
-    it('Free workspace: creating active automations is blocked at the plan limit (3); inactive creates are never gated', async () => {
+    it('Free workspace: creating active automations is never blocked on count (unlimited, owner 2026-11-10)', async () => {
       mockAuth.mockResolvedValue(MEMBER_A);
       // WS_A already holds 2 active automations (auto-a1, auto-a2).
-      const third = await postAuto('Third active');
-      expect(third.status).toBe(201);
-      const fourth = await postAuto('Fourth active');
-      expect(fourth.status).toBe(403);
-      const body = (await fourth.json()) as { code?: string; limit?: number; used?: number };
-      expect(body.code).toBe('PLAN_LIMIT_REACHED');
-      expect(body.limit).toBe(3);
-      expect(body.used).toBe(3);
-      expect(fake.rows('automations').some((r) => r['name'] === 'Fourth active')).toBe(false);
-      // An INACTIVE create consumes no slot ⇒ allowed even at the limit.
+      // Before 2026-11-10 the 4th active create was blocked at the
+      // Free limit of 3; automations are unlimited now, so every
+      // create passes with ENTITLEMENTS_ENFORCED=true.
+      expect((await postAuto('Third active')).status).toBe(201);
+      expect((await postAuto('Fourth active')).status).toBe(201);
+      expect((await postAuto('Fifth active')).status).toBe(201);
+      expect(fake.rows('automations').some((r) => r['name'] === 'Fourth active')).toBe(true);
+      // An INACTIVE create was never gated and still is not.
       const inactive = await postAuto('Draft one', { isActive: false });
       expect(inactive.status).toBe(201);
     });
 
-    it('Free workspace: activating an automation beyond the limit is blocked; editing an active one is not', async () => {
+    it('Free workspace: activating an automation beyond the old limit succeeds (unlimited, owner 2026-11-10); editing an active one still works', async () => {
       fake.replaceRows('automations', [
         ...fake.rows('automations'),
         { id: 'auto-a3-off', user_id: OWNER_A.id, workspace_id: WS_A, instagram_account_id: ACCT_A, name: 'A three (off)', type: 'comment_dm', is_active: false, flow_graph: null, created_at: '2026-11-05T08:00:00Z' },
       ]);
       mockAuth.mockResolvedValue(MEMBER_A);
       const third = await postAuto('Third active');
-      expect(third.status).toBe(201); // workspace now at the Free limit of 3 actives
+      expect(third.status).toBe(201); // workspace now past the old Free limit of 3 actives
 
       const activate = await PUT(
         new Request(`https://app.opendm.in/api/automations/auto-a3-off?workspace=${WS_A}`, {
@@ -344,9 +349,8 @@ describe('Bug 2 enforcement — automations (2026-11-09)', () => {
         }),
         byId('auto-a3-off'),
       );
-      expect(activate.status).toBe(403);
-      expect(((await activate.json()) as { code?: string }).code).toBe('PLAN_LIMIT_REACHED');
-      expect(fake.rows('automations').find((r) => r['id'] === 'auto-a3-off')!['is_active']).toBe(false);
+      expect(activate.status).toBe(200);
+      expect(fake.rows('automations').find((r) => r['id'] === 'auto-a3-off')!['is_active']).toBe(true);
 
       // Editing an already-active automation consumes no new slot.
       const edit = await PUT(
@@ -360,7 +364,7 @@ describe('Bug 2 enforcement — automations (2026-11-09)', () => {
       expect(edit.status).toBe(200);
     });
 
-    it('paid plan limits are respected (creator-pro: 50 active automations — Free would have blocked)', async () => {
+    it('paid plan automations are unlimited too (creator-pro, owner 2026-11-10 — the old 50 cap is gone)', async () => {
       fake.replaceRows('subscriptions', [
         {
           id: 'sub-ws-a', workspace_id: WS_A, plan_id: 'creator-pro', lifecycle_status: 'active',
@@ -387,13 +391,15 @@ describe('Bug 2 enforcement — automations (2026-11-09)', () => {
   describe('legacy mode', () => {
     beforeEach(() => setFlag(false));
 
-    it('Free user at the user-scoped limit (3 active incl. legacy rows) is blocked on an active create; inactive passes', async () => {
+    // Owner directive, 2026-11-10: automations are unlimited on
+    // every plan, so the legacy user-scoped gate — which resolved to
+    // the Free plan — no longer blocks at the old limit of 3 either.
+    it('Free user past the old user-scoped limit (3 active incl. legacy rows) creates freely (unlimited, owner 2026-11-10)', async () => {
       mockAuth.mockResolvedValue(OWNER_A);
       // OWNER_A owns auto-a1, auto-a2 and auto-legacy — all active.
-      const blocked = await postAuto('Legacy fourth', {}, false);
-      expect(blocked.status).toBe(403);
-      expect(((await blocked.json()) as { code?: string }).code).toBe('PLAN_LIMIT_REACHED');
-      expect(fake.rows('automations').some((r) => r['name'] === 'Legacy fourth')).toBe(false);
+      const fourth = await postAuto('Legacy fourth', {}, false);
+      expect(fourth.status).toBe(201);
+      expect(fake.rows('automations').some((r) => r['name'] === 'Legacy fourth')).toBe(true);
       const inactive = await postAuto('Legacy draft', { isActive: false }, false);
       expect(inactive.status).toBe(201);
     });

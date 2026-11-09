@@ -46,7 +46,7 @@ export interface JourneyStep {
 }
 
 export const JOURNEY_STEPS: readonly JourneyStep[] = [
-  { id: 'landing', order: 1, title: 'Landing page', availability: 'exists-today', gatedBy: null, notes: 'Today: self-hosted product landing at `/`. SaaS adds plan CTAs.' },
+  { id: 'landing', order: 1, title: 'Landing page', availability: 'exists-today', gatedBy: null, notes: 'Today: the product landing at `/`, with plan CTAs.' },
   { id: 'pricing', order: 2, title: 'Pricing page', availability: 'new-saas', gatedBy: null, notes: 'Live at (saas)/pricing rendering catalogue.ts; prices owner-approved 2026-11-08. Read-only, safe ungated.' },
   { id: 'signup', order: 3, title: 'Signup', availability: 'new-saas', gatedBy: 'PUBLIC_SIGNUP_ENABLED', notes: 'Public signup; renders a disabled state while PUBLIC_SIGNUP_ENABLED is off.' },
   { id: 'email-verification', order: 4, title: 'Email verification', availability: 'new-saas', gatedBy: 'PUBLIC_SIGNUP_ENABLED', notes: 'Supabase Auth email confirmation; no account is usable before verification.' },
@@ -56,7 +56,7 @@ export const JOURNEY_STEPS: readonly JourneyStep[] = [
   { id: 'checkout', order: 8, title: 'Checkout', availability: 'new-saas', gatedBy: 'PAYMENTS_LIVE_MODE', notes: 'Provider checkout via Phase 12 BillingProvider; mock-only until owner enables live mode with real credentials.' },
   { id: 'instagram-connect', order: 9, title: 'Connect Instagram', availability: 'partial-today', gatedBy: null, notes: 'Exists today per-user; SaaS retargets binding to the workspace (Phase 11 §B.6) and checks the instagramAccounts entitlement.' },
   { id: 'meta-permissions-explained', order: 10, title: 'Meta permission explanation', availability: 'new-saas', gatedBy: null, notes: 'Plain-language explanation of requested Meta scopes before OAuth; required for informed consent + App Review.' },
-  { id: 'first-automation', order: 11, title: 'First automation', availability: 'exists-today', gatedBy: 'ENTITLEMENTS_ENFORCED', notes: 'Automation product exists today; SaaS adds the activeAutomations entitlement check (log-only until enforced).' },
+  { id: 'first-automation', order: 11, title: 'First automation', availability: 'exists-today', gatedBy: 'ENTITLEMENTS_ENFORCED', notes: 'Automation product exists today; automations are unlimited on every plan (owner decision, 2026-11-10), so the activeAutomations entitlement check never blocks.' },
   { id: 'dashboard-onboarding', order: 12, title: 'Dashboard onboarding checklist', availability: 'partial-today', gatedBy: null, notes: 'Today: 4-step getting-started checklist on the dashboard. The (saas)/onboarding page extends it with SaaS steps.' },
   { id: 'billing-dashboard', order: 13, title: 'Billing dashboard', availability: 'new-saas', gatedBy: 'BILLING_ENABLED', notes: 'Live at (saas)/billing reading the entitlement service; inert while BILLING_ENABLED off.' },
   { id: 'trial-ending-warning', order: 14, title: 'Trial-ending warnings', availability: 'new-saas', gatedBy: 'BILLING_ENABLED', notes: 'Warnings at T-3d / T-1d / expiry; expiry behaviour (downgrade vs auth-required) is an owner decision.' },

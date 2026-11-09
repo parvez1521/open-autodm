@@ -40,7 +40,7 @@ const MODES = Object.keys(IDEA_MODE_LABELS) as IdeaMode[];
 
 const AI_NOTES: Partial<Record<AiIdeasOutcome["status"], string>> = {
   not_configured:
-    "Free AI is not configured on this instance, so you are seeing the built-in engine's ideas.",
+    "Free AI is not configured here, so you are seeing the built-in engine's ideas.",
   quota_reached:
     "Today's shared free AI quota is used up. The built-in engine's ideas are shown instead, they keep working.",
   daily_quota_reached:
@@ -131,7 +131,7 @@ export default function VideoIdeasPage() {
       <div className={studioCardClass}>
         <p className="text-[13px] text-muted-foreground">
           Pick a topic and a style. The built-in engine answers instantly; free AI can
-          enhance the list when it is configured on this instance.
+          enhance the list when it is configured.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_220px] sm:items-end">
           <div>

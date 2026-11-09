@@ -69,7 +69,7 @@ function SettingsContent() {
             const errorMessages: Record<string, string> = {
                 access_denied: "Instagram connection was cancelled.",
                 no_instagram_business_account: "No Instagram Business or Creator account found. Switch your Instagram to a professional account first.",
-                account_already_connected: "This Instagram account is already connected to another user on this instance.",
+                account_already_connected: "This Instagram account is already connected to another user on open-autoDM.",
                 plan_limit_reached: "Your current plan's Instagram account limit has been reached. Upgrade your plan in Billing to connect another account.",
                 state_mismatch: "The connection expired. Try again.",
                 setup_required: "Save your Meta app credentials in the Setup Wizard first.",
@@ -172,7 +172,7 @@ function SettingsContent() {
         <div className="w-full max-w-3xl mx-auto space-y-5 pb-16">
             <div>
                 <h1 className="text-xl font-heading font-semibold tracking-tight text-foreground">Settings</h1>
-                <p className="text-[13px] text-muted-foreground mt-1">Connected accounts and this instance.</p>
+                <p className="text-[13px] text-muted-foreground mt-1">Connected accounts and your session.</p>
             </div>
 
             {banner && (
@@ -409,7 +409,7 @@ function SettingsContent() {
                         {userEmail ? (
                             <>Signed in as <span className="text-foreground/80 font-medium">{userEmail}</span></>
                         ) : (
-                            "Signed in to this instance."
+                            "Signed in."
                         )}
                     </p>
                 </div>

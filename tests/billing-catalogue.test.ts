@@ -153,13 +153,24 @@ describe('billing catalogue (owner-approved 2026-11-08)', () => {
     }
   });
 
-  it('keeps every capped limit a non-negative finite number (DMs excepted: null = unlimited, owner 2026-11-09)', () => {
+  // Owner decision, 2026-11-10 (supersedes the 3 / 10 / 50 / 200 /
+  // 500 per-plan automation caps): active automations are UNLIMITED
+  // on every plan — activeAutomations is null across the catalogue,
+  // exactly like dmsPerMonth (owner, 2026-11-09).
+  it('gives every plan unlimited active automations (owner, 2026-11-10)', () => {
+    for (const plan of PLANS) {
+      expect(plan.limits.activeAutomations, `${plan.id} automations must be unlimited`).toBeNull();
+    }
+  });
+
+  it('keeps every capped limit a non-negative finite number (DMs + automations excepted: null = unlimited, owner 2026-11-09 / 2026-11-10)', () => {
     for (const plan of PLANS) {
       for (const [key, value] of Object.entries(plan.limits)) {
-        if (key === 'dmsPerMonth') {
-          // Owner decision, 2026-11-09: DMs are unlimited on every
-          // plan, encoded as null — the catalogue's one non-numeric
-          // limit.
+        if (key === 'dmsPerMonth' || key === 'activeAutomations') {
+          // Owner decisions, 2026-11-09 (DMs) and 2026-11-10
+          // (automations): both dimensions are unlimited on every
+          // plan, encoded as null — the catalogue's two non-numeric
+          // limits.
           expect(value, `${plan.id}.limits.${key}`).toBeNull();
           continue;
         }

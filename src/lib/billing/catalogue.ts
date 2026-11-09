@@ -11,7 +11,10 @@
  * LIMITED on Free. Auto DMs are UNLIMITED on every plan, Free
  * included (owner decision, 2026-11-09: all per-plan DM caps —
  * Free 1,000, Starter 2,000, Growth 10,000, Pro 50,000 — removed;
- * `dmsPerMonth: null` in the catalogue below). Every
+ * `dmsPerMonth: null` in the catalogue below). Active automations
+ * are likewise UNLIMITED on every plan (owner decision, 2026-11-10:
+ * the 3 / 10 / 50 / 200 / 500 per-plan caps removed;
+ * `activeAutomations: null` in the catalogue below). Every
  * self-serve paid plan starts with a 15-day free trial, no card
  * upfront; at expiry the workspace drops back to Free unless its
  * owner checks out — nobody is ever silently charged.
@@ -57,17 +60,23 @@ export interface PlanPrice {
  * business need is expressed as a larger number by the owner, never
  * as -1 / Infinity, so entitlement checks stay simple comparisons.
  *
- * ONE exception (owner decision, 2026-11-09): `dmsPerMonth` is
- * `number | null`, and every plan carries `null` — auto DMs are
- * unlimited on all plans, so there is no DM cap left to express as
- * a number. The entitlement service treats a null DM limit as
- * always-allowed.
+ * TWO exceptions: `dmsPerMonth` (owner decision, 2026-11-09) and
+ * `activeAutomations` (owner decision, 2026-11-10) are
+ * `number | null`, and every plan carries `null` for both — auto
+ * DMs and active automations are unlimited on all plans, so there
+ * is no cap left to express as a number. The entitlement service
+ * treats a null limit as always-allowed.
  */
 export interface PlanLimits {
   workspaces: number;
   instagramAccounts: number;
   teamSeats: number;
-  activeAutomations: number;
+  /**
+   * Active automations per workspace. `null` = unlimited (owner
+   * decision, 2026-11-10: automation-count limits removed on every
+   * plan, Free included — was 3 / 10 / 50 / 200 / 500).
+   */
+  activeAutomations: number | null;
   /**
    * Automated DMs sent per calendar month, per workspace.
    * `null` = unlimited (owner decision, 2026-11-09: DM limits
@@ -134,7 +143,9 @@ export const PLANS: readonly Plan[] = [
       workspaces: 1,
       instagramAccounts: 1,
       teamSeats: 1,
-      activeAutomations: 3,
+      // Owner decision, 2026-11-10: active automations UNLIMITED
+      // on every plan (was 3 here under the 2026-11-08 rule).
+      activeAutomations: null,
       // Owner decision, 2026-11-09: auto DMs UNLIMITED on every
       // plan (was 1,000/month here under the 2026-11-08 rule).
       dmsPerMonth: null,
@@ -165,7 +176,7 @@ export const PLANS: readonly Plan[] = [
       workspaces: 1,
       instagramAccounts: 1,
       teamSeats: 1,
-      activeAutomations: 10,
+      activeAutomations: null,
       dmsPerMonth: null,
       contactsPerMonth: 2000,
       aiDraftingGenerationsPerMonth: 100,
@@ -194,7 +205,7 @@ export const PLANS: readonly Plan[] = [
       workspaces: 3,
       instagramAccounts: 3,
       teamSeats: 3,
-      activeAutomations: 50,
+      activeAutomations: null,
       dmsPerMonth: null,
       contactsPerMonth: 10000,
       aiDraftingGenerationsPerMonth: 500,
@@ -223,7 +234,7 @@ export const PLANS: readonly Plan[] = [
       workspaces: 5,
       instagramAccounts: 5,
       teamSeats: 5,
-      activeAutomations: 200,
+      activeAutomations: null,
       dmsPerMonth: null,
       contactsPerMonth: 50000,
       aiDraftingGenerationsPerMonth: 2000,
@@ -255,7 +266,7 @@ export const PLANS: readonly Plan[] = [
       workspaces: 25,
       instagramAccounts: 25,
       teamSeats: 25,
-      activeAutomations: 500,
+      activeAutomations: null,
       dmsPerMonth: null,
       contactsPerMonth: 200000,
       aiDraftingGenerationsPerMonth: 5000,

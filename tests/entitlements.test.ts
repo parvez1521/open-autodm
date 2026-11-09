@@ -64,10 +64,10 @@ describe('entitlements: limit dimensions', () => {
   const free = getPlan('free');
   const cases: { dimension: Parameters<typeof checkEntitlement>[1]; usage: Record<string, number>; limit: number }[] = [
     { dimension: 'instagramAccounts', usage: { instagramAccounts: free.limits.instagramAccounts }, limit: free.limits.instagramAccounts },
-    { dimension: 'activeAutomations', usage: { activeAutomations: free.limits.activeAutomations }, limit: free.limits.activeAutomations },
-    // dmsPerMonth is NOT in this loop: since the owner's 2026-11-09
-    // decision it is null (unlimited) on every plan, so there is no
-    // at-limit state to pin here — it has its own describe below.
+    // dmsPerMonth and activeAutomations are NOT in this loop: since
+    // the owner's 2026-11-09 (DMs) and 2026-11-10 (automations)
+    // decisions both are null (unlimited) on every plan, so there is
+    // no at-limit state to pin here — each has its own describe below.
     { dimension: 'aiDrafting', usage: { aiDraftingThisMonth: free.limits.aiDraftingGenerationsPerMonth }, limit: free.limits.aiDraftingGenerationsPerMonth },
     { dimension: 'scriptWriter', usage: { scriptWriterThisMonth: free.limits.scriptWriterGenerationsPerMonth }, limit: free.limits.scriptWriterGenerationsPerMonth },
     { dimension: 'teamSeats', usage: { teamSeatsUsed: free.limits.teamSeats }, limit: free.limits.teamSeats },
@@ -103,6 +103,29 @@ describe('entitlements: limit dimensions', () => {
   it('requested > 1 is accounted (batch connect)', () => {
     const r = checkEntitlement(active('creator-pro'), 'instagramAccounts', { instagramAccounts: 2 }, { requested: 2, flags: ENFORCED });
     expect(r.allowed).toBe(false); // 2 used + 2 requested > 3 limit
+  });
+});
+
+describe('entitlements: automations are unlimited (owner decision, 2026-11-10)', () => {
+  it('no automation count blocks a workspace — Free default, ENFORCED mode', () => {
+    const r = checkEntitlement(null, 'activeAutomations', { activeAutomations: 999_999 }, { flags: ENFORCED });
+    expect(r.limit).toBeNull();
+    expect(r.allowed).toBe(true);
+    expect(r.effectiveAllowed).toBe(true);
+    expect(r.reason).toBe('within-limit');
+  });
+  it('no automation count blocks a workspace — paid plan, ENFORCED mode', () => {
+    const r = checkEntitlement(active('starter'), 'activeAutomations', { activeAutomations: 999_999 }, { flags: ENFORCED });
+    expect(r.limit).toBeNull();
+    expect(r.allowed).toBe(true);
+    expect(r.effectiveAllowed).toBe(true);
+  });
+  it('evaluateAll reports the automations check as unlimited + allowed at extreme usage', () => {
+    const { checks } = evaluateAllEntitlements(null, { activeAutomations: 999_999 }, { flags: ENFORCED });
+    const auto = checks.find((c) => c.dimension === 'activeAutomations');
+    expect(auto?.limit).toBeNull();
+    expect(auto?.allowed).toBe(true);
+    expect(auto?.effectiveAllowed).toBe(true);
   });
 });
 

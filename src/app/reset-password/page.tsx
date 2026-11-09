@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
             {/* Footer */}
             <footer className="relative z-10">
                 <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-center gap-x-5 gap-y-2 px-6 py-8 text-[13px] text-muted-foreground lg:px-10">
-                    <span>open-autoDM · MIT licensed · Self-hosted</span>
+                    <span>open-autoDM</span>
                     <a href="/privacy-policy" className="transition-colors hover:text-foreground">
                         Privacy Policy
                     </a>

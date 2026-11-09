@@ -66,7 +66,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     await supabase.auth.signOut();
     return NextResponse.redirect(
       new URL(
-        `/login?auth_error=${encodeURIComponent('This account is not provisioned for this instance.')}`,
+        `/login?auth_error=${encodeURIComponent('This account is not provisioned for open-autoDM.')}`,
         request.url
       )
     );

@@ -95,15 +95,18 @@ describe('entitlement guard — flag on enforces the resolved plan', () => {
     expect(body.error).toBe(gate.message);
   });
 
-  it('Free + one below the active-automation limit ⇒ allowed', async () => {
+  // Owner decision, 2026-11-10: active automations are UNLIMITED on
+  // every plan (was: Free capped at 3) — the gate must never block
+  // automation create/activate on count, even at extreme usage.
+  it('Free + a huge automation count ⇒ allowed (automations unlimited, owner 2026-11-10)', async () => {
     const fake = createFakeSupabase();
     const gate = await evaluateEntitlementGate(fake.client as unknown as SupabaseClient, {
       dimension: 'activeAutomations',
       env: ON,
-      resolveContext: async () => ({ workspaceId: WS, usage: { activeAutomations: 2 } }),
+      resolveContext: async () => ({ workspaceId: WS, usage: { activeAutomations: 9999 } }),
     });
     expect(gate.blocked).toBe(false);
-    expect(gate.check?.limit).toBe(3);
+    expect(gate.check?.limit).toBeNull();
   });
 
   it('paid tier higher limits are respected (creator-pro: 3 accounts, 2 used ⇒ allowed)', async () => {
@@ -143,12 +146,27 @@ describe('entitlement guard — flag on enforces the resolved plan', () => {
   it('null workspace (unresolvable billing workspace) ⇒ Free plan decides', async () => {
     const fake = createFakeSupabase();
     const gate = await evaluateEntitlementGate(fake.client as unknown as SupabaseClient, {
-      dimension: 'activeAutomations',
+      dimension: 'instagramAccounts',
       env: ON,
-      resolveContext: async () => ({ workspaceId: null, usage: { activeAutomations: 3 } }),
+      resolveContext: async () => ({ workspaceId: null, usage: { instagramAccounts: 1 } }),
     });
     expect(gate.blocked).toBe(true);
     expect(gate.check?.planId).toBe('free');
+  });
+
+  // Owner decision, 2026-11-10: even when the workspace cannot be
+  // resolved (Free decides), the automations dimension stays
+  // unlimited — allowed at any count.
+  it('null workspace + automations ⇒ still unlimited (owner 2026-11-10)', async () => {
+    const fake = createFakeSupabase();
+    const gate = await evaluateEntitlementGate(fake.client as unknown as SupabaseClient, {
+      dimension: 'activeAutomations',
+      env: ON,
+      resolveContext: async () => ({ workspaceId: null, usage: { activeAutomations: 9999 } }),
+    });
+    expect(gate.blocked).toBe(false);
+    expect(gate.check?.planId).toBe('free');
+    expect(gate.check?.limit).toBeNull();
   });
 });
 

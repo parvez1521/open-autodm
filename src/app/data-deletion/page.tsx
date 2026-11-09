@@ -50,12 +50,12 @@ export default async function DataDeletionPage({ searchParams }: DataDeletionPag
             1
           </div>
           <h2 className="text-xl font-heading font-bold text-foreground">
-            Self-Service Account Disconnection (Instance Operators)
+            Self-Service Account Disconnection
           </h2>
         </div>
         <p>
-          If you are an authenticated operator who connected an Instagram Professional or Creator account to this
-          instance, you can delete your account connection and all associated data directly from the console:
+          If you are an authenticated operator who connected an Instagram Professional or Creator account to
+          open-autoDM, you can delete your account connection and all associated data directly from the console:
         </p>
 
         <div className="p-4 rounded-xl bg-muted/40 border border-border space-y-3">
@@ -166,7 +166,7 @@ export default async function DataDeletionPage({ searchParams }: DataDeletionPag
                 <strong>Target Account:</strong> The Instagram username of the creator or brand account you interacted with.
               </li>
               <li>
-                <strong>Operator Email (if applicable):</strong> If you are an instance operator requesting user account
+                <strong>Operator Email (if applicable):</strong> If you are a workspace operator requesting user account
                 removal, the email address of your login account.
               </li>
               <li>

@@ -37,7 +37,7 @@ export default function GetStartedPage() {
         <h1 className="font-heading text-xl font-semibold">Signup is not open yet</h1>
         <p className="text-sm text-muted-foreground">
           open-autoDM is currently <strong>invite-only</strong>. Accounts are provisioned by the
-          instance owner — there is no public registration. If you were invited, sign in with the
+          an admin — there is no public registration. If you were invited, sign in with the
           account that was created for you.
         </p>
         <p className="text-[12px] text-muted-foreground">
