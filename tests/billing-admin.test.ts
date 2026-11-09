@@ -322,9 +322,14 @@ describe('Phase 14 admin prototype contract (migration + UI gating)', () => {
     // No authenticated grant on the audit log table.
     expect(sql).not.toMatch(/GRANT[^;]*ON TABLE public\.admin_audit_log TO authenticated/);
   });
-  it('every (admin) page is gated by the server-side platform-admin stub', () => {
+  it('every remaining (admin) prototype page is gated by the server-side platform-admin stub', () => {
+    // Supersession (2026-11-09): src/app/(admin)/admin/page.tsx is no
+    // longer a prototype page — it is the REAL owner subscriber panel
+    // (live billing tables), gated by the ADMIN_EMAILS allowlist with
+    // a 404 posture instead of the stub + access-denied surface. Its
+    // gate is pinned by tests/admin-panel.test.ts. The three pages
+    // below remain Phase 14 prototypes and keep the stub gate.
     const pages = [
-      'src/app/(admin)/admin/page.tsx',
       'src/app/(admin)/admin/subscriptions/page.tsx',
       'src/app/(admin)/admin/payment-events/page.tsx',
       'src/app/(admin)/admin/overrides/page.tsx',

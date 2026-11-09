@@ -573,16 +573,24 @@ describe('§5 no app-layer path writes workspace_memberships (self-escalation sc
   }
   const rel = (f: string): string => path.relative(SRC_ROOT, f).replace(/\\/g, '/');
 
-  it('the complete .from(workspace_memberships) inventory is exactly the three known SELECT readers', () => {
+  it('the complete .from(workspace_memberships) inventory is exactly the known SELECT readers', () => {
     const readers: string[] = [];
     for (const file of collectSourceFiles(SRC_ROOT)) {
       if (/\.from\(\s*['"]workspace_memberships['"]\s*\)/.test(fs.readFileSync(file, 'utf8'))) {
         readers.push(rel(file));
       }
     }
+    // Reconciliation (2026-11-09): lib/admin/panel.ts is a fourth
+    // reader — the owner admin panel resolves each workspace's OWNER
+    // membership to show the customer email. It is SELECT-only,
+    // service-role, and runs only behind the panel's server-side
+    // ADMIN_EMAILS gate (404 for everyone else; see
+    // tests/admin-panel.test.ts). The self-escalation concern of §5
+    // is writes; the no-mutation scan below still covers this file.
     expect(readers.sort()).toEqual([
       'app/api/ai/generate/route.ts',
       'app/api/workspaces/[workspaceId]/members/route.ts',
+      'lib/admin/panel.ts',
       'lib/tenancy/context.ts',
     ]);
   });

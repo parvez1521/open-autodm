@@ -1,10 +1,13 @@
 import Link from "next/link";
 
 /**
- * Phase 14 — ISOLATED platform-admin prototype shell. Separate route
- * group from both the live product and the (saas) customer prototype.
- * Every page in this group is gated server-side by the platform-admin
- * stub in src/lib/admin/guard.ts and renders access-denied by default.
+ * Platform-admin shell. /admin is the REAL owner panel (subscribers
+ * over the live billing tables, gated server-side by the
+ * ADMIN_EMAILS allowlist — see src/lib/admin/panel.ts); the other
+ * pages in this group (subscriptions, payment-events, overrides)
+ * remain Phase 14 prototypes over synthetic data, gated by the
+ * platform-admin stub in src/lib/admin/guard.ts, and label
+ * themselves as prototypes in their own headings.
  */
 export default function AdminPrototypeLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -14,11 +17,11 @@ export default function AdminPrototypeLayout({ children }: { children: React.Rea
           <span className="text-sm font-semibold">
             open-autoDM{" "}
             <span className="ml-2 rounded bg-red-500/15 px-1.5 py-0.5 text-[11px] font-medium text-red-600 dark:text-red-400">
-              PLATFORM ADMIN PROTOTYPE — mock data only
+              PLATFORM ADMIN
             </span>
           </span>
           <nav className="flex gap-4 text-[13px] text-muted-foreground">
-            <Link href="/admin" className="hover:text-foreground">Customers</Link>
+            <Link href="/admin" className="hover:text-foreground">Subscribers</Link>
             <Link href="/admin/subscriptions" className="hover:text-foreground">Subscriptions</Link>
             <Link href="/admin/payment-events" className="hover:text-foreground">Payment events</Link>
             <Link href="/admin/overrides" className="hover:text-foreground">Overrides</Link>

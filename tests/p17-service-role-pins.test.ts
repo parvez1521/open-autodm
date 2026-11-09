@@ -359,6 +359,21 @@ const CLASSIFIED: Record<string, Classified> = {
     exceptionReason:
       'Public payment-provider webhook (Cashfree primary per owner decision 2026-11-08 ~20:34 IST; Razorpay fallback): the HMAC-SHA256 signature over the exact raw body is the credential (fail closed, verified before parsing). The workspace is resolved ONLY from the billing_orders row recorded at checkout (provider-scoped lookup) — never from payload claims — and the Phase 12 core re-verifies the order server-side with the provider before any entitlement write.',
   },
+
+  // — Owner admin panel (2026-11-09) —
+  // Platform-level by design: the panel reads EVERY workspace's
+  // billing state, so no per-user/per-workspace scoping can apply.
+  // Its guard is the server-side ADMIN_EMAILS allowlist checked
+  // against the verified session email BEFORE the service client is
+  // constructed; anyone else gets notFound() (404 — the panel's
+  // existence is not revealed). Gate + data pinned by
+  // tests/admin-panel.test.ts.
+  'app/(admin)/admin/page.tsx': {
+    kind: 'platform-singleton',
+    tokens: ['isAdminEmail', 'notFound()', 'createServiceClient()'],
+    exceptionReason:
+      'Owner-only subscriber panel (2026-11-09): platform-level billing reads across all workspaces sit behind the server-side ADMIN_EMAILS allowlist (fail-closed when unset) evaluated against the verified session email, with a 404 for everyone else; the service client is built only after the gate passes.',
+  },
 };
 
 const REVIEWED_EXCEPTIONS = Object.entries(CLASSIFIED)
@@ -378,9 +393,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 41 importing files, 85 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites)', () => {
+  it('counts reconcile with the audit: 42 importing files, 86 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site)', () => {
     const importers = serviceImporters();
-    expect(importers.length).toBe(41);
+    expect(importers.length).toBe(42);
     let calls = 0;
     for (const f of importers) {
       for (const line of sourceOf(f).split('\n')) {
@@ -391,7 +406,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(85);
+    expect(calls).toBe(86);
   });
 
   it('every classified file still carries its audited guard tokens', () => {
