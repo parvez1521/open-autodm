@@ -9,13 +9,30 @@
  * + notFound); other customer-facing /setup links (settings Meta
  * app section, dashboard System-card button) are admin-gated too.
  *
- * D2 pins: the dashboard route is a server wrapper that redirects
- * a user with no plan state and no recorded choice ONCE to
- * /pricing?welcome=1; the getting-started checklist starts with
- * "Choose your plan"; the welcome-mode pricing page records the
- * choice via POST /api/billing/plan-choice, which stamps
+ * D2 pins: the getting-started checklist starts with "Choose your
+ * plan"; the welcome-mode pricing page records the choice via
+ * POST /api/billing/plan-choice, which stamps
  * plan_choice_made_at in app_metadata. The routing decision itself
  * is unit-tested below (needsPlanChoice / hasPlanState matrix).
+ *
+ * TASK F CORRECTION (2026-11-10, later the same day — owner:
+ * "homepage hi gayab kar diya"): the dashboard-entry redirect
+ * shipped under D2 also bounced the signed-in owner off the
+ * homepage, and the middleware bounced signed-in users from /
+ * to /dashboard. Both are gone. The picker is now reached ONLY
+ * through the post-auth surfaces: /auth/callback (email links +
+ * Google OAuth) and the login/signup forms asking GET
+ * /api/billing/plan-choice — all resolving through
+ * lib/billing/planChoiceServer. The dashboard renders for every
+ * signed-in user and carries the choice as a checklist step +
+ * dismissible banner. F-pins live in their own describes below.
+ *
+ * TASK F ADDENDUM (2026-11-10): the setup_required message from
+ * GET /api/instagram/connect is role-aware — admins keep the
+ * Setup Wizard pointer, customers get "Instagram cannot connect
+ * yet — the platform setup is not complete." (the settings-page
+ * copy), because the account switcher renders the API message
+ * verbatim and the wizard is admin-only.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -128,14 +145,25 @@ describe('setup wizard — admin-only (2026-11-10)', () => {
 // ── D2 — plan-picker routing + checklist ────────────────────────
 
 describe('plan picker — routing + checklist (2026-11-10)', () => {
-  it('the dashboard route wrapper redirects once to the picker', () => {
+  it('the dashboard route wrapper renders for everyone — NO redirect (Task F, 2026-11-10)', () => {
     const page = read('app/(main)/dashboard/page.tsx');
-    expect(page).toContain('redirect("/pricing?welcome=1")');
-    expect(page).toContain('needsPlanChoice');
+    // The D2 redirect is gone: the wrapper only computes flags.
+    expect(page).not.toContain('redirect(');
+    expect(page).not.toContain('needsPlanChoice');
+    expect(page).not.toContain('next/navigation');
     expect(page).toContain('planChoiceMadeAt');
+    expect(page).toContain('hasPlanState');
     expect(page).toContain('<DashboardClient');
     expect(page).toContain('isAdmin={isAdmin}');
     expect(page).toContain('planChoiceDone={planChoiceDone}');
+  });
+
+  it('the dashboard carries the choice as a dismissible banner, not a gate (Task F)', () => {
+    const dash = read('components/dashboard/DashboardClient.tsx');
+    expect(dash).toContain('data-testid="plan-choice-banner"');
+    expect(dash).toContain('planBannerDismissed');
+    expect(dash).toContain('setPlanBannerDismissed(true)');
+    expect(dash).toContain('href="/pricing"');
   });
 
   it('the checklist starts with Choose your plan → /pricing', () => {
@@ -173,6 +201,12 @@ vi.mock('@/lib/auth', () => ({
   unauthorized: () => Response.json({ error: 'Unauthorized' }, { status: 401 }),
 }));
 vi.mock('@/lib/supabase/service', () => ({ createServiceClient: vi.fn() }));
+// Task F (2026-11-10): the post-auth resolver's data sources and
+// the connect route's settings source, mocked for the behavioural
+// describes at the bottom of this file.
+vi.mock('@/lib/billing/access', () => ({ resolveBillingWorkspace: vi.fn() }));
+vi.mock('@/lib/billing/persistence', () => ({ getWorkspaceSubscription: vi.fn() }));
+vi.mock('@/lib/settings', () => ({ getMetaSettings: vi.fn(async () => null) }));
 
 import { POST } from '@/app/api/billing/plan-choice/route';
 import { getAuthenticatedUser } from '@/lib/auth';
@@ -228,5 +262,211 @@ describe('POST /api/billing/plan-choice (2026-11-10)', () => {
     const body = (await res.json()) as { alreadyRecorded?: boolean };
     expect(body.alreadyRecorded).toBe(true);
     expect(updates).toHaveLength(0);
+  });
+});
+
+// ── Task F — entry flow (2026-11-10) ────────────────────────────
+
+describe('Task F — homepage never bounces (2026-11-10)', () => {
+  it('middleware has NO signed-in redirect away from /', () => {
+    const mw = read('middleware.ts');
+    expect(mw).not.toContain("pathname === '/'");
+    expect(mw).not.toContain('pathname === "/"');
+    // the protected-route and /login rules are untouched
+    expect(mw).toContain("pathname === '/login' && user");
+    expect(mw).toContain('isProtectedRoute');
+  });
+
+  it('the landing page itself performs no auth redirect', () => {
+    const page = read('app/page.tsx');
+    expect(page).not.toContain('redirect(');
+    // F4: signed-out primary CTAs land on the login page
+    expect(page).toContain('href="/login"');
+    expect(page).not.toContain('href="/get-started"');
+  });
+});
+
+describe('Task F — post-auth routing surfaces (2026-11-10)', () => {
+  it('the auth callback resolves its destination via planChoiceServer', () => {
+    const cb = read('app/auth/callback/route.ts');
+    expect(cb).toContain("from '@/lib/billing/planChoiceServer'");
+    expect(cb).toContain('resolvePostAuthDestination');
+    expect(cb).toContain('exchangedUser.app_metadata');
+    // the identity gate still runs BEFORE any destination is used
+    expect(cb.indexOf('isIdentityAllowed')).toBeLessThan(cb.indexOf('resolvePostAuthDestination'));
+  });
+
+  it('GET /api/billing/plan-choice answers the destination for the forms', () => {
+    const route = read('app/api/billing/plan-choice/route.ts');
+    expect(route).toContain('export async function GET');
+    expect(route).toContain('resolvePostAuthDestination');
+    expect(route).toContain('needsPlanChoice: destination === PLAN_PICKER_DESTINATION');
+  });
+
+  it('the login form navigates to the resolved destination, not a hard-coded /dashboard', () => {
+    const form = read('components/auth/LoginForm.tsx');
+    expect(form).toContain('fetchPostAuthDestination');
+    expect(form).toContain('window.location.href = await fetchPostAuthDestination()');
+    expect(form).not.toContain('window.location.href = "/dashboard"');
+  });
+
+  it('the signup form (immediate-session path) uses the same destination', () => {
+    const form = read('components/auth/SignupForm.tsx');
+    expect(form).toContain('fetchPostAuthDestination');
+    expect(form).toContain('window.location.href = await fetchPostAuthDestination()');
+  });
+});
+
+describe('Task F — Google sign-in (2026-11-10)', () => {
+  it('the login form offers Continue with Google via Supabase OAuth → /auth/callback', () => {
+    const form = read('components/auth/LoginForm.tsx');
+    expect(form).toContain('Continue with Google');
+    expect(form).toContain('signInWithOAuth');
+    expect(form).toContain('provider: "google"');
+    expect(form).toContain('/auth/callback');
+    // the G mark is an inline SVG — no external image, no emoji
+    expect(form).toContain('<svg viewBox="0 0 24 24"');
+    expect(form).toContain('GoogleMark');
+    // divider between the OAuth button and the email form
+    expect(form).toContain('>or</span>');
+  });
+});
+
+// ── Task F — the resolver itself (behavioural) ──────────────────
+
+import {
+  PLAN_PICKER_DESTINATION,
+  POST_AUTH_DESTINATION,
+  resolvePostAuthDestination,
+} from '@/lib/billing/planChoiceServer';
+import { resolveBillingWorkspace } from '@/lib/billing/access';
+import { getWorkspaceSubscription } from '@/lib/billing/persistence';
+
+const mockResolveWs = vi.mocked(resolveBillingWorkspace);
+const mockGetSub = vi.mocked(getWorkspaceSubscription);
+
+describe('resolvePostAuthDestination (Task F, 2026-11-10)', () => {
+  beforeEach(() => {
+    mockResolveWs.mockReset();
+    mockGetSub.mockReset();
+    mockService.mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: vi.fn(async () => ({
+            data: { user: { id: 'user-1', app_metadata: {} } },
+            error: null,
+          })),
+        },
+      },
+    } as never);
+    mockResolveWs.mockResolvedValue({ ok: true, ctx: { workspaceId: 'ws-1' } } as never);
+    mockGetSub.mockResolvedValue(null as never);
+  });
+
+  it('marker already recorded → dashboard, subscription never consulted', async () => {
+    const dest = await resolvePostAuthDestination({
+      id: 'user-1',
+      appMetadata: { [PLAN_CHOICE_MADE_AT_KEY]: '2026-11-10T00:00:00Z' },
+    });
+    expect(dest).toBe(POST_AUTH_DESTINATION);
+    expect(mockResolveWs).not.toHaveBeenCalled();
+  });
+
+  it('no marker + no subscription row → the plan picker', async () => {
+    const dest = await resolvePostAuthDestination({ id: 'user-1', appMetadata: {} });
+    expect(dest).toBe(PLAN_PICKER_DESTINATION);
+  });
+
+  it('no marker + only the bare free default row → the plan picker', async () => {
+    mockGetSub.mockResolvedValue({ planId: 'free', status: 'free', trialEndsAt: null } as never);
+    const dest = await resolvePostAuthDestination({ id: 'user-1', appMetadata: {} });
+    expect(dest).toBe(PLAN_PICKER_DESTINATION);
+  });
+
+  it('no marker + a real subscription → dashboard', async () => {
+    mockGetSub.mockResolvedValue({ planId: 'starter', status: 'active', trialEndsAt: null } as never);
+    const dest = await resolvePostAuthDestination({ id: 'user-1', appMetadata: {} });
+    expect(dest).toBe(POST_AUTH_DESTINATION);
+  });
+
+  it('no marker + a past trial → dashboard (a trial is a made choice)', async () => {
+    mockGetSub.mockResolvedValue({ planId: 'free', status: 'free', trialEndsAt: '2026-11-01T00:00:00Z' } as never);
+    const dest = await resolvePostAuthDestination({ id: 'user-1', appMetadata: {} });
+    expect(dest).toBe(POST_AUTH_DESTINATION);
+  });
+
+  it('no resolvable workspace → fail open to dashboard', async () => {
+    mockResolveWs.mockResolvedValue({ ok: false } as never);
+    const dest = await resolvePostAuthDestination({ id: 'user-1', appMetadata: {} });
+    expect(dest).toBe(POST_AUTH_DESTINATION);
+  });
+
+  it('a resolution error → fail open to dashboard', async () => {
+    mockResolveWs.mockRejectedValue(new Error('db down'));
+    const dest = await resolvePostAuthDestination({ id: 'user-1', appMetadata: {} });
+    expect(dest).toBe(POST_AUTH_DESTINATION);
+  });
+
+  it('metadata omitted → the marker is read from the server-side record', async () => {
+    mockService.mockReturnValue({
+      auth: {
+        admin: {
+          getUserById: vi.fn(async () => ({
+            data: {
+              user: {
+                id: 'user-1',
+                app_metadata: { [PLAN_CHOICE_MADE_AT_KEY]: '2026-11-10T00:00:00Z' },
+              },
+            },
+            error: null,
+          })),
+        },
+      },
+    } as never);
+    const dest = await resolvePostAuthDestination({ id: 'user-1' });
+    expect(dest).toBe(POST_AUTH_DESTINATION);
+    expect(mockResolveWs).not.toHaveBeenCalled();
+  });
+});
+
+// ── Task F addendum — setup_required copy is role-aware ─────────
+
+import { GET as connectGET } from '@/app/api/instagram/connect/route';
+
+describe('instagram/connect setup_required message (Task F addendum, 2026-11-10)', () => {
+  const savedAdminEmails = process.env['ADMIN_EMAILS'];
+
+  beforeEach(() => {
+    process.env['ADMIN_EMAILS'] = 'boss@example.com';
+  });
+
+  it('admins keep the Setup Wizard pointer', async () => {
+    mockAuth.mockResolvedValue({ id: 'admin-1', email: 'boss@example.com' });
+    const res = await connectGET(new Request('https://opendm.in/api/instagram/connect'));
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string; message: string };
+    expect(body.error).toBe('setup_required');
+    expect(body.message).toBe(
+      'Complete the Setup Wizard (Meta App ID + Secret) before connecting Instagram.',
+    );
+    if (savedAdminEmails === undefined) delete process.env['ADMIN_EMAILS'];
+    else process.env['ADMIN_EMAILS'] = savedAdminEmails;
+  });
+
+  it('customers get the platform-setup copy — never the wizard pointer', async () => {
+    mockAuth.mockResolvedValue({ id: 'cust-1', email: 'customer@example.com' });
+    const res = await connectGET(new Request('https://opendm.in/api/instagram/connect'));
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string; message: string };
+    expect(body.error).toBe('setup_required');
+    expect(body.message).toBe('Instagram cannot connect yet — the platform setup is not complete.');
+    expect(body.message).not.toContain('Setup Wizard');
+    if (savedAdminEmails === undefined) delete process.env['ADMIN_EMAILS'];
+    else process.env['ADMIN_EMAILS'] = savedAdminEmails;
+  });
+
+  it('the settings page keeps its verbatim customer copy for the callback banner', () => {
+    const settings = read('app/(main)/settings/page.tsx');
+    expect(settings).toContain('"Instagram cannot connect yet — the platform setup is not complete."');
   });
 });

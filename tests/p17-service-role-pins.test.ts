@@ -382,10 +382,12 @@ const CLASSIFIED: Record<string, Classified> = {
   // — Plan-choice routing (owner directive, 2026-11-10) —
   // The dashboard server wrapper resolves ONLY the caller's own
   // billing workspace (membership-checked resolveBillingWorkspace)
-  // and reads that workspace's subscription to decide the one-time
-  // plan-picker redirect; the plan-choice route authenticates the
-  // session first and touches ONLY the caller's own auth record
-  // (app_metadata marker stamp). Both are caller-scoped throughout.
+  // and reads that workspace's subscription for the plan-choice
+  // flag (the redirect itself moved to the post-auth surfaces in
+  // Task F — see planChoiceServer below); the plan-choice route
+  // authenticates the session first and touches ONLY the caller's
+  // own auth record (app_metadata marker stamp). Both are
+  // caller-scoped throughout.
   'app/(main)/dashboard/page.tsx': {
     kind: 'user-session+owner-check',
     tokens: ['auth.getUser()', 'resolveBillingWorkspace', 'getWorkspaceSubscription'],
@@ -393,6 +395,17 @@ const CLASSIFIED: Record<string, Classified> = {
   'app/api/billing/plan-choice/route.ts': {
     kind: 'user-session+owner-check',
     tokens: ['getAuthenticatedUser(request)', 'getUserById(user.id)', 'updateUserById(user.id'],
+  },
+  // Task F (2026-11-10): the post-auth destination resolver the
+  // callback + plan-choice GET consult. It runs ONLY for an
+  // already-verified caller (the callback's gate-passed exchanged
+  // user; the GET route's getAuthenticatedUser identity) and reads
+  // ONLY that caller's own record + own membership-checked
+  // billing workspace. Caller-scoped throughout, like the two
+  // entries above.
+  'lib/billing/planChoiceServer.ts': {
+    kind: 'user-session+owner-check',
+    tokens: ['createServiceClient()', 'resolveBillingWorkspace', 'getUserById(user.id)'],
   },
 
   // — Owner admin panel (2026-11-09) —
@@ -428,9 +441,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 45 importing files, 89 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites)', () => {
+  it('counts reconcile with the audit: 46 importing files, 90 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site)', () => {
     const importers = serviceImporters();
-    expect(importers.length).toBe(45);
+    expect(importers.length).toBe(46);
     let calls = 0;
     for (const f of importers) {
       for (const line of sourceOf(f).split('\n')) {
@@ -441,7 +454,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(89);
+    expect(calls).toBe(90);
   });
 
   it('every classified file still carries its audited guard tokens', () => {
@@ -468,8 +481,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     // Subscription wiring 2026-11-08 added the three user-scoped
     // billing routes: checkout, trial, status. Plan-choice routing
     // 2026-11-10 added two more: the dashboard server wrapper and
-    // the billing/plan-choice route.)
-    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(24);
+    // the billing/plan-choice route. Task F 2026-11-10 added one
+    // more: lib/billing/planChoiceServer.)
+    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(25);
   });
 
   it('FINDING B-F1 pin: no product file imports scopedDb helpers (guards are heterogeneous, not scopedDb)', () => {

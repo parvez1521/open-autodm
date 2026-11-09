@@ -5,11 +5,18 @@
  * "set up your own Meta app" journey: after signup + email
  * confirmation, a user whose billing workspace has NO plan state
  * yet — no real subscription, no trial (active or past) — and who
- * has not made/dismissed the choice is routed ONCE from the
- * dashboard to /pricing?welcome=1 (the plan picker). Picking a
- * paid plan creates plan state through the trial/checkout flow;
- * picking Free — or dismissing the picker — records the marker
- * below, and the routing never fires again for that user.
+ * has not made/dismissed the choice is routed to
+ * /pricing?welcome=1 (the plan picker). Picking a paid plan
+ * creates plan state through the trial/checkout flow; picking
+ * Free — or dismissing the picker — records the marker below,
+ * and the routing never fires again for that user.
+ *
+ * Routing placement (Task F correction, 2026-11-10): the route
+ * fires at the POST-AUTH surfaces only (lib/billing/
+ * planChoiceServer, consulted by /auth/callback and by the
+ * login/signup forms) — NOT on dashboard entry, where it also
+ * bounced the signed-in owner off the homepage. The pure
+ * decision below is unchanged.
  *
  * The marker lives in the auth user's app_metadata (server-only
  * writes via the service role; users cannot forge it through

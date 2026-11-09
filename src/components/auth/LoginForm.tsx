@@ -7,6 +7,22 @@ import { CircleNotch, SignIn } from "@/components/phosphor";
 import { createBrowserClient } from "@/lib/supabase";
 import { LogoMark } from "@/components/ui/Logo";
 import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
+import { fetchPostAuthDestination } from "@/lib/billing/postAuthDestination";
+
+/**
+ * The Google "G" mark, drawn inline (owner directive, 2026-11-10:
+ * no external image, no emoji). Standard four-colour paths.
+ */
+function GoogleMark({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} aria-hidden="true" focusable="false">
+            <path fill="#4285F4" d="M23.5 12.27c0-.85-.08-1.66-.22-2.45H12v4.64h6.45a5.52 5.52 0 0 1-2.4 3.58v2.97h3.88c2.27-2.09 3.57-5.17 3.57-8.74z" />
+            <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.88-2.97c-1.08.72-2.45 1.15-4.06 1.15-3.12 0-5.77-2.11-6.71-4.95H1.28v3.07A11.99 11.99 0 0 0 12 24z" />
+            <path fill="#FBBC05" d="M5.29 14.32A7.2 7.2 0 0 1 4.91 12c0-.81.14-1.59.38-2.32V6.61H1.28a12 12 0 0 0 0 10.78l4.01-3.07z" />
+            <path fill="#EA4335" d="M12 4.73c1.76 0 3.34.61 4.58 1.8l3.44-3.44A11.99 11.99 0 0 0 1.28 6.61l4.01 3.07C6.23 6.84 8.88 4.73 12 4.73z" />
+        </svg>
+    );
+}
 
 /**
  * Human copy for the auth_error values /auth/callback can forward
@@ -43,15 +59,23 @@ function humanAuthError(raw: string): string {
  *
  * Audit fix (2026-11-08): a "Forgot password?" affordance swaps the
  * card to ForgotPasswordForm (the resetPasswordForEmail call lives
- * in that file — this form's only auth call remains
- * signInWithPassword), and ?auth_error= values forwarded by
+ * in that file), and ?auth_error= values forwarded by
  * /auth/callback are surfaced as human messages instead of being
  * swallowed.
+ *
+ * Entry flow (owner directive, 2026-11-10, Task F): the form also
+ * offers "Continue with Google" (signInWithOAuth → /auth/callback,
+ * which runs the same identity gate + post-auth routing as email
+ * links). After ANY successful sign-in the browser does not guess
+ * the landing page: it asks GET /api/billing/plan-choice via
+ * fetchPostAuthDestination — the plan picker for a customer who
+ * has never chosen a plan, the dashboard otherwise.
  */
 export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [mode, setMode] = useState<"signin" | "forgot">("signin");
 
@@ -87,11 +111,43 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
                 setError(signInError.message);
                 return;
             }
-            window.location.href = "/dashboard";
+            // Post-auth routing (2026-11-10): plan picker for a
+            // customer who still owes the choice, dashboard
+            // otherwise — resolved server-side, fail-open.
+            window.location.href = await fetchPostAuthDestination();
         } catch {
             setError("Something went wrong. Try again.");
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    /**
+     * Google sign-in (owner directive, 2026-11-10): OAuth through
+     * Supabase, returning to /auth/callback — the same session
+     * gate + post-auth routing as email links. If the Google
+     * provider is not enabled in Supabase yet, the error comes
+     * back as a normal form error (either directly here or via
+     * the callback's ?auth_error= surfacing above); we never fake
+     * a success.
+     */
+    const handleGoogle = async () => {
+        setGoogleLoading(true);
+        setError(null);
+        const supabase = createBrowserClient();
+        try {
+            const { error: oauthError } = await supabase.auth.signInWithOAuth({
+                provider: "google",
+                options: { redirectTo: `${window.location.origin}/auth/callback` },
+            });
+            if (oauthError) {
+                setError(oauthError.message);
+                setGoogleLoading(false);
+            }
+            // On success the browser navigates away to Google.
+        } catch {
+            setError("Something went wrong. Try again.");
+            setGoogleLoading(false);
         }
     };
 
@@ -120,6 +176,23 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
                 {mode === "forgot" ? (
                     <ForgotPasswordForm onBack={() => setMode("signin")} />
                 ) : (
+                <>
+                <button
+                    type="button"
+                    onClick={() => void handleGoogle()}
+                    disabled={googleLoading || isLoading}
+                    className="flex items-center justify-center gap-2.5 w-full h-10 text-[13.5px] font-medium bg-background border border-border rounded-lg hover:bg-muted disabled:opacity-60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                    {googleLoading ? <CircleNotch className="w-4 h-4 animate-spin" /> : <GoogleMark className="w-4 h-4" />}
+                    Continue with Google
+                </button>
+
+                <div className="flex items-center gap-3 my-4" aria-hidden="true">
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">or</span>
+                    <span className="h-px flex-1 bg-border" />
+                </div>
+
                 <form onSubmit={(e) => void handleSubmit(e)} className="flex flex-col space-y-3">
                     {error && (
                         <p role="alert" className="text-[12.5px] text-destructive font-medium">
@@ -175,6 +248,7 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
                         {isLoading ? "Signing in…" : "Sign in"}
                     </button>
                 </form>
+                </>
                 )}
 
                 <div className="mt-6 pt-5 border-t border-border">

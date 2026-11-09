@@ -1,7 +1,10 @@
 /**
  * /auth/callback - Supabase auth code exchange (email confirmation links,
- * OAuth providers if the self-hoster enables any). Sets session cookies and
- * forwards to the dashboard.
+ * OAuth providers — Google sign-in since 2026-11-10). Sets session cookies
+ * and forwards to the post-auth destination: the plan picker
+ * (/pricing?welcome=1) for a customer who has never chosen a plan,
+ * the dashboard otherwise (owner directive, 2026-11-10, Task F —
+ * resolved by lib/billing/planChoiceServer, fail-open to /dashboard).
  *
  * S-02 gate (Phase 10.4): this route is where a confirmation/invite code
  * becomes a live session, so it is a session-MINTING surface. The exchanged
@@ -16,6 +19,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { isIdentityAllowed } from '@/lib/signupProtection';
+import { resolvePostAuthDestination } from '@/lib/billing/planChoiceServer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -71,5 +75,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       )
     );
   }
-  return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Owner's entry flow (2026-11-10, Task F): a brand-new customer
+  // lands on "Choose your plan" first; everyone else on the
+  // dashboard. The resolver fails open to /dashboard.
+  const destination = await resolvePostAuthDestination({
+    id: exchangedUser.id,
+    appMetadata: exchangedUser.app_metadata,
+  });
+  return NextResponse.redirect(new URL(destination, request.url));
 }

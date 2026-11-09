@@ -86,11 +86,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (pathname === '/' && user) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/dashboard';
-    return NextResponse.redirect(redirectUrl);
-  }
+  // Homepage bounce REMOVED (owner directive, 2026-11-10, Task F):
+  // signed-in users used to be redirected from / to /dashboard,
+  // which made the homepage unreachable while logged in ("homepage
+  // hi gayab kar diya"). The landing page now renders for everyone;
+  // its CTAs point at /login, and the middleware rule below carries
+  // a signed-in visitor from /login onward to the console. The
+  // post-login destination itself (plan picker vs dashboard) is
+  // decided at the auth surfaces — see lib/billing/planChoiceServer.
 
   if (pathname === '/login' && user) {
     const redirectUrl = request.nextUrl.clone();

@@ -6,6 +6,7 @@ import { SPRING_SOFT } from "@/lib/motion/presets";
 import { ArrowRight, CircleNotch, EnvelopeSimple } from "@/components/phosphor";
 import { createBrowserClient } from "@/lib/supabase";
 import { LogoMark } from "@/components/ui/Logo";
+import { fetchPostAuthDestination } from "@/lib/billing/postAuthDestination";
 
 /**
  * Self-service signup — the ONLY call site of supabase.auth.signUp in
@@ -22,9 +23,12 @@ import { LogoMark } from "@/components/ui/Logo";
  * the Supabase project requires email confirmation, signUp returns no
  * session and the user confirms through the emailed link — the
  * callback route still runs the instance access gate
- * (src/lib/signupProtection.ts) before any session is minted. When
- * confirmation is off, a session comes back and we go straight to the
- * dashboard.
+ * (src/lib/signupProtection.ts) before any session is minted, and
+ * resolves the post-auth destination itself. When confirmation is
+ * off, a session comes back and we land wherever the post-auth
+ * routing sends a brand-new customer (owner directive, 2026-11-10,
+ * Task F): the "Choose your plan" picker, via
+ * fetchPostAuthDestination.
  */
 export function SignupForm() {
     const [email, setEmail] = useState("");
@@ -57,7 +61,7 @@ export function SignupForm() {
                 return;
             }
             if (data.session) {
-                window.location.href = "/dashboard";
+                window.location.href = await fetchPostAuthDestination();
                 return;
             }
             setCheckEmail(email);

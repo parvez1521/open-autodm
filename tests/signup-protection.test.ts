@@ -197,7 +197,16 @@ const USER_CREATION_PATTERNS: { label: string; re: RegExp }[] = [
   { label: 'signUp', re: /\.signUp\s*\(/ },
   { label: 'signInAnonymously', re: /\.signInAnonymously\s*\(/ },
   { label: 'signInWithOtp', re: /\.signInWithOtp\s*\(/ },
-  { label: 'signInWithOAuth', re: /\.signInWithOAuth\s*\(/ },
+  // signInWithOAuth was listed here until the owner-directed
+  // Google sign-in (2026-11-10, Task F): "Continue with Google" on
+  // the login page is an approved sign-in path. It is safe to
+  // allow because OAuth returns through /auth/callback, where the
+  // S-02 identity gate (pin 7 below) still runs BEFORE the
+  // session is kept — an anonymous or allowlist-failing identity
+  // is signed straight back out. Its single call site is pinned
+  // positively in the auth-call inventory below
+  // (components/auth/LoginForm.tsx, exactly that one method
+  // alongside signInWithPassword).
   { label: 'verifyOtp', re: /\.verifyOtp\s*\(/ },
   // resetPasswordForEmail was listed here until the functional-audit
   // fix (2026-11-08): it cannot create or provision an account — it
@@ -260,6 +269,12 @@ describe('S-02 (1): no signup path exists anywhere in src/', () => {
   });
 
   it('LoginForm is sign-in only: password sign-in present, no registration affordance', () => {
+    // 2026-11-10 (Task F): the form's "Continue with Google"
+    // button is a sign-IN affordance — it carries no link/route to
+    // a registration page (asserted below), and its OAuth return
+    // passes the callback identity gate (pin 7) before any
+    // session is kept. signInWithOAuth itself left the ban list
+    // above for exactly that reason.
     const src = readSrc('components/auth/LoginForm.tsx');
     expect(src).toContain('signInWithPassword');
     for (const { re } of USER_CREATION_PATTERNS) expect(src).not.toMatch(re);
@@ -282,6 +297,11 @@ describe('S-02 (1): no signup path exists anywhere in src/', () => {
       'getUser',
       'onAuthStateChange',
       'exchangeCodeForSession',
+      // Owner-directed Google sign-in (2026-11-10, Task F): the
+      // login page's "Continue with Google". Returns through
+      // /auth/callback's identity gate like every other session
+      // mint; pinned to exactly the LoginForm below.
+      'signInWithOAuth',
       // Audit fix (2026-11-08): password recovery/change for EXISTING
       // accounts. Neither can create or provision an identity:
       // resetPasswordForEmail only emails an address that already has
@@ -305,7 +325,11 @@ describe('S-02 (1): no signup path exists anywhere in src/', () => {
       }
     }
     // Sanity: the inventory is non-empty and includes the login call.
-    expect(seen.get('components/auth/LoginForm.tsx')).toEqual(new Set(['signInWithPassword']));
+    // 2026-11-10 (Task F): LoginForm also carries the owner-directed
+    // Google sign-in — exactly these two methods, no others.
+    expect(seen.get('components/auth/LoginForm.tsx')).toEqual(
+      new Set(['signInWithPassword', 'signInWithOAuth'])
+    );
     // …and the flag-gated signup form is the only other form-level site.
     expect(seen.get('components/auth/SignupForm.tsx')).toEqual(new Set(['signUp']));
     // Audit fix (2026-11-08): the recovery/change surfaces are pinned

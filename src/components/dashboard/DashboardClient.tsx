@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Stagger, StaggerItem } from "@/components/motion/primitives";
-import { Wrench, CheckCircle, Circle, ArrowRight, Plus, PencilLine, Clock } from "@/components/phosphor";
+import { Wrench, CheckCircle, Circle, ArrowRight, Plus, PencilLine, Clock, X } from "@/components/phosphor";
 import { useAutomations } from "@/hooks/useAutomations";
 import { useBillingStatus } from "@/hooks/useBillingStatus";
 import { useContacts } from "@/hooks/useContacts";
@@ -38,9 +38,14 @@ function formatRelativeTime(dateStr: string): string {
  * Dashboard client UI. Until 2026-11-10 this file WAS the route
  * page; the route file (src/app/(main)/dashboard/page.tsx) is now
  * a server wrapper that resolves the caller's plan-choice state
- * (redirecting brand-new users to the plan picker) and passes the
- * two server-computed flags below. Everything interactive lives
- * here, unchanged.
+ * and passes the two server-computed flags below. Everything
+ * interactive lives here, unchanged.
+ *
+ * Task F (2026-11-10): the dashboard NEVER force-navigates to the
+ * plan picker (that redirect moved to the post-auth surfaces).
+ * A customer who still owes the choice sees it here as the first
+ * checklist step plus a dismissible banner (below) — a nudge,
+ * not a gate.
  *
  * Props (owner directive, 2026-11-10):
  *  - isAdmin: the session email is in ADMIN_EMAILS (the /admin
@@ -88,6 +93,12 @@ export default function DashboardClient({
     // the loading-vs-error distinction the card needs.
     const { data: billingStatus, isPending: billingPending, isError: billingError } = useBillingStatus();
 
+    // Plan-choice banner dismissal (Task F, 2026-11-10): local and
+    // session-scoped on purpose — the banner is a nudge toward the
+    // picker, never a gate; the persistent record of the choice is
+    // the server-side marker / plan state, not this flag.
+    const [planBannerDismissed, setPlanBannerDismissed] = useState(false);
+
     // Audit fix: while the numbers are in flight, the stats and the
     // System rows render neutral skeletons — never literal 0s or a
     // "Not connected" / "Idle" flash that reads as a dead engine.
@@ -132,6 +143,37 @@ export default function DashboardClient({
 
     return (
         <div className="w-full max-w-5xl mx-auto space-y-8 pb-16">
+
+            {/* Plan-choice banner (Task F, 2026-11-10): shown while
+                no plan choice is on record — the dashboard renders
+                normally underneath; this only points at /pricing. */}
+            {!planBannerDismissed && !(planChoiceDone || billingPlanChosen) && (
+                <div
+                    data-testid="plan-choice-banner"
+                    className="flex items-center justify-between gap-4 bg-card border border-border rounded-xl px-5 py-4"
+                >
+                    <p className="text-[13.5px] text-muted-foreground">
+                        <span className="font-semibold text-foreground">Choose your plan.</span>{" "}
+                        Pick Free or a paid plan to finish setting up your workspace.
+                    </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <Link
+                            href="/pricing"
+                            className="inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-[13px] font-semibold text-background transition-opacity hover:opacity-90"
+                        >
+                            See plans
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={() => setPlanBannerDismissed(true)}
+                            aria-label="Dismiss"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Header */}
             <div className="flex items-end justify-between gap-4">

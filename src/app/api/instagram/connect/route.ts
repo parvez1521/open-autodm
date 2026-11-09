@@ -14,6 +14,7 @@
  */
 
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
+import { isAdminEmail } from '@/lib/admin/panel';
 import { getMetaSettings } from '@/lib/settings';
 import { buildOAuthUrl, signOAuthState } from '@/lib/instagram/oauth';
 import { createServiceClient } from '@/lib/supabase/service';
@@ -29,10 +30,18 @@ export async function GET(request: Request): Promise<Response> {
 
   const settings = await getMetaSettings();
   if (!settings) {
-    return Response.json(
-      { error: 'setup_required', message: 'Complete the Setup Wizard (Meta App ID + Secret) before connecting Instagram.' },
-      { status: 409 }
-    );
+    // Owner directive (2026-11-10, Task F addendum): the Setup
+    // Wizard is platform-admin only, so the wizard pointer is a
+    // dead end for customers. Admins keep it; customers get the
+    // honest state — the same copy the settings page uses for the
+    // setup_required banner. Every consumer of this route (the
+    // account switcher's Add account flow, the settings Connect
+    // button) renders `message` verbatim, so the role split lives
+    // here, once.
+    const message = isAdminEmail(user.email, process.env)
+      ? 'Complete the Setup Wizard (Meta App ID + Secret) before connecting Instagram.'
+      : 'Instagram cannot connect yet — the platform setup is not complete.';
+    return Response.json({ error: 'setup_required', message }, { status: 409 });
   }
 
   const workspaceParam = new URL(request.url).searchParams.get('workspace');
