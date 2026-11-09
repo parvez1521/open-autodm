@@ -111,7 +111,7 @@ export function NodeEditor() {
                 dragElastic={0}
                 dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }}
                 style={{ x: dmX, y: dmY }}
-                className="absolute z-10 pointer-events-auto flex items-center space-x-2.5 p-2 px-3 sm:p-2.5 sm:px-4 bg-white border border-border rounded-xl shadow-lg cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
+                className="absolute z-10 pointer-events-auto flex items-center space-x-2.5 p-2 px-3 sm:p-2.5 sm:px-4 bg-card border border-border rounded-xl shadow-lg cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
             >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-primary/10 flex items-center justify-center">
                     <PaperPlaneTilt className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
@@ -125,7 +125,7 @@ export function NodeEditor() {
                 dragElastic={0}
                 dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }}
                 style={{ x: contentX, y: contentY }}
-                className="absolute z-10 pointer-events-auto flex items-center space-x-2.5 p-2 px-3 sm:p-2.5 sm:px-4 bg-white border border-border rounded-xl shadow-lg cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
+                className="absolute z-10 pointer-events-auto flex items-center space-x-2.5 p-2 px-3 sm:p-2.5 sm:px-4 bg-card border border-border rounded-xl shadow-lg cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
             >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-primary/10 flex items-center justify-center">
                     <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-primary" />
@@ -139,7 +139,7 @@ export function NodeEditor() {
                 dragElastic={0}
                 dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }}
                 style={{ x: linksX, y: linksY }}
-                className="absolute z-10 pointer-events-auto flex items-center space-x-2.5 p-2 px-3 sm:p-2.5 sm:px-4 bg-white border border-border rounded-xl shadow-lg cursor-grab active:cursor-grabbing hover:border-secondary/50 transition-colors"
+                className="absolute z-10 pointer-events-auto flex items-center space-x-2.5 p-2 px-3 sm:p-2.5 sm:px-4 bg-card border border-border rounded-xl shadow-lg cursor-grab active:cursor-grabbing hover:border-secondary/50 transition-colors"
             >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-secondary/10 flex items-center justify-center">
                     <Stack className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-secondary" />
@@ -153,7 +153,7 @@ export function NodeEditor() {
                 dragElastic={0}
                 dragConstraints={{ left: -1000, right: 1000, top: -1000, bottom: 1000 }}
                 style={{ x: analyticsX, y: analyticsY }}
-                className="absolute z-10 pointer-events-auto flex items-center space-x-2.5 p-2 px-3 sm:p-2.5 sm:px-4 bg-white border border-border rounded-xl shadow-lg cursor-grab active:cursor-grabbing hover:border-secondary/50 transition-colors"
+                className="absolute z-10 pointer-events-auto flex items-center space-x-2.5 p-2 px-3 sm:p-2.5 sm:px-4 bg-card border border-border rounded-xl shadow-lg cursor-grab active:cursor-grabbing hover:border-secondary/50 transition-colors"
             >
                 <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-secondary/10 flex items-center justify-center">
                     <ChartBar className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-secondary" />

@@ -79,10 +79,10 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 export default function AnalyticsPage() {
-    // Light throughout (Open Caption restyle, 2026-11-09): the
-    // chart palette's light steps are the only steps now — the
-    // product has no dark surface for the dark steps to sit on.
-    const colors = PALETTE.light;
+    // Dark throughout (owner directive, 2026-11-10): the chart
+    // palette's dark steps — validated per-mode against the dark
+    // card surface — are the only steps now.
+    const colors = PALETTE.dark;
 
     const { account, accountId } = useActiveAccount();
     // No-workspace state (2026-11-09): with the workspace runtime on
@@ -134,9 +134,9 @@ export default function AnalyticsPage() {
     // dashboard plan card makes.
     const { data, isPending, isError, error, refetch, isFetching } = useAnalytics({ from, to, automationId, accountId });
 
-    const gridStroke = "#E4E4D0";
-    const axisTick = { fontSize: 10.5, fill: "#898781" } as const;
-    const surface = "#FFFFEB";
+    const gridStroke = "#2E2E2A";
+    const axisTick = { fontSize: 10.5, fill: "#A9A99C" } as const;
+    const surface = "#1C1C1A";
 
     const totals = data?.totals;
     const funnel = totals

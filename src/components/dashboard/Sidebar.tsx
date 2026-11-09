@@ -107,7 +107,7 @@ function NavGroups({
                                         "group relative flex items-center h-8 rounded-md text-[13px] transition-colors",
                                         collapsed ? "justify-center" : "px-2.5 gap-2.5",
                                         isActive
-                                            ? "bg-side text-foreground font-semibold"
+                                            ? "bg-side text-obsidian font-semibold"
                                             : "text-muted-foreground hover:text-foreground hover:bg-side/50"
                                     )}
                                 >

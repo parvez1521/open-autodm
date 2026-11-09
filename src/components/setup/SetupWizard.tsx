@@ -270,7 +270,7 @@ export default function SetupWizard() {
                     deployment&apos;s CRON_SECRET and run:
                 </p>
                 <div className="relative">
-                    <pre className="text-[11px] font-mono bg-obsidian text-sand-200 rounded-lg p-3.5 overflow-x-auto whitespace-pre border border-border">
+                    <pre className="text-[11px] font-mono bg-sand-100 text-sand-800 rounded-lg p-3.5 overflow-x-auto whitespace-pre border border-border">
                         {setup?.cronSnippet ?? ""}
                     </pre>
                     <button

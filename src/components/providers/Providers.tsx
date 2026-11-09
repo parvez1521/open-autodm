@@ -66,7 +66,11 @@ interface AppProvidersProps {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      {/* Dark-only product (owner directive 2026-11-10): the theme
+          is pinned to dark — globals.css carries a single dark
+          token set (:root mirrored by .dark), so no stored or
+          system preference can produce a light palette. */}
+      <ThemeProvider attribute="class" defaultTheme="dark" disableTransitionOnChange>
         {/* Motion system (2026-11-08): every motion component on the
             site honours the visitor's reduced-motion preference. */}
         <MotionConfig reducedMotion="user">

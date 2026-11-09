@@ -25,7 +25,6 @@ import {
 } from "@/components/phosphor";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 import { NodeEditor } from "@/components/ui/NodeEditor";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
 import { PipelineShowcase } from "@/components/home/PipelineShowcase";
 import { DemoShowcase } from "@/components/home/DemoShowcase";
@@ -298,7 +297,6 @@ export default function LandingPage() {
                         ))}
                     </nav>
                     <div className="flex items-center gap-2">
-                        <ThemeToggle />
                         <a
                             href="/login"
                             className="hidden h-9 items-center rounded-md px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted sm:inline-flex"

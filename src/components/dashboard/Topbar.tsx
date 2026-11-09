@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { List } from "@/components/phosphor";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { NotificationCenter } from "@/components/dashboard/NotificationCenter";
 import { useUiStore } from "@/lib/store";
 
@@ -35,7 +34,6 @@ export function Topbar() {
 
             <div className="flex items-center gap-1.5">
                 <NotificationCenter />
-                <ThemeToggle />
             </div>
         </header>
     );

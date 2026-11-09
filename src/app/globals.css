@@ -8,40 +8,47 @@
  * Open Caption site and ordered the same style AND animation
  * concepts for Open AutoDM, copy/content unchanged).
  *
- * Palette (from the reference globals, exact): cream #FFFFEB,
- * lavender #F0D7FF, emerald #34D399, orange #FFA946, obsidian
- * #1A1A1A, muted beige #E4E4D0, plus the derived warm sand scale.
- * Type: Plus Jakarta Sans for everything; Instrument Serif Italic
- * is the accent (every <em> / .italic / .font-accent). LIGHT
- * throughout — the .dark block below intentionally mirrors :root
- * so a persisted theme preference cannot resurrect the old dark
+ * DARK THEME — owner directive 2026-11-10 ("Poori site bhi dark
+ * kar do"): the whole site now runs the dark system the owner
+ * approved on Open Caption the same night — warm near-black
+ * #141412 ground, #1C1C1A / #232320 surfaces, cream #FFFFEB text,
+ * and the same accents (lavender #F0D7FF, emerald #34D399, orange
+ * #FFA946). This supersedes the cream/light restyle of 2026-11-09.
+ * Type and every animation concept are unchanged. The theme is
+ * dark-only: :root carries the dark tokens and the .dark block
+ * mirrors them, so no persisted preference can resurrect a light
  * palette.
  */
 
 @theme {
-  /* Reference palette */
-  --color-major: #FFFFEB;
+  /* Reference palette (dark roles) */
+  --color-major: #141412;
   --color-side: #F0D7FF;
   --color-emerald-accent: #34D399;
   --color-orange-accent: #FFA946;
   --color-obsidian: #1A1A1A;
   --color-muted-beige: #E4E4D0;
 
-  /* Warm neutral scale (cream -> beige -> obsidian), derived in the
-     reference from the six palette colours alone. */
-  --color-sand-50: #FFFFEB;
-  --color-sand-100: #F4F4E0;
-  --color-sand-200: #E4E4D0;
-  --color-sand-300: #D2D2BF;
-  --color-sand-400: #A9A99C;
-  --color-sand-500: #8C8C83;
-  --color-sand-600: #6E6E67;
-  --color-sand-700: #4C4C47;
-  --color-sand-800: #33332F;
-  --color-sand-900: #1A1A1A;
+  /* Warm neutral scale, inverted for the dark theme (near-black ->
+     cream): the 2026-11-09 light scale read backwards, with the
+     approved dark surface steps #1C1C1A / #232320 / #2E2E2A slotted
+     in at the dark end. */
+  --color-sand-50: #141412;
+  --color-sand-100: #1C1C1A;
+  --color-sand-200: #232320;
+  --color-sand-300: #2E2E2A;
+  --color-sand-400: #4C4C47;
+  --color-sand-500: #6E6E67;
+  --color-sand-600: #8C8C83;
+  --color-sand-700: #A9A99C;
+  --color-sand-800: #D2D2BF;
+  --color-sand-900: #FFFFEB;
 
   /* Pure white is remapped to cream (as in the reference) so stray
-     bg-white / text-white classes stay on-palette. */
+     bg-white / text-white classes stay on-palette: on the dark
+     theme these utilities live on already-dark surfaces (phone
+     mockups, switch knobs, the debug panel) where cream is the
+     correct ink. */
   --color-white: #FFFFEB;
 
   --color-primary-base: #FFA946;
@@ -85,15 +92,18 @@
   --radius-2xl: 2.5rem;
   --radius-3xl: 3rem;
 
-  /* Warm elevation (reference values). The generic shadow scale is
-     remapped onto them so existing shadow-* classes warm up too. */
-  --shadow-sand-soft: 0 1px 2px rgba(31, 31, 26, 0.04), 0 8px 24px -12px rgba(31, 31, 26, 0.18);
-  --shadow-sand-deep: 0 2px 4px rgba(31, 31, 26, 0.06), 0 24px 64px -24px rgba(31, 31, 26, 0.35);
-  --shadow-sm: 0 1px 2px rgba(31, 31, 26, 0.04), 0 8px 24px -12px rgba(31, 31, 26, 0.18);
-  --shadow-md: 0 2px 4px rgba(31, 31, 26, 0.05), 0 16px 40px -16px rgba(31, 31, 26, 0.25);
-  --shadow-lg: 0 2px 4px rgba(31, 31, 26, 0.06), 0 24px 64px -24px rgba(31, 31, 26, 0.35);
-  --shadow-xl: 0 4px 8px rgba(31, 31, 26, 0.06), 0 32px 80px -24px rgba(31, 31, 26, 0.4);
-  --shadow-2xl: 0 4px 8px rgba(31, 31, 26, 0.08), 0 40px 96px -24px rgba(31, 31, 26, 0.45);
+  /* Elevation on dark (2026-11-10): depth comes from black shadows
+     plus the surface steps and hairlines — the warm sand-tinted
+     shadows of the light theme would be invisible here. The
+     generic shadow scale is remapped onto the same values so
+     existing shadow-* classes deepen too. */
+  --shadow-sand-soft: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-sand-deep: 0 2px 4px rgba(0, 0, 0, 0.4), 0 24px 64px -24px rgba(0, 0, 0, 0.65);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.38), 0 16px 40px -16px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4), 0 24px 64px -24px rgba(0, 0, 0, 0.65);
+  --shadow-xl: 0 4px 8px rgba(0, 0, 0, 0.42), 0 32px 80px -24px rgba(0, 0, 0, 0.7);
+  --shadow-2xl: 0 4px 8px rgba(0, 0, 0, 0.45), 0 40px 96px -24px rgba(0, 0, 0, 0.75);
 
   /* Reference motion tokens */
   --animate-fade-in-up: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -103,15 +113,19 @@
 }
 
 :root {
-  /* LIGHT - cream paper, obsidian ink (Open Caption system) */
-  --background: #FFFFEB;
-  --foreground: #1A1A1A;
+  /* DARK - warm near-black ground, cream ink (owner directive
+     2026-11-10). Contrast, verified numerically: cream on ground
+     18.2:1, on card 16.9:1, on popover 15.6:1; muted #A9A99C on
+     ground 7.8:1, on card 7.2:1, on muted surface 6.6:1 — body
+     text clears AA on every surface. */
+  --background: #141412;
+  --foreground: #FFFFEB;
 
-  --card: #FFFFEB;
-  --card-foreground: #1A1A1A;
+  --card: #1C1C1A;
+  --card-foreground: #FFFFEB;
 
-  --popover: #FFFFEB;
-  --popover-foreground: #1A1A1A;
+  --popover: #232320;
+  --popover-foreground: #FFFFEB;
 
   --primary: #FFA946;
   --primary-foreground: #1A1A1A;
@@ -119,33 +133,36 @@
   --secondary: #34D399;
   --secondary-foreground: #1A1A1A;
 
-  --muted: #F4F4E0;
-  --muted-foreground: #5F5F59;
+  --muted: #232320;
+  --muted-foreground: #A9A99C;
 
   --accent: #F0D7FF;
   --accent-foreground: #1A1A1A;
 
-  --destructive: #DC2626;
-  --destructive-foreground: #FFFFEB;
+  /* One step brighter than the light theme's #DC2626 so the token
+     also works as text on the dark ground (4.9:1) while its
+     obsidian foreground pairing holds 4.7:1. */
+  --destructive: #EF4444;
+  --destructive-foreground: #1A1A1A;
 
-  --border: #E4E4D0;
-  --input: #D2D2BF;
+  --border: #2E2E2A;
+  --input: #3A3A35;
   --ring: #FFA946;
 }
 
 .dark {
-  /* LIGHT throughout (owner directive 2026-11-09): the dark block
-     mirrors :root exactly. The class hook stays so the theme
-     provider and `dark:` variants keep working, but no dark palette
-     exists anywhere in the product any more. */
-  --background: #FFFFEB;
-  --foreground: #1A1A1A;
+  /* DARK throughout (owner directive 2026-11-10): the dark block
+     mirrors :root exactly — dark is the only theme now. The class
+     hook stays so the theme provider keeps working, but no light
+     palette exists anywhere in the product any more. */
+  --background: #141412;
+  --foreground: #FFFFEB;
 
-  --card: #FFFFEB;
-  --card-foreground: #1A1A1A;
+  --card: #1C1C1A;
+  --card-foreground: #FFFFEB;
 
-  --popover: #FFFFEB;
-  --popover-foreground: #1A1A1A;
+  --popover: #232320;
+  --popover-foreground: #FFFFEB;
 
   --primary: #FFA946;
   --primary-foreground: #1A1A1A;
@@ -153,17 +170,17 @@
   --secondary: #34D399;
   --secondary-foreground: #1A1A1A;
 
-  --muted: #F4F4E0;
-  --muted-foreground: #5F5F59;
+  --muted: #232320;
+  --muted-foreground: #A9A99C;
 
   --accent: #F0D7FF;
   --accent-foreground: #1A1A1A;
 
-  --destructive: #DC2626;
-  --destructive-foreground: #FFFFEB;
+  --destructive: #EF4444;
+  --destructive-foreground: #1A1A1A;
 
-  --border: #E4E4D0;
-  --input: #D2D2BF;
+  --border: #2E2E2A;
+  --input: #3A3A35;
   --ring: #FFA946;
 }
 
@@ -259,14 +276,16 @@ em,
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: conic-gradient(from var(--angle), #FFA946, #34D399, #F0D7FF, #1A1A1A, #FFA946);
+  background: conic-gradient(from var(--angle), #FFA946, #34D399, #F0D7FF, #FFFFEB, #FFA946);
   animation: rotate-conic 3s linear infinite;
   z-index: -1;
 }
 
 /* ── Gradient text sweep (reference motif) ──────────────────────
-   Obsidian -> orange -> emerald. Never purple: the sweep is the
-   hero accent word's living colour. */
+   Cream -> orange -> emerald (2026-11-10: the sweep's anchor stop
+   was obsidian in the light theme; on the dark ground cream takes
+   its place so the anchor stays visible). Never purple: the sweep
+   is the hero accent word's living colour. */
 @keyframes text-sweep {
   0% {
     background-position: 0% 50%;
@@ -280,7 +299,7 @@ em,
 }
 
 .gradient-text-sweep {
-  background: linear-gradient(90deg, #1A1A1A, #FFA946, #34D399, #1A1A1A);
+  background: linear-gradient(90deg, #FFFFEB, #FFA946, #34D399, #FFFFEB);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -339,12 +358,12 @@ em,
 }
 
 ::-webkit-scrollbar-track {
-  background: #FFFFEB;
+  background: #141412;
 }
 
 ::-webkit-scrollbar-thumb {
   background: #F0D7FF;
-  border: 2px solid #1A1A1A;
+  border: 2px solid #141412;
   border-radius: 6px;
 }
 
@@ -400,15 +419,16 @@ html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused 
 }
 
 /* ── Brand intro sheet (reference concept, adopted 2026-11-09) ──
-   A brief cream sheet with the wordmark, shown once per session
-   on the landing only (see components/home/intro.ts). It is
+   A brief sheet with the wordmark, shown once per session on the
+   landing only (see components/home/intro.ts). Dark since
+   2026-11-10 (the sheet matches the page ground). It is
    display:none unless the pre-paint script set data-intro="play",
    its content starts when .ce-go lands (fonts painted), and the
    sheet lifts on .ce-out — the script forces .ce-out on a cap, so
    the page can never be trapped under it. */
 .oadm-intro { display: none; position: fixed; inset: 0; z-index: 100; pointer-events: none; }
 html[data-intro="play"] .oadm-intro { display: block; }
-.oadm-intro [data-sheet] { position: absolute; inset: 0; background: #FFFFEB; pointer-events: auto; }
+.oadm-intro [data-sheet] { position: absolute; inset: 0; background: #141412; pointer-events: auto; }
 html.ce-out .oadm-intro [data-sheet] { pointer-events: none; }
 .oadm-intro [data-inner] { animation: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
 html:not(.ce-go) .oadm-intro [data-inner] { animation-play-state: paused; }

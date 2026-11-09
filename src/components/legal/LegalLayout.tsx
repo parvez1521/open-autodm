@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { LogoMark, LogoWordmark } from '@/components/ui/Logo';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { ArrowLeft, Shield, FileText, Trash, EnvelopeSimple } from '@/components/phosphor';
 
 interface LegalLayoutProps {
@@ -45,7 +44,6 @@ export function LegalLayout({
               <span>Back to App</span>
             </Link>
             <div className="h-4 w-px bg-border" />
-            <ThemeToggle />
           </div>
         </div>
       </header>

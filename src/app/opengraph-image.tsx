@@ -2,9 +2,10 @@ import { ImageResponse } from "next/og";
 
 /**
  * Social card (SEO pass, 2026-11-10, plan P0-1): 1200×630,
- * rendered with the site's Open Caption design tokens — cream
- * #FFFFEB ground, obsidian #1A1A1A ink, lavender #F0D7FF pill,
- * emerald #34D399 rule, orange #FFA946 accent. Flat colours only:
+ * rendered with the site's design tokens — since the 2026-11-10
+ * full-dark directive: warm near-black #141412 ground, cream
+ * #FFFFEB ink, lavender #F0D7FF pill (obsidian text), emerald
+ * #34D399 rule, orange #FFA946 accent. Flat colours only:
  * no gradient, no emoji (owner ban list). Applies site-wide via
  * the file convention; twitter-image.tsx re-exports it.
  */
@@ -23,10 +24,10 @@ export default function OpengraphImage() {
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          backgroundColor: "#FFFFEB",
+          backgroundColor: "#141412",
           padding: "64px 72px",
           fontFamily: "sans-serif",
-          color: "#1A1A1A",
+          color: "#FFFFEB",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -35,6 +36,7 @@ export default function OpengraphImage() {
               display: "flex",
               alignItems: "center",
               backgroundColor: "#F0D7FF",
+              color: "#1A1A1A",
               borderRadius: 999,
               padding: "10px 22px",
               fontSize: 26,
@@ -43,7 +45,7 @@ export default function OpengraphImage() {
           >
             open-<span style={{ fontStyle: "italic", fontWeight: 400 }}>autoDM</span>
           </div>
-          <div style={{ fontSize: 24, color: "#1A1A1A", opacity: 0.6 }}>
+          <div style={{ fontSize: 24, color: "#FFFFEB", opacity: 0.6 }}>
             opendm.in
           </div>
         </div>
