@@ -145,12 +145,15 @@ describe('prototype pages under default flags (all OFF)', () => {
     // Owner instruction, 2026-11-08 ~19:38 IST: ONE currency per
     // visitor (the server render is the INR default — no $ figure
     // may appear alongside), monthly only (no annual text), Free
-    // carries 1,000 auto DMs and the limited Studio.
+    // carries unlimited auto DMs and the limited Studio.
     expect(html).not.toContain('$5');
     expect(html).not.toContain('$9');
     expect(html).not.toContain('$15');
     expect(html).not.toContain('Annual');
-    expect(html).toContain('1,000 auto DMs / month');
+    // Owner decision, 2026-11-09: DM caps removed — no plan shows a
+    // DM number any more; the fact line reads "Unlimited".
+    expect(html).toContain('Unlimited auto DMs / month');
+    expect(html).not.toContain('1,000 auto DMs / month');
     expect(html).toContain('Creator Studio (limited)');
     expect(html).toContain('Custom pricing');
     expect(html).toContain('For Business / Agency');

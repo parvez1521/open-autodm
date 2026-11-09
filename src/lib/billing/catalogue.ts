@@ -8,8 +8,10 @@
  *   pricing for Business / Agency, sold by conversation (Contact Us),
  *   never by self-serve checkout.
  * Creator Studio is included on EVERY plan — full on paid plans,
- * LIMITED on Free (owner instruction, 2026-11-08 ~19:38 IST: Free
- * carries 1,000 auto DMs a month plus the limited Studio). Every
+ * LIMITED on Free. Auto DMs are UNLIMITED on every plan, Free
+ * included (owner decision, 2026-11-09: all per-plan DM caps —
+ * Free 1,000, Starter 2,000, Growth 10,000, Pro 50,000 — removed;
+ * `dmsPerMonth: null` in the catalogue below). Every
  * self-serve paid plan starts with a 15-day free trial, no card
  * upfront; at expiry the workspace drops back to Free unless its
  * owner checks out — nobody is ever silently charged.
@@ -49,19 +51,29 @@ export interface PlanPrice {
 }
 
 /**
- * Configurable numeric limits. Every value is a plain non-negative number
- * so limits can be tuned without code changes. There is deliberately no
- * "unlimited" sentinel: a very large business need is expressed as a
- * larger number by the owner, never as -1 / Infinity, so entitlement
- * checks stay simple comparisons.
+ * Configurable numeric limits. Values are plain non-negative numbers
+ * so limits can be tuned without code changes. There is deliberately
+ * no "unlimited" sentinel for capped dimensions: a very large
+ * business need is expressed as a larger number by the owner, never
+ * as -1 / Infinity, so entitlement checks stay simple comparisons.
+ *
+ * ONE exception (owner decision, 2026-11-09): `dmsPerMonth` is
+ * `number | null`, and every plan carries `null` — auto DMs are
+ * unlimited on all plans, so there is no DM cap left to express as
+ * a number. The entitlement service treats a null DM limit as
+ * always-allowed.
  */
 export interface PlanLimits {
   workspaces: number;
   instagramAccounts: number;
   teamSeats: number;
   activeAutomations: number;
-  /** Automated DMs sent per calendar month, per workspace. */
-  dmsPerMonth: number;
+  /**
+   * Automated DMs sent per calendar month, per workspace.
+   * `null` = unlimited (owner decision, 2026-11-09: DM limits
+   * removed on every plan, Free included).
+   */
+  dmsPerMonth: number | null;
   /** Distinct audience contacts stored/interacted with per month. */
   contactsPerMonth: number;
   /** AI drafting generations per month (drafting only — see Phase 7 scope). */
@@ -123,9 +135,9 @@ export const PLANS: readonly Plan[] = [
       instagramAccounts: 1,
       teamSeats: 1,
       activeAutomations: 3,
-      // Owner instruction, 2026-11-08 ~19:38 IST: Free carries
-      // 1,000 auto DMs a month (was 250 in the draft catalogue).
-      dmsPerMonth: 1000,
+      // Owner decision, 2026-11-09: auto DMs UNLIMITED on every
+      // plan (was 1,000/month here under the 2026-11-08 rule).
+      dmsPerMonth: null,
       contactsPerMonth: 250,
       aiDraftingGenerationsPerMonth: 20,
       scriptWriterGenerationsPerMonth: 10,
@@ -154,7 +166,7 @@ export const PLANS: readonly Plan[] = [
       instagramAccounts: 1,
       teamSeats: 1,
       activeAutomations: 10,
-      dmsPerMonth: 2000,
+      dmsPerMonth: null,
       contactsPerMonth: 2000,
       aiDraftingGenerationsPerMonth: 100,
       scriptWriterGenerationsPerMonth: 50,
@@ -163,7 +175,7 @@ export const PLANS: readonly Plan[] = [
     dataRetentionDays: 90,
     supportLevel: 'email',
     capabilityNotes: [
-      'Everything in Free, with higher DM/contact allowances',
+      'Everything in Free, with higher contact allowances',
       'Public comment replies and follow-up messages',
       'Creator Studio included',
     ],
@@ -183,7 +195,7 @@ export const PLANS: readonly Plan[] = [
       instagramAccounts: 3,
       teamSeats: 3,
       activeAutomations: 50,
-      dmsPerMonth: 10000,
+      dmsPerMonth: null,
       contactsPerMonth: 10000,
       aiDraftingGenerationsPerMonth: 500,
       scriptWriterGenerationsPerMonth: 300,
@@ -212,7 +224,7 @@ export const PLANS: readonly Plan[] = [
       instagramAccounts: 5,
       teamSeats: 5,
       activeAutomations: 200,
-      dmsPerMonth: 50000,
+      dmsPerMonth: null,
       contactsPerMonth: 50000,
       aiDraftingGenerationsPerMonth: 2000,
       scriptWriterGenerationsPerMonth: 1000,
@@ -244,7 +256,7 @@ export const PLANS: readonly Plan[] = [
       instagramAccounts: 25,
       teamSeats: 25,
       activeAutomations: 500,
-      dmsPerMonth: 200000,
+      dmsPerMonth: null,
       contactsPerMonth: 200000,
       aiDraftingGenerationsPerMonth: 5000,
       scriptWriterGenerationsPerMonth: 2500,

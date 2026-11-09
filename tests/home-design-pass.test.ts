@@ -489,9 +489,11 @@ describe("pricing columns — tall vertical columns side by side", () => {
  *  2. MONTHLY ONLY — the monthly/annual toggle removed entirely
  *     (it was added by round 7 the same day; this supersedes it),
  *     and no annual price renders anywhere.
- *  3. Free = 1,000 auto DMs a month + Creator Studio (limited);
+ *  3. Free = unlimited auto DMs + Creator Studio (limited);
  *     paid plans keep the full Studio (pinned in
- *     billing-catalogue.test.ts).
+ *     billing-catalogue.test.ts). (The DM figure was 1,000/mo
+ *     under the original instruction; the owner removed all DM
+ *     caps on 2026-11-09.)
  *  4. Columns de-cluttered: name → price → CTA → a short
  *     key-facts list; the dense capability-notes lists no longer
  *     render in the columns.

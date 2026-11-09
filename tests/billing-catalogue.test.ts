@@ -13,7 +13,8 @@
  *  - approved tiers: ₹299/1 account, ₹500/3, ₹799/5, Enterprise custom
  *  - Creator Studio is included on every plan — full on paid
  *    plans, LIMITED on Free (owner instruction, 2026-11-08
- *    ~19:38 IST, which also set Free to 1,000 auto DMs a month)
+ *    ~19:38 IST); auto DMs are unlimited on every plan (owner
+ *    decision, 2026-11-09 — supersedes that day's Free 1,000/mo cap)
  *  - the 15-day no-card trial is the selected option; no trial
  *    option ever permits a silent auto-charge
  *  - annual totals are internally consistent (annualMonthly × 12)
@@ -121,12 +122,16 @@ describe('billing catalogue (owner-approved 2026-11-08)', () => {
     }
   });
 
-  // Owner instruction, 2026-11-08 ~19:38 IST: Free carries 1,000
-  // auto DMs a month and the LIMITED Creator Studio; paid plans
-  // keep the full Studio (their notes never say "limited").
-  it('gives Free 1,000 auto DMs a month and the limited Studio (owner, 2026-11-08 ~19:38 IST)', () => {
+  // Owner decision, 2026-11-09 (supersedes the 2026-11-08 ~19:38
+  // IST rule that gave Free 1,000 auto DMs a month): auto DMs are
+  // UNLIMITED on every plan — dmsPerMonth is null across the whole
+  // catalogue. Free still carries the LIMITED Creator Studio; paid
+  // plans keep the full Studio (their notes never say "limited").
+  it('gives every plan unlimited auto DMs and Free the limited Studio (owner, 2026-11-09)', () => {
     const free = getPlan('free');
-    expect(free.limits.dmsPerMonth).toBe(1000);
+    for (const plan of PLANS) {
+      expect(plan.limits.dmsPerMonth, `${plan.id} DMs must be unlimited`).toBeNull();
+    }
     expect(
       free.capabilityNotes.some((n) => n.includes('Creator Studio included (limited)')),
     ).toBe(true);
@@ -148,9 +153,16 @@ describe('billing catalogue (owner-approved 2026-11-08)', () => {
     }
   });
 
-  it('keeps every limit a non-negative finite number', () => {
+  it('keeps every capped limit a non-negative finite number (DMs excepted: null = unlimited, owner 2026-11-09)', () => {
     for (const plan of PLANS) {
       for (const [key, value] of Object.entries(plan.limits)) {
+        if (key === 'dmsPerMonth') {
+          // Owner decision, 2026-11-09: DMs are unlimited on every
+          // plan, encoded as null — the catalogue's one non-numeric
+          // limit.
+          expect(value, `${plan.id}.limits.${key}`).toBeNull();
+          continue;
+        }
         expect(typeof value, `${plan.id}.limits.${key}`).toBe('number');
         expect(Number.isFinite(value), `${plan.id}.limits.${key}`).toBe(true);
         expect(value, `${plan.id}.limits.${key}`).toBeGreaterThanOrEqual(0);

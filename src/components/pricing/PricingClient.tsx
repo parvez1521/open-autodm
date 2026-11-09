@@ -50,8 +50,10 @@
  *    five key facts. The dense capability-notes lists that used
  *    to fill the columns moved out; the full limit-by-limit
  *    detail still lives in the comparison table below.
- *  - Free is 1,000 auto DMs a month with Creator Studio
- *    (limited); paid plans keep the full Creator Studio.
+ *  - Auto DMs are UNLIMITED on every plan (owner decision,
+ *    2026-11-09 — the per-plan DM caps were removed); Free's
+ *    Creator Studio stays limited, paid plans keep the full
+ *    Studio.
  * All figures come from lib/billing/catalogue.
  *
  * Single-file on purpose: the customer-journey render harness
@@ -133,7 +135,7 @@ const DIMENSIONS: { label: string; value: (plan: Plan) => string }[] = [
   { label: "Instagram accounts", value: (p) => orCustom(p, String(p.limits.instagramAccounts)) },
   { label: "Team seats", value: (p) => orCustom(p, String(p.limits.teamSeats)) },
   { label: "Active automations", value: (p) => orCustom(p, String(p.limits.activeAutomations)) },
-  { label: "DMs / month", value: (p) => orCustom(p, p.limits.dmsPerMonth.toLocaleString("en-IN")) },
+  { label: "DMs / month", value: (p) => orCustom(p, p.limits.dmsPerMonth === null ? "Unlimited" : p.limits.dmsPerMonth.toLocaleString("en-IN")) },
   { label: "Audience contacts / month", value: (p) => orCustom(p, p.limits.contactsPerMonth.toLocaleString("en-IN")) },
   { label: "AI drafting generations / month", value: (p) => orCustom(p, p.limits.aiDraftingGenerationsPerMonth.toLocaleString("en-IN")) },
   { label: "Script Writer generations / month", value: (p) => orCustom(p, p.limits.scriptWriterGenerationsPerMonth.toLocaleString("en-IN")) },
@@ -167,7 +169,9 @@ function keyFacts(plan: Plan): string[] {
   const accounts = plan.limits.instagramAccounts;
   return [
     `${accounts} Instagram account${accounts === 1 ? "" : "s"}`,
-    `${plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month`,
+    plan.limits.dmsPerMonth === null
+      ? "Unlimited auto DMs / month"
+      : `${plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month`,
     `${plan.limits.activeAutomations} active automations`,
     studioFact(plan),
   ];

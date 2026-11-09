@@ -191,7 +191,7 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     expect(resolved.plan.id).toBe('starter');
     expect(resolved.resolution).toBe('trialing-subscription');
     const dm = checkEntitlement(wsSub('ws-trial', 'starter', 'trialing'), 'dmsPerMonth', { dmsThisMonth: 1000 }, { flags: ENFORCED });
-    expect(dm.limit).toBe(getPlan('starter').limits.dmsPerMonth); // 2000 — trial gets the PLAN's limits
+    expect(dm.limit).toBe(getPlan('starter').limits.dmsPerMonth); // null — DMs unlimited on every plan (owner, 2026-11-09); the trial still resolves to the PLAN (see resolved asserts above)
     expect(dm.allowed).toBe(true);
     expect(dm.planId).toBe('starter');
   });
@@ -212,10 +212,17 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     const resolved = resolveEntitlement(wsSub('ws-exp', 'starter', 'expired'));
     expect(resolved.plan.id).toBe('free');
     expect(resolved.resolution).toBe('free-default-inactive-subscription');
+    // The downgrade proof rides on contactsPerMonth (Free cap 250):
+    // usage that fit the trial plan no longer fits Free. It rode on
+    // DMs until the owner's 2026-11-09 decision made DMs unlimited
+    // on every plan — a DM check now stays allowed even on Free.
+    const contacts = checkEntitlement(wsSub('ws-exp', 'starter', 'expired'), 'contactsPerMonth', { contactsThisMonth: 1000 }, { flags: ENFORCED });
+    expect(contacts.limit).toBe(getPlan('free').limits.contactsPerMonth); // 250
+    expect(contacts.allowed).toBe(false); // usage that fit the trial plan no longer fits
+    expect(contacts.effectiveAllowed).toBe(false);
     const dm = checkEntitlement(wsSub('ws-exp', 'starter', 'expired'), 'dmsPerMonth', { dmsThisMonth: 1000 }, { flags: ENFORCED });
-    expect(dm.limit).toBe(getPlan('free').limits.dmsPerMonth); // 1000 (Free DM limit raised 250 → 1000, owner 2026-11-08 ~19:38 IST)
-    expect(dm.allowed).toBe(false); // usage that fit the trial plan no longer fits
-    expect(dm.effectiveAllowed).toBe(false);
+    expect(dm.limit).toBeNull();
+    expect(dm.allowed).toBe(true);
   });
 
   // ── Scenario 5 ──────────────────────────────────────────────────────
@@ -277,7 +284,7 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     expect(resolved.plan.id).toBe('creator-pro');
     expect(resolved.resolution).toBe('active-subscription');
     const dm = checkEntitlement(wsSub('ws-act', 'creator-pro', 'active'), 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(dm.limit).toBe(getPlan('creator-pro').limits.dmsPerMonth); // 10000, not Free's 1000
+    expect(dm.limit).toBe(getPlan('creator-pro').limits.dmsPerMonth); // null, not a number — DMs unlimited on every plan (owner, 2026-11-09)
     expect(dm.allowed).toBe(true);
   });
 
@@ -338,14 +345,21 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     const { checks } = evaluateAllEntitlements(wsSub('ws-pd', 'agency', 'past_due'), {}, { flags: ENFORCED });
     expect(checks).toHaveLength(9);
     for (const c of checks) expect(c.planId).toBe('free');
+    // Free-fallback proof rides on contactsPerMonth (Free 250, not
+    // Agency's 50000) — DMs can no longer prove it: unlimited on
+    // every plan since the owner's 2026-11-09 decision.
+    const contacts = checkEntitlement(wsSub('ws-pd', 'agency', 'past_due'), 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
+    expect(contacts.limit).toBe(getPlan('free').limits.contactsPerMonth); // 250, NOT Agency's 50000
+    expect(contacts.allowed).toBe(false);
     const dm = checkEntitlement(wsSub('ws-pd', 'agency', 'past_due'), 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(dm.limit).toBe(getPlan('free').limits.dmsPerMonth); // 1000, NOT Agency's 50000
-    expect(dm.allowed).toBe(false);
+    expect(dm.limit).toBeNull();
+    expect(dm.allowed).toBe(true);
     // Safety floor is unaffected by past_due: Free still has non-zero
-    // allowances and the plan itself is a real, limited default —
-    // never unlimited, never zeroed-out compliance functions.
-    expect(getPlan('free').limits.dmsPerMonth).toBeGreaterThan(0);
-    expect(Number.isFinite(dm.limit)).toBe(true);
+    // allowances on its capped dimensions and the plan itself is a
+    // real, limited default — never zeroed-out compliance functions.
+    // (DMs are the deliberate exception: unlimited by owner decision.)
+    expect(getPlan('free').limits.contactsPerMonth).toBeGreaterThan(0);
+    expect(Number.isFinite(contacts.limit)).toBe(true);
   });
 
   // ── Scenario 10 ─────────────────────────────────────────────────────
@@ -374,10 +388,12 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
   it('S11: upgrade plan (limits increase immediately per lifecycle rules)', () => {
     const store = createSyntheticAdminStore();
     const svc = new AdminService({ store });
-    // ws-alpha: starter, active. 5000 DMs is over the Starter cap.
+    // ws-alpha: starter, active. 5000 contacts is over the Starter
+    // cap (2000). (This scenario rode on DMs until the owner's
+    // 2026-11-09 decision made DMs unlimited on every plan.)
     const subBefore = wsSub('ws-alpha', 'starter', 'active');
-    const before = checkEntitlement(subBefore, 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(before.limit).toBe(getPlan('starter').limits.dmsPerMonth); // 2000
+    const before = checkEntitlement(subBefore, 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
+    expect(before.limit).toBe(getPlan('starter').limits.contactsPerMonth); // 2000
     expect(before.allowed).toBe(false);
 
     // Upgrade via the audited admin override (reason required).
@@ -387,8 +403,8 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     expect(svc.getAuditLog(platformAdmin).map((e) => e.action)).toContain('subscription.plan_change');
 
     // Immediate effect: the SAME usage now fits, with no period wait.
-    const after = checkEntitlement(wsSub('ws-alpha', dto.planId, 'active'), 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(after.limit).toBe(getPlan('creator-pro').limits.dmsPerMonth); // 10000
+    const after = checkEntitlement(wsSub('ws-alpha', dto.planId, 'active'), 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
+    expect(after.limit).toBe(getPlan('creator-pro').limits.contactsPerMonth); // 10000
     expect(after.allowed).toBe(true);
     expect(after.planId).toBe('creator-pro');
   });
@@ -410,13 +426,13 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     const svc = new AdminService({ store });
     // Give ws-alpha the higher plan first (fixture starts at starter).
     svc.changePlan(platformAdmin, { workspaceId: 'ws-alpha', toPlanId: 'creator-pro', reason: 'Acceptance S12 setup — move to Creator Pro (mock)' });
-    const high = checkEntitlement(wsSub('ws-alpha', 'creator-pro', 'active'), 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
+    const high = checkEntitlement(wsSub('ws-alpha', 'creator-pro', 'active'), 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
     expect(high.allowed).toBe(true); // higher limits hold until the downgrade is applied
 
     const dto = svc.changePlan(platformAdmin, { workspaceId: 'ws-alpha', toPlanId: 'starter', reason: 'Acceptance S12 — customer downgraded (mock)' });
     expect(dto.status).toBe('active'); // downgrade is not a cancellation
-    const low = checkEntitlement(wsSub('ws-alpha', dto.planId, 'active'), 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(low.limit).toBe(getPlan('starter').limits.dmsPerMonth); // decreased immediately on application
+    const low = checkEntitlement(wsSub('ws-alpha', dto.planId, 'active'), 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
+    expect(low.limit).toBe(getPlan('starter').limits.contactsPerMonth); // decreased immediately on application
     expect(low.allowed).toBe(false);
     expect(low.planId).toBe('starter');
   });

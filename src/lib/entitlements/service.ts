@@ -11,8 +11,11 @@
  *    plan's entitlements (lifecycle.ts `grantsEntitlement`).
  *  - Missing / unknown / unconfigured plan, and cancelled / expired /
  *    past_due / paused / incomplete subscriptions, all resolve to the
- *    **Free** plan — the limited default. There is NO code path that
- *    yields "unlimited" (the catalogue has no unlimited sentinel either).
+ *    **Free** plan — the limited default. Exactly ONE dimension is
+ *    unlimited, by owner decision (2026-11-09): `dmsPerMonth` is
+ *    `null` in the catalogue on EVERY plan (Free included), and a
+ *    null limit always allows — DM volume never blocks a workspace.
+ *    Every other dimension stays a plain numeric cap.
  *  - Every limit is read from catalogue.ts at call time, so changing a
  *    number in the catalogue changes enforcement with no code change.
  *  - Enforcement: `checkEntitlement` ALWAYS computes the decision
@@ -81,7 +84,8 @@ export interface EntitlementCheckResult {
   /** The computed decision — what enforcement WOULD do. */
   allowed: boolean;
   reason: 'within-limit' | 'at-limit' | 'over-limit';
-  limit: number;
+  /** The plan's cap for this dimension — `null` when unlimited (DMs only). */
+  limit: number | null;
   used: number;
   /** Plan the decision was computed against. */
   planId: PlanId;
@@ -129,7 +133,7 @@ export function resolveEntitlement(sub: WorkspaceSubscription | null | undefined
   };
 }
 
-function limitFor(plan: Plan, dimension: EntitlementDimension): number {
+function limitFor(plan: Plan, dimension: EntitlementDimension): number | null {
   switch (dimension) {
     case 'instagramAccounts': return plan.limits.instagramAccounts;
     case 'activeAutomations': return plan.limits.activeAutomations;
@@ -161,7 +165,8 @@ function usedFor(usage: UsageSnapshot, dimension: EntitlementDimension): number 
  * Check one dimension. `requested` is how many MORE units the caller wants
  * (default 1 — e.g. connecting one more IG account). Allowed when
  * used + requested <= limit. At exactly the limit with requested >= 1 the
- * reason is 'at-limit'; beyond it, 'over-limit'.
+ * reason is 'at-limit'; beyond it, 'over-limit'. A null limit (DMs) is
+ * always allowed, whatever the usage.
  */
 export function checkEntitlement(
   sub: WorkspaceSubscription | null | undefined,
@@ -174,8 +179,10 @@ export function checkEntitlement(
   const limit = limitFor(resolved.plan, dimension);
   const used = usedFor(usage, dimension);
   const requested = opts.requested ?? 1;
-  const allowed = used + requested <= limit;
-  const reason: EntitlementCheckResult['reason'] = allowed ? 'within-limit' : used >= limit ? 'at-limit' : 'over-limit';
+  // Unlimited dimension (dmsPerMonth — null on every plan since the
+  // owner's 2026-11-09 decision): no usage volume can block.
+  const allowed = limit === null ? true : used + requested <= limit;
+  const reason: EntitlementCheckResult['reason'] = allowed ? 'within-limit' : used >= (limit ?? 0) ? 'at-limit' : 'over-limit';
   const enforced = flags.entitlementsEnforced;
   return {
     dimension,

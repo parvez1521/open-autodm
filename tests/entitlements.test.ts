@@ -1,8 +1,10 @@
 /**
  * Phase 13 — entitlement service tests.
  * Pins: plan resolution (incl. Free default for missing/unknown/inactive),
- * every limit dimension at/over limit, log-only mode still computes,
+ * every capped limit dimension at/over limit, log-only mode still computes,
  * catalogue-driven limit changes take effect without code change.
+ * (DMs are the one uncapped dimension — unlimited on every plan since
+ * the owner's 2026-11-09 decision; pinned in their own describe.)
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -32,13 +34,16 @@ describe('entitlements: plan resolution', () => {
     expect(r.plan.id).toBe('starter');
     expect(r.resolution).toBe('trialing-subscription');
   });
-  it('missing subscription ⇒ Free default, never unlimited', () => {
+  it('missing subscription ⇒ Free default (DMs unlimited there too — owner, 2026-11-09)', () => {
     for (const sub of [null, undefined, { workspaceId: 'w', planId: null, status: null }] as const) {
       const r = resolveEntitlement(sub as never);
       expect(r.plan.id).toBe('free');
       expect(r.resolution).toBe('free-default-no-subscription');
       expect(r.plan.limits.dmsPerMonth).toBe(getPlan('free').limits.dmsPerMonth);
-      expect(Number.isFinite(r.plan.limits.dmsPerMonth)).toBe(true);
+      // Owner decision, 2026-11-09: the Free default's DM limit is
+      // null (unlimited) like every other plan's — resolution to
+      // Free no longer caps DM volume.
+      expect(r.plan.limits.dmsPerMonth).toBeNull();
     }
   });
   it('unknown plan id ⇒ Free default', () => {
@@ -60,7 +65,9 @@ describe('entitlements: limit dimensions', () => {
   const cases: { dimension: Parameters<typeof checkEntitlement>[1]; usage: Record<string, number>; limit: number }[] = [
     { dimension: 'instagramAccounts', usage: { instagramAccounts: free.limits.instagramAccounts }, limit: free.limits.instagramAccounts },
     { dimension: 'activeAutomations', usage: { activeAutomations: free.limits.activeAutomations }, limit: free.limits.activeAutomations },
-    { dimension: 'dmsPerMonth', usage: { dmsThisMonth: free.limits.dmsPerMonth }, limit: free.limits.dmsPerMonth },
+    // dmsPerMonth is NOT in this loop: since the owner's 2026-11-09
+    // decision it is null (unlimited) on every plan, so there is no
+    // at-limit state to pin here — it has its own describe below.
     { dimension: 'aiDrafting', usage: { aiDraftingThisMonth: free.limits.aiDraftingGenerationsPerMonth }, limit: free.limits.aiDraftingGenerationsPerMonth },
     { dimension: 'scriptWriter', usage: { scriptWriterThisMonth: free.limits.scriptWriterGenerationsPerMonth }, limit: free.limits.scriptWriterGenerationsPerMonth },
     { dimension: 'teamSeats', usage: { teamSeatsUsed: free.limits.teamSeats }, limit: free.limits.teamSeats },
@@ -87,10 +94,10 @@ describe('entitlements: limit dimensions', () => {
       expect(over.limit).toBe(c.limit);
     });
   }
-  it('paid plan raises the ceiling (agency DM limit > free)', () => {
+  it('paid plan DM check: unlimited there too (owner, 2026-11-09)', () => {
     const r = checkEntitlement(active('agency'), 'dmsPerMonth', { dmsThisMonth: 1000 }, { flags: ENFORCED });
     expect(r.allowed).toBe(true);
-    expect(r.limit).toBe(getPlan('agency').limits.dmsPerMonth);
+    expect(r.limit).toBeNull();
     expect(r.planId).toBe('agency');
   });
   it('requested > 1 is accounted (batch connect)', () => {
@@ -99,18 +106,45 @@ describe('entitlements: limit dimensions', () => {
   });
 });
 
+describe('entitlements: DMs are unlimited (owner decision, 2026-11-09)', () => {
+  it('no DM volume blocks a workspace — Free default, ENFORCED mode', () => {
+    const r = checkEntitlement(null, 'dmsPerMonth', { dmsThisMonth: 999_999_999 }, { flags: ENFORCED });
+    expect(r.limit).toBeNull();
+    expect(r.allowed).toBe(true);
+    expect(r.effectiveAllowed).toBe(true);
+    expect(r.reason).toBe('within-limit');
+  });
+  it('no DM volume blocks a workspace — paid plan, ENFORCED mode', () => {
+    const r = checkEntitlement(active('starter'), 'dmsPerMonth', { dmsThisMonth: 999_999_999 }, { flags: ENFORCED });
+    expect(r.limit).toBeNull();
+    expect(r.allowed).toBe(true);
+    expect(r.effectiveAllowed).toBe(true);
+  });
+  it('evaluateAll reports the DM check as unlimited + allowed at extreme usage', () => {
+    const { checks } = evaluateAllEntitlements(null, { dmsThisMonth: 999_999_999 }, { flags: ENFORCED });
+    const dm = checks.find((c) => c.dimension === 'dmsPerMonth');
+    expect(dm?.limit).toBeNull();
+    expect(dm?.allowed).toBe(true);
+    expect(dm?.effectiveAllowed).toBe(true);
+  });
+});
+
 describe('entitlements: log-only mode', () => {
+  // These two pins exercise the block path, so they use a dimension
+  // that is still capped (contactsPerMonth: Free 250). They used
+  // dmsPerMonth until the owner's 2026-11-09 decision made DMs
+  // unlimited — a DM check can no longer compute "blocked".
   it('ENTITLEMENTS_ENFORCED=false still COMPUTES the decision but passes through', () => {
-    const r = checkEntitlement(null, 'dmsPerMonth', { dmsThisMonth: 999999 }, { flags: LOG_ONLY });
+    const r = checkEntitlement(null, 'contactsPerMonth', { contactsThisMonth: 999999 }, { flags: LOG_ONLY });
     expect(r.allowed).toBe(false); // computed honestly
     expect(r.enforced).toBe(false);
     expect(r.effectiveAllowed).toBe(true); // pass-through
-    expect(r.limit).toBe(getPlan('free').limits.dmsPerMonth);
+    expect(r.limit).toBe(getPlan('free').limits.contactsPerMonth);
   });
   it('flipping the flag changes effectiveAllowed without changing the computed decision', () => {
-    const usage = { dmsThisMonth: 999999 };
-    const off = checkEntitlement(null, 'dmsPerMonth', usage, { flags: LOG_ONLY });
-    const on = checkEntitlement(null, 'dmsPerMonth', usage, { flags: ENFORCED });
+    const usage = { contactsThisMonth: 999999 };
+    const off = checkEntitlement(null, 'contactsPerMonth', usage, { flags: LOG_ONLY });
+    const on = checkEntitlement(null, 'contactsPerMonth', usage, { flags: ENFORCED });
     expect(off.allowed).toBe(on.allowed);
     expect(off.effectiveAllowed).toBe(true);
     expect(on.effectiveAllowed).toBe(false);
@@ -127,7 +161,10 @@ describe('entitlements: catalogue-driven limits', () => {
     // The service reads getPlan() at call time; mutating the catalogue
     // object (as an owner-approved catalogue edit would) is immediately
     // reflected. Restored in finally so other tests are unaffected.
-    const plan = getPlan('free') as { limits: { dmsPerMonth: number } };
+    // Owner decision, 2026-11-09: the catalogue value is null
+    // (unlimited) until this test temporarily sets a numeric cap —
+    // proving the service reads the catalogue live, either way.
+    const plan = getPlan('free') as { limits: { dmsPerMonth: number | null } };
     const original = plan.limits.dmsPerMonth;
     try {
       plan.limits.dmsPerMonth = 7;

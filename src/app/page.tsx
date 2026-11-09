@@ -946,7 +946,7 @@ export default function LandingPage() {
                                                     {plan.limits.instagramAccounts === 1 ? "" : "s"}
                                                 </span>
                                                 <span>{plan.limits.activeAutomations} active automations</span>
-                                                <span>{plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</span>
+                                                <span>{plan.limits.dmsPerMonth === null ? "Unlimited" : plan.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month</span>
                                                 <span>{plan.id === "free" ? "Creator Studio (limited)" : "Creator Studio included"}</span>
                                             </span>
                                             <span className="mt-auto pt-4">

@@ -78,7 +78,7 @@ interface StatusPayload {
     planId: string;
     planName: string;
     resolution: string;
-    limits: { instagramAccounts: number; activeAutomations: number; dmsPerMonth: number; teamSeats: number };
+    limits: { instagramAccounts: number; activeAutomations: number; dmsPerMonth: number | null; teamSeats: number };
   };
   recentOrders: { id: string; planId: string; status: string; amountMinor: number; currency: string; createdAt: string }[];
 }
@@ -411,7 +411,7 @@ export default function BillingPanel() {
         <p className="mt-3 text-[13px] text-muted-foreground">
           Included now: {status.entitlement.limits.instagramAccounts} Instagram account(s) ·{" "}
           {status.entitlement.limits.activeAutomations} active automations ·{" "}
-          {status.entitlement.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month ·{" "}
+          {status.entitlement.limits.dmsPerMonth === null ? "Unlimited" : status.entitlement.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month ·{" "}
           {status.entitlement.limits.teamSeats} team seat(s) ·{" "}
           {status.entitlement.planId === "free" ? "Creator Studio (limited)" : "Creator Studio included"}
         </p>
@@ -478,7 +478,7 @@ export default function BillingPanel() {
                   </p>
                   <p className="mt-1 text-[13px] text-muted-foreground">
                     {plan.limits.instagramAccounts} Instagram account(s) ·{" "}
-                    {plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month ·{" "}
+                    {plan.limits.dmsPerMonth === null ? "Unlimited" : plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month ·{" "}
                     {plan.id === "free" ? "Creator Studio (limited)" : "Creator Studio included"}
                     {isSelfServePaidPlan(plan) ? ` · ${TRIAL_DAYS}-day free trial, no card needed` : ""}
                   </p>
