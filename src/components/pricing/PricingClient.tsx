@@ -82,7 +82,6 @@ import { motion } from "motion/react";
 import { fadeUp, staggerChild, staggerParent } from "@/lib/motion/presets";
 import {
   PLANS,
-  CATALOGUE_STATUS,
   TRIAL_DAYS,
   isSelfServePaidPlan,
   type Plan,
@@ -328,19 +327,23 @@ export default function PricingClient({ checkoutLive }: { checkoutLive: boolean 
     <div className="space-y-6">
       <motion.div variants={fadeUp} initial="hidden" animate="show">
         <h1 className="font-heading text-2xl font-semibold">Pricing</h1>
-        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Catalogue status: <strong>{CATALOGUE_STATUS}</strong> — these prices were set by the
-          owner on 2026-11-08.
-          {!checkoutLive && (
-            <>
-              {" "}
-              Checkout is being switched on, so no plan can be purchased and no payment is taken
-              on this page yet.
-            </>
-          )}{" "}
-          The hosted service itself is in preparation — self-hosting the open-source release
-          stays free.
-        </p>
+        {/* Persona-QA fix 6 (2026-11-09, owner-approved): the
+            internal catalogue-attribution line that used to sit
+            under this heading — staging bookkeeping naming the
+            catalogue's approval state, the date the prices were
+            set, and a "service in preparation" claim — rendered on
+            the public page, where it contradicted the live
+            trial/checkout offers. It is gone. The checkout-honesty
+            sentence stays: it renders ONLY while checkout is
+            genuinely closed (checkoutLive false), which is the one
+            case where a visitor must be told no payment can be
+            taken here yet. */}
+        {!checkoutLive && (
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+            Checkout is being switched on, so no plan can be purchased and no payment is taken
+            on this page yet.
+          </p>
+        )}
       </motion.div>
 
       {/* The plan columns break out of the shell's narrow main

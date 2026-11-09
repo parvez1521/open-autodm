@@ -204,6 +204,16 @@ export default function BillingPanel() {
         setError(data && "message" in data ? String((data as { message?: string }).message ?? "Could not load billing.") : "Could not load billing.");
         return null;
       }
+      // Persona-QA fix 2 (2026-11-09): a payload that names a
+      // DIFFERENT workspace than the one requested is never
+      // rendered — presenting workspace A's plan/orders while the
+      // panel believes (and would check out) workspace B is exactly
+      // the cross-workspace confusion the QA run reported. Treat it
+      // as a load failure instead of displaying foreign data.
+      if (wsId && data.workspaceId && data.workspaceId !== wsId) {
+        setError("Could not load billing for the selected workspace. Reload to try again.");
+        return null;
+      }
       return data;
     } catch {
       setError("Could not load billing. Check your connection and reload.");
@@ -448,6 +458,16 @@ export default function BillingPanel() {
   const currentPlanId = status.entitlement.planId;
   const paidActive = sub?.status === "active";
   const trialing = status.trial.active;
+  // Persona-QA fix 7b (2026-11-09): the "Start free trial" CTA was
+  // offered to anyone not mid-payment — including customers whose
+  // workspace already runs or ran a paid plan (active, trialing, or
+  // lapsed after paying/trialling), who can only hit the server's
+  // once-per-user refusal. Offer the trial only to genuinely free,
+  // never-subscribed workspaces: no paid subscription row (a stored
+  // 'free' row is not a subscription) and no lapsed trial on record.
+  // The server still enforces the per-user rule; this is display.
+  const hasPaidSubscriptionHistory = !!sub && sub.planId !== "free";
+  const trialOffered = !paidActive && !trialing && !hasPaidSubscriptionHistory && !status.trial.lapsed;
 
   return (
     <div className="space-y-6" data-testid="billing-panel">
@@ -524,7 +544,18 @@ export default function BillingPanel() {
         </div>
       )}
       {cashfreeOpen && (
-        <div className="border border-border p-4 flex items-start justify-between gap-3" role="status" data-testid="billing-cashfree-open">
+        // Persona-QA fix 3 (2026-11-09): this bar used to render in
+        // normal flow, where the Cashfree SDK's modal layer paints
+        // over the whole page — the one escape hatch from a stuck
+        // payment window was itself unclickable underneath the
+        // modal, and only a reload cleared it. It now floats fixed
+        // at the viewport bottom with the maximum z-index so it
+        // stays visible and clickable above the payment layer.
+        <div
+          className="fixed inset-x-4 bottom-4 z-[2147483647] flex items-start justify-between gap-3 border border-border bg-card p-4 shadow-lg sm:left-auto sm:w-[28rem]"
+          role="status"
+          data-testid="billing-cashfree-open"
+        >
           <p className="text-sm">
             The payment window is open. If it is stuck, blank, or you already closed it, dismiss this —
             a payment that did complete still activates your plan automatically.
@@ -589,8 +620,21 @@ export default function BillingPanel() {
                     )}
                   </p>
                   <p className="mt-1 text-[13px] text-muted-foreground">
-                    {plan.limits.instagramAccounts} Instagram account(s) ·{" "}
-                    {plan.limits.dmsPerMonth === null ? "Unlimited" : plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month ·{" "}
+                    {/* Persona-QA fix 8 (2026-11-09): the Enterprise
+                        card printed the catalogue's numeric ceilings
+                        ("25 Instagram account(s)") while /pricing's
+                        comparison table says "Custom" for the same
+                        plan. Custom-priced plans now show "Custom"
+                        for account/volume limits here too — the
+                        catalogue numbers themselves are unchanged. */}
+                    {plan.customPricing ? (
+                      <>Custom accounts, seats and volumes · </>
+                    ) : (
+                      <>
+                        {plan.limits.instagramAccounts} Instagram account(s) ·{" "}
+                        {plan.limits.dmsPerMonth === null ? "Unlimited" : plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month ·{" "}
+                      </>
+                    )}
                     {plan.id === "free" ? "Creator Studio (limited)" : "Creator Studio included"}
                     {isSelfServePaidPlan(plan) ? ` · ${TRIAL_DAYS}-day free trial, no card needed` : ""}
                   </p>
@@ -618,7 +662,7 @@ export default function BillingPanel() {
                       >
                         {busyPlan === plan.id ? "Working…" : paidActive || trialing ? `Switch to ${plan.name}` : `Subscribe — ${formatPriceMinor(plan.prices[currency].monthlyMinor, currency)} / mo`}
                       </button>
-                      {!paidActive && (
+                      {trialOffered && (
                         <button
                           type="button"
                           disabled={!status.canManageBilling || busyPlan !== null}

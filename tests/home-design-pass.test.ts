@@ -344,7 +344,11 @@ describe("design pass round 5 — approved pricing on the landing band", () => {
   it("the pricing page states the trial and keeps checkout honesty", () => {
     expect(pricing).toContain("TRIAL_DAYS");
     expect(pricing).toContain("no card needed");
-    expect(pricing).toContain("CATALOGUE_STATUS");
+    // UPDATED 2026-11-09 (persona-QA fix 6, owner-approved): the
+    // pricing client no longer renders (or imports) the internal
+    // CATALOGUE_STATUS attribution line; the constant itself stays
+    // in the catalogue as data.
+    expect(pricing).not.toContain("CATALOGUE_STATUS");
     // Checkout honesty (rewritten 2026-11-08, launch fix): the
     // "being switched on" sentence used to be static copy and went
     // stale the moment checkout was wired and the flags flipped

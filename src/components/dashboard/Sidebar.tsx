@@ -10,6 +10,8 @@ import {
     Wrench,
     PencilLine,
     FilmSlate,
+    Receipt,
+    Users,
     CaretLeft,
     CaretRight,
     X,
@@ -35,6 +37,15 @@ const NAV = {
     System: [
         { name: "Setup Wizard", href: "/setup", icon: Wrench, external: false },
         { name: "Settings", href: "/settings", icon: Gear, external: false },
+        // Persona-QA fixes 4 + 5 (2026-11-09): the console sidebar
+        // had NO Billing entry at all (billing was reachable only
+        // via the dashboard plan card or the marketing shell's
+        // header — QA read that as "intermittently missing"), and
+        // the members UI at /settings/workspace was discoverable
+        // only through the workspace switcher's menu. Both are
+        // first-class console destinations now.
+        { name: "Members", href: "/settings/workspace", icon: Users, external: false },
+        { name: "Billing", href: "/billing", icon: Receipt, external: false },
     ],
 };
 
@@ -61,7 +72,14 @@ function NavGroups({
                     )}
                     <nav className="px-2 space-y-px">
                         {items.map((item) => {
-                            const isActive = !item.external && pathname.startsWith(item.href);
+                            // /settings/workspace belongs to the
+                            // Members item (persona-QA fix 4): without
+                            // the exception, the Settings prefix match
+                            // would light both items on that page.
+                            const isActive =
+                                !item.external &&
+                                pathname.startsWith(item.href) &&
+                                !(item.href === "/settings" && pathname.startsWith("/settings/workspace"));
                             return (
                                 <Link
                                     key={item.name}

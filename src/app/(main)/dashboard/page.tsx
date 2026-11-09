@@ -15,6 +15,15 @@ import { useActivity } from "@/hooks/useActivity";
 import { TrafficGuardCard } from "@/components/dashboard/TrafficGuardCard";
 import { cn } from "@/lib/utils";
 
+/** "9 Dec 2026" style, matching the billing panel's date format. */
+function formatPlanDate(iso: string | null): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime())
+        ? "—"
+        : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
 function formatRelativeTime(dateStr: string): string {
     const timestamp = new Date(dateStr).getTime();
     if (isNaN(timestamp)) return "Recent";
@@ -322,12 +331,20 @@ export default function DashboardPage() {
                                 {billingStatus.entitlement.planName}
                             </p>
                             <p className="text-[12.5px] text-muted-foreground mt-0.5">
+                                {/* Persona-QA fix 7a (2026-11-09): the
+                                    card named the state but never the
+                                    DATE — a paying customer could not
+                                    see when the period ends, a trial
+                                    user when the trial ends, or a
+                                    lapsed customer when it ended. All
+                                    three dates ride the billing-status
+                                    payload the card already fetches. */}
                                 {billingStatus.subscription?.periodLapsed
-                                    ? "Subscription ended — this workspace is on Free limits."
+                                    ? `Subscription ended on ${formatPlanDate(billingStatus.subscription?.currentPeriodEnd ?? null)} — this workspace is on Free limits.`
                                     : billingStatus.trial.active
-                                      ? `Free trial — ${billingStatus.trial.daysRemaining} day(s) left.`
+                                      ? `Free trial — ${billingStatus.trial.daysRemaining} day(s) left, ends ${formatPlanDate(billingStatus.trial.endsAt)}.` 
                                       : billingStatus.subscription?.status === "active"
-                                        ? "Active subscription."
+                                        ? `Active subscription. Current period ends ${formatPlanDate(billingStatus.subscription?.currentPeriodEnd ?? null)}.`
                                         : "Free plan limits apply to this workspace."}
                             </p>
                             <Link href="/billing" className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-foreground underline underline-offset-4">

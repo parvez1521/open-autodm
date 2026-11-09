@@ -31,7 +31,13 @@ export const API_REQUEST_TIMEOUT_MS = 15_000;
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
-    public readonly body: { error?: string; message?: string; details?: unknown }
+    // `code` added 2026-11-09 (persona-QA fix 1): several routes
+    // answer failures with a machine-readable code next to the
+    // human message (e.g. PLAN_LIMIT_REACHED from the entitlement
+    // guard); callers need it to tell a plan-limit refusal apart
+    // from a genuine permission failure instead of guessing from
+    // the HTTP status alone.
+    public readonly body: { error?: string; message?: string; code?: string; details?: unknown }
   ) {
     super(body.message ?? body.error ?? `API error ${status}`);
     this.name = 'ApiError';

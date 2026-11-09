@@ -32,7 +32,10 @@ export interface BillingStatusSummary {
     periodLapsed?: boolean;
     currentPeriodEnd: string | null;
   } | null;
-  trial: { active: boolean; lapsed: boolean; daysRemaining: number };
+  // `endsAt` added 2026-11-09 (persona-QA fix 7a): the status route
+  // already returns the trial's end date; the dashboard plan card
+  // needs it to show WHEN a trial ends, not just days remaining.
+  trial: { active: boolean; lapsed: boolean; daysRemaining: number; endsAt: string | null };
   entitlement: { planId: string; planName: string };
 }
 

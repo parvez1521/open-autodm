@@ -73,9 +73,47 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
     };
   });
 
+  // Persona-QA fix 10 (2026-11-09): pending invitations ride this
+  // read so an invite that was created but not yet accepted stays
+  // visible to the people who manage members. Pending = not yet
+  // accepted and not yet expired. The read runs on the caller's own
+  // user-scoped client, and RLS on workspace_invitations
+  // (invitations_select_owner_admin, …000024) already limits these
+  // rows to owners/admins — plain members simply get an empty list.
+  // A failure here must not fail the member list itself.
+  let pendingInvitations: {
+    email: string;
+    role: string | null;
+    expires_at: string | null;
+    created_at: string | null;
+  }[] = [];
+  try {
+    const { data: inviteRows, error: inviteError } = await db
+      .from('workspace_invitations')
+      .select('email, role, expires_at, created_at')
+      .eq('workspace_id', resolved.ctx.workspaceId)
+      .is('accepted_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false });
+    if (!inviteError && Array.isArray(inviteRows)) {
+      pendingInvitations = inviteRows.map((row) => {
+        const r = row as Record<string, unknown>;
+        return {
+          email: typeof r['email'] === 'string' ? r['email'] : '',
+          role: typeof r['role'] === 'string' ? r['role'] : null,
+          expires_at: typeof r['expires_at'] === 'string' ? r['expires_at'] : null,
+          created_at: typeof r['created_at'] === 'string' ? r['created_at'] : null,
+        };
+      }).filter((inv) => inv.email.length > 0);
+    }
+  } catch {
+    pendingInvitations = [];
+  }
+
   return Response.json({
     workspaceId: resolved.ctx.workspaceId,
     callerRole: resolved.ctx.role,
     members,
+    pendingInvitations,
   });
 }

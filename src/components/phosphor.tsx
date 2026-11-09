@@ -104,6 +104,7 @@ export {
   Printer,
   Pulse,
   Question,
+  Receipt,
   Robot,
   Shapes,
   Shield,

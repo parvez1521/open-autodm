@@ -34,7 +34,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { CircleNotch } from "@/components/phosphor";
+import { Check, CircleNotch, Copy } from "@/components/phosphor";
 import { ApiError } from "@/lib/api/client";
 import { useWorkspace } from "./WorkspaceProvider";
 
@@ -43,6 +43,34 @@ interface MemberRow {
     email: string | null;
     role: string | null;
     joined_at: string | null;
+}
+
+/** Pending (unaccepted, unexpired) invitation, from the members read. */
+interface PendingInvite {
+    email: string;
+    role: string;
+    expires_at: string | null;
+    created_at: string | null;
+}
+
+/**
+ * Persona-QA fix 1 (2026-11-09): the invite / role-change catches
+ * used to blanket-map EVERY 403 to "Permission denied: only
+ * workspace owners and admins…". A plan-limit refusal is also a
+ * 403 (the entitlement guard answers PLAN_LIMIT_REACHED with the
+ * actionable message, e.g. "Your Free plan includes up to 1 team
+ * seat. Upgrade your plan to add more."), so an owner at their
+ * seat limit was told they lacked permission. Surface the server's
+ * own message when the failure carries the plan-limit code; keep
+ * the permission wording for genuine permission failures only.
+ */
+function actionErrorMessage(err: unknown, permissionFallback: string, genericFallback: string): string {
+    if (err instanceof ApiError) {
+        if (err.body?.code === "PLAN_LIMIT_REACHED") return err.message;
+        if (err.status === 403) return permissionFallback;
+        return err.message;
+    }
+    return genericFallback;
 }
 
 interface InviteResult {
@@ -76,6 +104,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
     } = useWorkspace();
 
     const [members, setMembers] = useState<MemberRow[]>([]);
+    const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
     const [loadingMembers, setLoadingMembers] = useState(false);
     const [denied, setDenied] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -85,6 +114,7 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
     const [inviteRole, setInviteRole] = useState<string>("member");
     const [inviteResult, setInviteResult] = useState<InviteResult | null>(null);
     const [inviting, setInviting] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
 
     const [acceptToken, setAcceptToken] = useState("");
     const [accepting, setAccepting] = useState(false);
@@ -95,14 +125,20 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
     const loadMembers = useCallback(async () => {
         if (!selectedWorkspaceId) {
             setMembers([]);
+            setPendingInvites([]);
             return;
         }
         setLoadingMembers(true);
         try {
-            const data = await workspaceFetch<{ members: MemberRow[] }>(
+            const data = await workspaceFetch<{ members: MemberRow[]; pendingInvitations?: PendingInvite[] }>(
                 `/workspaces/${selectedWorkspaceId}/members`,
             );
             setMembers(data.members ?? []);
+            // Persona-QA fix 10 (2026-11-09): pending invitations
+            // ride the same read (owner/admin only server-side) so
+            // an invite that was created but not yet accepted stays
+            // visible instead of vanishing with its one-time link.
+            setPendingInvites(data.pendingInvitations ?? []);
             setDenied(false);
         } catch (err) {
             if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
@@ -119,6 +155,23 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
     useEffect(() => {
         void loadMembers();
     }, [loadMembers]);
+
+    // Persona-QA fix 9 (2026-11-09): form/feedback state leak. This
+    // component stays mounted across in-SPA workspace switches, so a
+    // half-typed invite, the one-time invite result, a pasted accept
+    // token, a typed new-workspace name and any notice/error from
+    // the PREVIOUS workspace stayed on screen for the next one.
+    // Reset the lot whenever the active workspace changes.
+    useEffect(() => {
+        setInviteEmail("");
+        setInviteRole("member");
+        setInviteResult(null);
+        setLinkCopied(false);
+        setAcceptToken("");
+        setNewWorkspaceName("");
+        setNotice(null);
+        setError(null);
+    }, [selectedWorkspaceId]);
 
     if (!workspaceRuntimeEnabled) return null;
 
@@ -158,14 +211,32 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                 role: inviteRole,
             });
             setNotice("Invitation created. Copy the link now, it is shown only once and no email is sent.");
+            // Refresh the lists so the new pending invitation (fix
+            // 10) appears under Members right away.
+            await loadMembers();
         } catch (err) {
-            if (err instanceof ApiError && err.status === 403) {
-                setError("Permission denied: only workspace owners and admins can invite members.");
-            } else {
-                setError(err instanceof ApiError ? err.message : "Could not create the invitation");
-            }
+            setError(
+                actionErrorMessage(
+                    err,
+                    "Permission denied: only workspace owners and admins can invite members.",
+                    "Could not create the invitation",
+                ),
+            );
         } finally {
             setInviting(false);
+        }
+    };
+
+    const handleCopyInviteLink = async () => {
+        if (!inviteResult) return;
+        try {
+            await navigator.clipboard.writeText(inviteResult.acceptLink);
+            setLinkCopied(true);
+            window.setTimeout(() => setLinkCopied(false), 2000);
+        } catch {
+            // Clipboard unavailable (permissions / insecure context):
+            // the link stays on screen for manual selection.
+            setLinkCopied(false);
         }
     };
 
@@ -181,11 +252,11 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
             await loadMembers();
         } catch (err) {
             setError(
-                err instanceof ApiError && err.status === 403
-                    ? "Permission denied: only workspace owners and admins can change roles."
-                    : err instanceof ApiError
-                      ? err.message
-                      : "Could not change the role",
+                actionErrorMessage(
+                    err,
+                    "Permission denied: only workspace owners and admins can change roles.",
+                    "Could not change the role",
+                ),
             );
         }
     };
@@ -354,6 +425,35 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                         roles, or remove members.
                     </p>
                 )}
+                {/* Persona-QA fix 10 (2026-11-09): pending invitations
+                    (created, not yet accepted) were invisible anywhere
+                    once the one-time link scrolled away. The members
+                    read now carries them (owner/admin only) and they
+                    render here until accepted or expired. */}
+                {canManageMembers && pendingInvites.length > 0 && (
+                    <div className="pt-1" data-testid="workspace-pending-invites">
+                        <h3 className="text-[12px] font-semibold">Pending invitations</h3>
+                        <ul className="mt-1.5 divide-y divide-border">
+                            {pendingInvites.map((inv, idx) => (
+                                <li key={`${inv.email}-${idx}`} className="py-2 flex items-center gap-3">
+                                    <div className="flex flex-col min-w-0 flex-1">
+                                        <span className="text-[13px] font-medium truncate">{inv.email}</span>
+                                        <span className="text-[11px] text-muted-foreground truncate">
+                                            Invited {formatJoinedDate(inv.created_at)}
+                                            {inv.expires_at ? ` · link expires ${formatJoinedDate(inv.expires_at)}` : ""}
+                                        </span>
+                                    </div>
+                                    <span className="text-[10px] font-medium uppercase tracking-wide rounded-full border border-border px-1.5 py-0.5 text-muted-foreground">
+                                        {inv.role}
+                                    </span>
+                                    <span className="text-[10px] font-medium uppercase tracking-wide rounded-full border border-border px-1.5 py-0.5 text-muted-foreground">
+                                        Pending
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
             </section>
 
             {/* Invite by link — owner/admin only; the API also denies others. */}
@@ -401,7 +501,22 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                     </div>
                     {inviteResult && (
                         <div className="rounded-lg bg-muted/40 px-3 py-2 space-y-1" data-testid="workspace-invite-result">
-                            <p className="text-[12px] break-all">{inviteResult.acceptLink}</p>
+                            <div className="flex items-start gap-2">
+                                <p className="text-[12px] break-all flex-1">{inviteResult.acceptLink}</p>
+                                {/* Persona-QA fix 10 (2026-11-09): the
+                                    one-time link previously had to be
+                                    selected by hand; give it a real
+                                    Copy button with a confirmation. */}
+                                <button
+                                    type="button"
+                                    onClick={() => void handleCopyInviteLink()}
+                                    aria-label="Copy invite link"
+                                    className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[12px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {linkCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                    {linkCopied ? "Copied" : "Copy"}
+                                </button>
+                            </div>
                             <p className="text-[11px] text-muted-foreground break-all">
                                 Token (shown once): {inviteResult.token}
                             </p>

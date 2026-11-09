@@ -140,7 +140,13 @@ describe('prototype pages under default flags (all OFF)', () => {
     // Us instead of a figure, and the trial offer is on the page.
     expect(html).not.toContain('DRAFT');
     expect(html).not.toContain('draft-unapproved');
-    expect(html).toContain('approved');
+    // UPDATED 2026-11-09 (persona-QA fix 6): the word 'approved'
+    // used to reach this page via the rendered catalogue-status
+    // value in the internal attribution line; that line is removed
+    // (see the fix-6 note below), so the status word no longer
+    // appears in the render at all. The DRAFT-labelling assertions
+    // above still pin the approved-prices posture.
+    expect(html).not.toContain('approved');
     expect(html).toContain('₹299');
     // Owner instruction, 2026-11-08 ~19:38 IST: ONE currency per
     // visitor (the server render is the INR default — no $ figure
@@ -175,9 +181,14 @@ describe('prototype pages under default flags (all OFF)', () => {
     });
     expect(html).not.toContain('Checkout is being switched on');
     expect(html).not.toContain('no plan can be purchased');
-    // The catalogue attribution line itself stays, in both states.
-    expect(html).toContain('Catalogue status');
-    expect(html).toContain('these prices were set by the');
+    // UPDATED 2026-11-09 (persona-QA fix 6, owner-approved): the
+    // catalogue attribution line ("Catalogue status: approved —
+    // these prices were set by the owner… The hosted service
+    // itself is in preparation…") was internal bookkeeping on a
+    // public page and no longer renders in ANY state. The
+    // checkout-honesty assertions above are unchanged.
+    expect(html).not.toContain('Catalogue status');
+    expect(html).not.toContain('these prices were set by the');
     for (const id of ['free', 'starter', 'creator-pro', 'agency', 'enterprise']) {
       expect(html).toContain(`plan-${id}`);
     }

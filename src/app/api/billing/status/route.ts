@@ -116,7 +116,15 @@ export async function GET(request: Request): Promise<Response> {
         : null,
       now,
     );
-    const orders = await listBillingOrders(db, ctx.workspaceId, 5);
+    // Persona-QA fix 2 (2026-11-09): recent orders are THIS
+    // workspace's orders, full stop. listBillingOrders already
+    // filters on billing_orders.workspace_id in SQL; the extra
+    // in-route filter pins the invariant at the read model itself,
+    // so no future persistence change can ever surface another
+    // workspace's orders in this workspace's billing response.
+    const orders = (await listBillingOrders(db, ctx.workspaceId, 5)).filter(
+      (o) => o.workspaceId === ctx.workspaceId,
+    );
     const billing = readBillingFlags(process.env);
     const saas = readSaasFlags(process.env);
     const trialing = effective?.status === "trialing";
