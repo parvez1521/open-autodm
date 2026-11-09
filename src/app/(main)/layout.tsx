@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { Sidebar, MobileSidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
@@ -6,6 +7,15 @@ import { PageTransition } from "@/components/motion/primitives";
 import { readWorkspaceFlags } from "@/lib/tenancy/workspaceFlags";
 import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 import { createServerClient } from "@/lib/supabase";
+
+/**
+ * The signed-in console is never indexed (SEO pass, 2026-11-10):
+ * robots.ts disallows these routes and this metadata keeps any
+ * stray crawl out of the index.
+ */
+export const metadata: Metadata = {
+    robots: { index: false, follow: false },
+};
 
 /**
  * The signed-in user's email, read server-side for the shell's

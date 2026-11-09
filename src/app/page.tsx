@@ -33,7 +33,9 @@ import { FlowBuilder } from "@/components/home/FlowBuilder";
 import { CountUp } from "@/components/home/CountUp";
 import { useEffect, useState, type ComponentType } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { FaqSection } from "@/components/home/FaqSection";
+import { FaqSection, FAQS } from "@/components/home/FaqSection";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { faqPageJsonLd, softwareApplicationJsonLd } from "@/lib/seo/schema";
 import { KeywordTicker } from "@/components/home/KeywordTicker";
 import { Reveal, RevealRule, Parallax } from "@/components/home/Reveal";
 import { HERO_CREATOR_IMG, STUDIO_DESK_IMG, INK_TEXTURE_IMG } from "@/lib/landing-images";
@@ -190,6 +192,9 @@ const STUDIO_GROUPS = [
 ] as const;
 
 const NAV_LINKS = [
+    // SEO pass (2026-11-10, plan P4): the dedicated keyword page is
+    // the first nav entry; the in-page anchors follow.
+    { label: "Auto DM", href: "/auto-dm" },
     { label: "Automation", href: "#automation" },
     { label: "How it works", href: "#how" },
     { label: "Demo", href: "#demo" },
@@ -265,6 +270,11 @@ export default function LandingPage() {
     return (
         <MotionConfig reducedMotion="user">
         <div className="relative min-h-screen bg-background text-foreground overflow-x-clip">
+            {/* Structured data (SEO pass, 2026-11-10, plan P3): the
+                product entity + an FAQPage built from the visible
+                FAQ's own data, so schema and page never drift. */}
+            <JsonLd data={softwareApplicationJsonLd()} />
+            <JsonLd data={faqPageJsonLd(FAQS)} />
             <BrandIntro />
             <ScrollMorph />
             <ScrollProgress />
@@ -1034,6 +1044,11 @@ export default function LandingPage() {
                             </span>
                         </div>
                         <div className="flex flex-wrap items-center gap-5 text-[13px] text-muted-foreground">
+                            {/* SEO pass (2026-11-10, plan P4): footer
+                                link into the keyword landing page. */}
+                            <a href="/auto-dm" className="transition-colors hover:text-foreground">
+                                Auto DM
+                            </a>
                             <a href="#demo" className="transition-colors hover:text-foreground">
                                 Live demo
                             </a>

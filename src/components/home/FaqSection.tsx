@@ -19,7 +19,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { CaretDown } from "@/components/phosphor";
 import { EASE_OUT, SPRING_SNAPPY } from "@/lib/motion/presets";
 
-const FAQS = [
+/**
+ * Exported (SEO pass, 2026-11-10): the landing page builds its
+ * FAQPage JSON-LD from this exact list, so the schema always
+ * mirrors the visible answers word for word.
+ */
+export const FAQS = [
   {
     q: "Is open-autoDM really free?",
     a: "Yes — the Free plan costs nothing and needs no card, with comment-to-DM automations and the limited Creator Studio. Paid plans add more Instagram accounts and higher allowances, and every paid plan starts with a 15-day free trial, no card upfront.",

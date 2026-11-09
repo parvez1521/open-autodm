@@ -2,6 +2,15 @@ import type { Metadata } from "next";
 import { Instrument_Serif, Plus_Jakarta_Sans } from "next/font/google";
 import { AppProviders } from "@/components/providers/Providers";
 import { introScript } from "@/components/home/intro";
+import { JsonLd } from "@/components/seo/JsonLd";
+import {
+  HOME_DESCRIPTION,
+  HOME_TITLE,
+  SITE_NAME,
+  SITE_URL,
+  organizationJsonLd,
+  websiteJsonLd,
+} from "@/lib/seo/schema";
 import "./globals.css";
 
 /**
@@ -24,10 +33,37 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
+/**
+ * Site metadata foundation (SEO pass, 2026-11-10, plan P0/P1):
+ * metadataBase + title template + social defaults. The DEFAULT
+ * title/description are the HOME page's (the landing is a client
+ * component and cannot export metadata, so it inherits these);
+ * every other public page overrides with its own template title
+ * ("%s | open-autoDM") and description. Canonicals are per-page
+ * (alternates.canonical), the social image comes from the
+ * opengraph-image.tsx file convention.
+ */
 export const metadata: Metadata = {
-  title: "open-autoDM",
-  description:
-    "Hosted Instagram comment-to-DM automation with the Creator Studio built in. No per-seat pricing.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: HOME_TITLE, template: "%s | open-autoDM" },
+  description: HOME_DESCRIPTION,
+  applicationName: SITE_NAME,
+  // The home page's self-canonical (it cannot export metadata of
+  // its own); every other public page overrides this with its path.
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_IN",
+    url: "/",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({
@@ -45,6 +81,10 @@ export default function RootLayout({
       <body
         className={`${jakarta.variable} ${instrumentSerif.variable} font-sans antialiased bg-background text-foreground transition-colors duration-300`}
       >
+        {/* Site-wide structured data (plan P3): Organization +
+            WebSite entities on every page. */}
+        <JsonLd data={organizationJsonLd()} />
+        <JsonLd data={websiteJsonLd()} />
         <AppProviders>
           {children}
         </AppProviders>

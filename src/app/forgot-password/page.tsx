@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import { ForgotPasswordPanel } from "@/components/auth/ForgotPasswordPanel";
 
 export const metadata: Metadata = {
-    title: "Reset your password | open-autoDM",
+    // Bare segment — the root template renders the full title.
+    title: "Reset your password",
     description: "Request a password reset link for your open-autoDM account.",
+    // Utility page: out of the index (SEO plan P0-5).
+    robots: { index: false },
 };
 
 /**

@@ -6,8 +6,19 @@ import { Trash, Warning, CheckCircle, Envelope } from '@/components/phosphor';
 import { getDashboardLink } from '@/lib/env';
 
 export const metadata: Metadata = {
-  title: 'Data Deletion Instructions | open-autoDM',
+  // Bare segment — the root template renders the full title.
+  title: 'Data Deletion Instructions',
   description: 'Instructions on how to delete your connected account and interaction data from open-autoDM.',
+  alternates: { canonical: '/data-deletion' },
+  openGraph: {
+    title: 'Data Deletion Instructions | open-autoDM',
+    description: 'Instructions on how to delete your connected account and interaction data from open-autoDM.',
+    url: '/data-deletion',
+  },
+  twitter: {
+    title: 'Data Deletion Instructions | open-autoDM',
+    description: 'Instructions on how to delete your connected account and interaction data from open-autoDM.',
+  },
 };
 
 interface DataDeletionPageProps {

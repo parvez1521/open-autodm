@@ -5,8 +5,11 @@ import { FadeIn } from "@/components/motion/primitives";
 import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 
 export const metadata: Metadata = {
-    title: "Reset password | open-autoDM",
+    // Bare segment — the root template renders the full title.
+    title: "Reset password",
     description: "Choose a new password for your open-autoDM console.",
+    // Utility page: out of the index (SEO plan P0-5).
+    robots: { index: false },
 };
 
 /**

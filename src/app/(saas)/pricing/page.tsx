@@ -1,6 +1,28 @@
+import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { readBillingFlags } from "@/lib/billing/flags";
 import { resolveActiveBillingProvider } from "@/lib/billing/activeProvider";
+import { PRICING_DESCRIPTION, PRICING_TITLE } from "@/lib/seo/schema";
+
+/**
+ * Page metadata (SEO pass, 2026-11-10, plan P1): keyword/price
+ * title + description from the research templates, self-canonical,
+ * social tags (the image comes from the root opengraph-image).
+ */
+export const metadata: Metadata = {
+  title: PRICING_TITLE,
+  description: PRICING_DESCRIPTION,
+  alternates: { canonical: "/pricing" },
+  openGraph: {
+    title: `${PRICING_TITLE} | open-autoDM`,
+    description: PRICING_DESCRIPTION,
+    url: "/pricing",
+  },
+  twitter: {
+    title: `${PRICING_TITLE} | open-autoDM`,
+    description: PRICING_DESCRIPTION,
+  },
+};
 
 // Loaded via next/dynamic (the billing page's pattern) so this
 // server page stays free of static client-component imports — the

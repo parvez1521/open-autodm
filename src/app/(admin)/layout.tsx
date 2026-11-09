@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+/** The platform-admin surface is never indexed (SEO pass, 2026-11-10). */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Platform-admin shell. /admin is the REAL owner panel (subscribers

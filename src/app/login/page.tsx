@@ -6,8 +6,11 @@ import { LogoMark, LogoWordmark } from "@/components/ui/Logo";
 import { readSaasFlags } from "@/lib/billing/flags";
 
 export const metadata: Metadata = {
-    title: "Sign in | open-autoDM",
+    // Bare segment — the root template renders "Sign in | open-autoDM".
+    title: "Sign in",
     description: "Sign in to your open-autoDM console.",
+    // Utility page: crawlable but out of the index (SEO plan P0-5).
+    robots: { index: false },
 };
 
 /**

@@ -31,8 +31,19 @@ import { LegalLayout } from '@/components/legal/LegalLayout';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy | open-autoDM',
+  // Bare segment — the root template renders "Privacy Policy | open-autoDM".
+  title: 'Privacy Policy',
   description: 'Privacy Policy and data processing practices for the open-autoDM automation platform.',
+  alternates: { canonical: '/privacy-policy' },
+  openGraph: {
+    title: 'Privacy Policy | open-autoDM',
+    description: 'Privacy Policy and data processing practices for the open-autoDM automation platform.',
+    url: '/privacy-policy',
+  },
+  twitter: {
+    title: 'Privacy Policy | open-autoDM',
+    description: 'Privacy Policy and data processing practices for the open-autoDM automation platform.',
+  },
 };
 
 export default function PrivacyPolicyPage() {

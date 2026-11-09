@@ -1,5 +1,26 @@
+import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import { readSaasFlags } from "@/lib/billing/flags";
+import { GET_STARTED_DESCRIPTION, GET_STARTED_TITLE } from "@/lib/seo/schema";
+
+/**
+ * Page metadata (SEO pass, 2026-11-10, plan P1): template title +
+ * description, self-canonical, social tags.
+ */
+export const metadata: Metadata = {
+  title: GET_STARTED_TITLE,
+  description: GET_STARTED_DESCRIPTION,
+  alternates: { canonical: "/get-started" },
+  openGraph: {
+    title: `${GET_STARTED_TITLE} | open-autoDM`,
+    description: GET_STARTED_DESCRIPTION,
+    url: "/get-started",
+  },
+  twitter: {
+    title: `${GET_STARTED_TITLE} | open-autoDM`,
+    description: GET_STARTED_DESCRIPTION,
+  },
+};
 
 // Loaded on demand: the signup form ships only when signup is open,
 // and the page's default (invite-only) render — which the page tests

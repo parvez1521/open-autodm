@@ -24,6 +24,10 @@ export default function SaasPrototypeLayout({ children }: { children: React.Reac
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <LogoWordmark className="text-sm" />
           <nav className="flex gap-4 text-[13px] text-muted-foreground">
+            {/* SEO pass (2026-11-10, plan P4): every SaaS-shell page
+                (pricing included) links into the /auto-dm keyword
+                landing page. */}
+            <Link href="/auto-dm" className="hover:text-foreground">Auto DM</Link>
             <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
             <SaasNavAccount />
             <Link href="/onboarding" className="hover:text-foreground">Onboarding</Link>

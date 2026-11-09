@@ -3,8 +3,19 @@ import { LegalLayout } from '@/components/legal/LegalLayout';
 import Link from 'next/link';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service | open-autoDM',
-  description: 'Terms of Service and usage conditions for the open-autoDM automation platform.',
+  // Bare segment — the root template renders "Terms of Service | open-autoDM".
+  title: 'Terms of Service',
+  description: 'The terms for using open-autoDM, the Instagram comment-to-DM automation platform.',
+  alternates: { canonical: '/terms' },
+  openGraph: {
+    title: 'Terms of Service | open-autoDM',
+    description: 'The terms for using open-autoDM, the Instagram comment-to-DM automation platform.',
+    url: '/terms',
+  },
+  twitter: {
+    title: 'Terms of Service | open-autoDM',
+    description: 'The terms for using open-autoDM, the Instagram comment-to-DM automation platform.',
+  },
 };
 
 export default function TermsOfServicePage() {
