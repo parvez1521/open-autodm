@@ -250,11 +250,16 @@ const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
  */
 const heroContainer: Variants = {
     hidden: {},
-    show: { transition: { staggerChildren: 0.12, delayChildren: 0.05 } },
+    show: { transition: { staggerChildren: 0.06, delayChildren: 0 } },
 };
+// Fail-visible tuning (2026-11-09): the hero used to start at
+// opacity 0 / y 26 over 0.7s per item, so first paint read as a
+// blank, near-invisible page until the sequence finished. Items
+// now start near-visible (0.3 / y 12) and settle in 0.5s — the
+// staged arrival is unchanged, the wait is gone.
 const heroItem: Variants = {
-    hidden: { opacity: 0, y: 26 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
+    hidden: { opacity: 0.3, y: 12 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 };
 
 export default function LandingPage() {
@@ -376,9 +381,9 @@ export default function LandingPage() {
                             a slow settle from a slight scale, no hover motion. */}
                         <motion.figure
                             className="hidden lg:block"
-                            initial={{ opacity: 0, scale: 1.04 }}
+                            initial={{ opacity: 0.3, scale: 1.02 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.9, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                            transition={{ duration: 0.55, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
                         >
                             <img
                                 src={HERO_CREATOR_IMG}
@@ -463,10 +468,10 @@ export default function LandingPage() {
                         <div className="mt-12 grid gap-px overflow-hidden rounded-xl border border-border bg-border lg:grid-cols-2">
                             <motion.div
                                 className="bg-card p-6 sm:p-8"
-                                initial={{ opacity: 0, x: -36 }}
+                                initial={{ opacity: 0.3, x: -14 }}
                                 whileInView={{ opacity: 1, x: 0 }}
-                                viewport={{ once: true, margin: "-10% 0px -10% 0px" }}
-                                transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+                                viewport={{ once: true, margin: "0px" }}
+                                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                             >
                                 <p className="micro-label">By hand</p>
                                 <dl className="mt-6 divide-y divide-border text-sm">
@@ -486,10 +491,10 @@ export default function LandingPage() {
                             </motion.div>
                             <motion.div
                                 className="bg-card p-6 sm:p-8"
-                                initial={{ opacity: 0, x: 36 }}
+                                initial={{ opacity: 0.3, x: 14 }}
                                 whileInView={{ opacity: 1, x: 0 }}
-                                viewport={{ once: true, margin: "-10% 0px -10% 0px" }}
-                                transition={{ duration: 0.75, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+                                viewport={{ once: true, margin: "0px" }}
+                                transition={{ duration: 0.5, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
                             >
                                 <p className="micro-label text-primary">On autopilot</p>
                                 <dl className="mt-6 divide-y divide-border text-sm">
@@ -716,9 +721,8 @@ export default function LandingPage() {
                                     </li>
                                     <li className="flex gap-3">
                                         <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-primary" />
-                                        Runs on a free model, Llama 3.3 70B on Cloudflare Workers
-                                        AI, with Groq as a fallback. No extra Meta permission, no
-                                        new data stored
+                                        Runs on free AI (Groq + Cloudflare Workers AI). No extra
+                                        Meta permission, no new data stored
                                     </li>
                                     <li className="flex gap-3">
                                         <span className="mt-[9px] h-1 w-1 shrink-0 rounded-full bg-primary" />

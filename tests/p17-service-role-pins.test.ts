@@ -82,6 +82,7 @@ type GuardKind =
   | 'meta-signature'
   | 'code-as-credential'
   | 'platform-singleton'
+  | 'entitlement-gate'
   | 'internal-helper';
 
 interface Classified {
@@ -196,6 +197,24 @@ const CLASSIFIED: Record<string, Classified> = {
   'app/api/workspaces/[workspaceId]/invitations/route.ts': {
     kind: 'user-session+owner-check',
     tokens: ['getAuthenticatedUser', 'resolveRouteWorkspaceContext(db, user.id, workspaceId)', "requireCapability(resolved.ctx, 'manageMembers')"],
+  },
+  // Customer-fix exception (2026-11-09): the accept route carries ONE
+  // service client again — read-only, for the ENTITLEMENTS_ENFORCED
+  // teamSeats gate that runs BEFORE the accept RPC. The gate's
+  // invitation-by-token-hash lookup cannot run on the caller's user
+  // client (the invitee is not yet a member; RLS
+  // invitations_select_owner_admin limits invitation reads to the
+  // workspace's owner/admins), and neither can the target workspace's
+  // member count / subscription. The queries execute only inside the
+  // gate's context thunk, so with the flag off the client is
+  // constructed but never queried and the route behaves exactly as
+  // P19 left it; the membership-writing RPC itself still runs through
+  // the user-JWT factory (pinned in p19-workspaces-rpc-auth.test.ts).
+  'app/api/workspaces/accept/route.ts': {
+    kind: 'entitlement-gate',
+    tokens: ['getAuthenticatedUser', 'evaluateEntitlementGate', 'hashInvitationToken(token)', 'createUserRpcClient(request, user.id)'],
+    exceptionReason:
+      'Flag-gated (ENTITLEMENTS_ENFORCED), read-only teamSeats check before the accept RPC: invitation-by-hash, member count and subscription of the target workspace are unreadable to the not-yet-member invitee under RLS, so the pre-check requires the service role. No service-role writes; the accept RPC runs on the user-JWT client.',
   },
 
   // — Reviewed exceptions: guard is not per-user scoping, by design —
@@ -393,9 +412,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 42 importing files, 86 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site)', () => {
+  it('counts reconcile with the audit: 43 importing files, 87 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site)', () => {
     const importers = serviceImporters();
-    expect(importers.length).toBe(42);
+    expect(importers.length).toBe(43);
     let calls = 0;
     for (const f of importers) {
       for (const line of sourceOf(f).split('\n')) {
@@ -406,7 +425,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(86);
+    expect(calls).toBe(87);
   });
 
   it('every classified file still carries its audited guard tokens', () => {

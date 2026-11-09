@@ -49,30 +49,42 @@ export const PRESS_TAP = { scale: 0.96 } as const;
 /** Card hover lift — pair with `transition={SPRING_SNAPPY}`. */
 export const LIFT_HOVER = { y: -3 } as const;
 
-/** Standard entrance: rise and settle. */
+/**
+ * Standard entrance: rise and settle.
+ *
+ * Fail-visible tuning (2026-11-09, live-QA fix): entrances used to
+ * start at opacity 0 with a 24px offset over 0.65s (+ stagger
+ * delays), so a slow hydration or a delayed scroll-trigger left
+ * pages blank/ghosted for seconds. Entrances now start NEAR-visible
+ * (opacity 0.3, 10px) and settle in 0.45s: even if an animation is
+ * interrupted, delayed, or never runs, the content stays readable
+ * the whole time. The motion language is unchanged — same ease,
+ * same rise — just never at the cost of visibility.
+ */
 export const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.65, ease: EASE_OUT } },
+  hidden: { opacity: 0.3, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: EASE_OUT } },
 };
 
 /** Crossfade-only entrance (skeleton-to-content swaps). */
 export const fadeIn: Variants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { duration: 0.45, ease: EASE_OUT } },
+  hidden: { opacity: 0.25 },
+  show: { opacity: 1, transition: { duration: 0.3, ease: EASE_OUT } },
 };
 
 /** Parent for staggered groups; children use `staggerChild`. */
 export const staggerParent: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+  show: { transition: { staggerChildren: 0.04, delayChildren: 0 } },
 };
 
 /** Child of a `staggerParent` group. */
 export const staggerChild: Variants = fadeUp;
 
 /** Route-content transition for the app shells: a short fade-slide.
- *  Fast and shallow on purpose — it must never feel like a wait. */
+ *  Fast and shallow on purpose — it must never feel like a wait.
+ *  Starts near-visible (2026-11-09 fail-visible tuning, see fadeUp). */
 export const pageVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.32, ease: EASE_OUT } },
+  hidden: { opacity: 0.35, y: 6 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: EASE_OUT } },
 };

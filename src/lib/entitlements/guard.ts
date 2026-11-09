@@ -29,8 +29,14 @@
  *
  * Safety floor (Phase 11 §4, unchanged): gates are only ever placed
  * on creating MORE — new Instagram account bindings, automation
- * creates, inactive→active transitions. Disconnects, deactivations,
- * deletions and edits that consume no new slot are never gated.
+ * creates, inactive→active transitions. Trial/workspace farming
+ * fix (2026-11-09): the same gate now also covers workspace
+ * CREATION (the `workspaces` dimension, usage = owned workspaces)
+ * and adding a team member (invitation create + invitation accept,
+ * the `teamSeats` dimension, usage = current members) — without it,
+ * fresh workspaces were a free route around every plan limit.
+ * Disconnects, deactivations, deletions and edits that consume no
+ * new slot are never gated.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createLogger } from '@/lib/logger';
@@ -62,6 +68,8 @@ const PASS: EntitlementGate = { blocked: false, check: null, message: null };
 const DIMENSION_LABELS: Partial<Record<EntitlementDimension, { singular: string; plural: string }>> = {
   instagramAccounts: { singular: 'Instagram account', plural: 'Instagram accounts' },
   activeAutomations: { singular: 'active automation', plural: 'active automations' },
+  workspaces: { singular: 'workspace', plural: 'workspaces' },
+  teamSeats: { singular: 'team seat', plural: 'team seats' },
 };
 
 /**
@@ -176,6 +184,33 @@ export function countUserInstagramAccounts(db: SupabaseClient, userId: string): 
 }
 export function countWorkspaceActiveAutomations(db: SupabaseClient, workspaceId: string): Promise<number> {
   return countActive(db, 'automations', 'workspace_id', workspaceId);
+}
+
+/**
+ * Workspaces the user OWNS (role 'owner' memberships) — the usage
+ * figure for the `workspaces` dimension when creating one more, and
+ * the list the creation gate resolves its governing plan from.
+ */
+export async function listOwnedWorkspaceIds(db: SupabaseClient, userId: string): Promise<string[]> {
+  const { data, error } = await db
+    .from('workspace_memberships')
+    .select('workspace_id')
+    .eq('user_id', userId)
+    .eq('role', 'owner');
+  if (error) throw new Error(`Failed to list owned workspaces: ${error.message}`);
+  return (data ?? [])
+    .map((r) => (r as { workspace_id?: unknown }).workspace_id)
+    .filter((v): v is string => typeof v === 'string');
+}
+
+/** Current members of a workspace — the usage figure for `teamSeats`. */
+export async function countWorkspaceMembers(db: SupabaseClient, workspaceId: string): Promise<number> {
+  const { data, error } = await db
+    .from('workspace_memberships')
+    .select('user_id')
+    .eq('workspace_id', workspaceId);
+  if (error) throw new Error(`Failed to count workspace members: ${error.message}`);
+  return (data ?? []).length;
 }
 export function countUserActiveAutomations(db: SupabaseClient, userId: string): Promise<number> {
   return countActive(db, 'automations', 'user_id', userId);

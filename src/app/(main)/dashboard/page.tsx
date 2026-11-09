@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { Stagger, StaggerItem } from "@/components/motion/primitives";
 import { Wrench, CheckCircle, Circle, ArrowRight, Plus, PencilLine, Clock } from "@/components/phosphor";
 import { useAutomations } from "@/hooks/useAutomations";
+import { useBillingStatus } from "@/hooks/useBillingStatus";
 import { useContacts } from "@/hooks/useContacts";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
@@ -40,6 +41,12 @@ export default function DashboardPage() {
     }, []);
     const { data: analytics, isLoading: analyticsLoading } = useAnalytics({ ...analyticsRange, automationId: "all", accountId });
     const { data: activities, isLoading: isActivityLoading } = useActivity(accountId, 15);
+    // Plan card (2026-11-09): read from the SAME billing-status
+    // resolution /billing uses (hooks/useBillingStatus) for the
+    // active workspace — the dashboard previously derived plan state
+    // from other signals, so it could contradict /billing (Starter
+    // there, "Free" here) or render no plan card at all.
+    const { data: billingStatus, isLoading: billingLoading, isError: billingError } = useBillingStatus();
 
     // Audit fix: while the numbers are in flight, the stats and the
     // System rows render neutral skeletons — never literal 0s or a
@@ -249,8 +256,9 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* System status */}
-                <div className="lg:col-span-2 bg-card border border-border rounded-xl p-5">
+                {/* System status + plan (right column) */}
+                <div className="lg:col-span-2 flex flex-col gap-3">
+                <div className="bg-card border border-border rounded-xl p-5">
                     <h2 className="text-[14px] font-heading font-semibold text-foreground mb-4">System</h2>
                     <div className="space-y-1.5">
                         {[
@@ -281,6 +289,44 @@ export default function DashboardPage() {
                             Open Setup Wizard
                         </Link>
                     )}
+                </div>
+
+                {/* Plan — ALWAYS rendered (2026-11-09): loading,
+                    error and Free included, from the same
+                    billing-status resolution as /billing. */}
+                <div className="bg-card border border-border rounded-xl p-5" data-testid="dashboard-plan-card">
+                    <h2 className="text-[14px] font-heading font-semibold text-foreground mb-1">Plan</h2>
+                    {billingLoading ? (
+                        <div className="h-6 w-28 rounded bg-muted animate-pulse mt-2" aria-label="Loading plan" />
+                    ) : billingError || !billingStatus ? (
+                        <>
+                            <p className="text-[13px] text-muted-foreground mt-1">
+                                Your plan could not be loaded here.
+                            </p>
+                            <Link href="/billing" className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-foreground underline underline-offset-4">
+                                Open Billing <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-xl font-heading font-semibold tracking-tight text-foreground mt-1">
+                                {billingStatus.entitlement.planName}
+                            </p>
+                            <p className="text-[12.5px] text-muted-foreground mt-0.5">
+                                {billingStatus.subscription?.periodLapsed
+                                    ? "Subscription ended — this workspace is on Free limits."
+                                    : billingStatus.trial.active
+                                      ? `Free trial — ${billingStatus.trial.daysRemaining} day(s) left.`
+                                      : billingStatus.subscription?.status === "active"
+                                        ? "Active subscription."
+                                        : "Free plan limits apply to this workspace."}
+                            </p>
+                            <Link href="/billing" className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-foreground underline underline-offset-4">
+                                Manage billing <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                        </>
+                    )}
+                </div>
                 </div>
             </div>
         </div>

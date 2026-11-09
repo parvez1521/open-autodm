@@ -280,13 +280,19 @@ describe('POST /api/billing/checkout — configured', () => {
     expect(JSON.stringify(body)).not.toContain(SYNTH_KEY_SECRET);
   });
 
-  it('uses the annual total for annual billing (starter INR ₹2,868 = 286800)', async () => {
+  // Updated 2026-11-09 (customer fix D): annual billing is NOT
+  // offered — the owner's pricing rules are monthly-only, and the
+  // checkout route now rejects period 'annual' outright instead of
+  // pricing it. The catalogue still carries annual totals as data;
+  // they are simply not purchasable. (Was: 'uses the annual total
+  // for annual billing (starter INR ₹2,868 = 286800)'.)
+  it('rejects annual billing with 400 PERIOD_NOT_OFFERED (monthly-only pricing)', async () => {
     setEnv(fullEnv);
     stubOrderFetch(286800, 'INR');
     const res = await POST(checkoutRequest({ planId: 'starter', currency: 'INR', period: 'annual' }));
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { order: { amount: number } };
-    expect(body.order.amount).toBe(286800);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code: string };
+    expect(body.code).toBe('PERIOD_NOT_OFFERED');
   });
 
   it('defaults to INR monthly when currency/period are omitted', async () => {

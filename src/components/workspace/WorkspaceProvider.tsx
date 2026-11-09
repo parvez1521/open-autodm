@@ -96,10 +96,16 @@ export function WorkspaceProvider({
     const selectedRef = useRef<string | null>(null);
     selectedRef.current = selectedWorkspaceId;
     // First-workspace provisioning is attempted at most once per
-    // mount (see the header comment): refreshWorkspaces is also the
-    // reload path after leaving/removing a workspace, and neither a
-    // deliberate leave nor a transient creation failure should turn
-    // every refresh into a creation attempt.
+    // EMPTY EPISODE (audit Bug 8 fix, 2026-11-09): the attempt flag
+    // resets whenever a non-empty list is observed, so when the
+    // loaded list later TRANSITIONS to empty mid-session (the
+    // user's only workspace was deleted/left), the next refresh
+    // re-runs provisioning instead of stranding the session on the
+    // honest-but-dead empty state until a full page reload. While
+    // the list stays continuously empty, refreshes do NOT loop
+    // creation attempts (a deliberate leave does not resurrect a
+    // workspace on the very next refresh — only a list that was
+    // non-empty in between re-arms the attempt).
     const provisionAttemptedRef = useRef(false);
 
     const applyList = useCallback((list: WorkspaceSummary[]) => {
@@ -138,6 +144,11 @@ export function WorkspaceProvider({
                 return data.workspaces ?? [];
             };
             let list = await fetchList();
+            if (list.length > 0) {
+                // A non-empty observation re-arms provisioning for
+                // the NEXT transition to empty (Bug 8 fix above).
+                provisionAttemptedRef.current = false;
+            }
             if (list.length === 0 && !provisionAttemptedRef.current) {
                 provisionAttemptedRef.current = true;
                 const ensured = await provisionIfEmpty(list, {

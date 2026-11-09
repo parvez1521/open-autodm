@@ -294,8 +294,12 @@ describe("design pass round 5 — motion kit, hero choreography, pipeline packet
   });
 
   it("the before/after panels slide in from opposite sides", () => {
-    expect(page).toContain("x: -36");
-    expect(page).toContain("x: 36");
+    // Offsets reduced 2026-11-09 (motion fail-visible fix, item P):
+    // the panels still arrive from opposite sides, but from ±14px
+    // and near-visible opacity instead of ±36px from opacity 0, so
+    // the section is readable even before the entrance completes.
+    expect(page).toContain("x: -14");
+    expect(page).toContain("x: 14");
   });
 });
 

@@ -17,6 +17,11 @@
 
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createUserRpcClient } from '@/lib/supabase/userClient';
+import {
+  evaluateEntitlementGate,
+  planLimitResponse,
+  listOwnedWorkspaceIds,
+} from '@/lib/entitlements/guard';
 import { listUserWorkspaces } from '@/lib/tenancy/routeContext';
 import {
   workspaceDisabledResponse,
@@ -104,6 +109,33 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: rpcClient.error }, { status: rpcClient.status });
   }
   const db = rpcClient.client;
+
+  // Trial/workspace farming fix (2026-11-09): creating a workspace
+  // consumes one of the plan's `workspaces` slots. Without this gate
+  // a Free user could mint unlimited workspaces — each with its own
+  // trial and plan limits — and farm the paid tiers for free.
+  // ENTITLEMENTS_ENFORCED off (default) ⇒ the gate is a pass-through
+  // and the context thunk below never runs (lib/entitlements/
+  // guard.ts). The gate reads through the caller's OWN user-JWT
+  // client — deliberately NOT the service client, keeping this
+  // file's Programme 19/30 discipline: the caller reads only their
+  // own memberships (RLS) and, as a member, the governing
+  // workspace's subscription (subscriptions_select_member). The plan
+  // that governs is the caller's first owned workspace's (the
+  // subscription model is per-workspace; a user with none resolves
+  // to Free, whose single-workspace allowance still lets the
+  // first-workspace auto-provisioning through: 0 owned + 1 ≤ 1).
+  const gate = await evaluateEntitlementGate(db, {
+    dimension: 'workspaces',
+    resolveContext: async () => {
+      const owned = await listOwnedWorkspaceIds(db, user.id);
+      return {
+        workspaceId: owned[0] ?? null,
+        usage: { workspacesOwned: owned.length },
+      };
+    },
+  });
+  if (gate.blocked) return planLimitResponse(gate);
   const { data, error } = await db.rpc('create_workspace', { p_name: name });
   if (error) return rpcErrorResponse(error, 'Failed to create workspace');
 

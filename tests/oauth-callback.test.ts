@@ -226,3 +226,24 @@ describe('GET /api/instagram/callback — plan account limit (Bug 2, 2026-11-09)
     expect(fake.callsFor('instagram_accounts', 'update')).toHaveLength(1);
   });
 });
+
+describe('GET /api/instagram/callback — webhook-subscribe degradation (2026-11-09, item K)', () => {
+  it('a subscribeToWebhookFields failure AFTER the account write still completes the connect', async () => {
+    mockSubscribe.mockRejectedValueOnce(new Error('meta subscribe exploded: token detail'));
+    const res = await GET(callbackRequest());
+    expect(res.status).toBe(302);
+    const loc = location(res);
+    expect(loc).toContain('instagram_connected=true');
+    expect(loc).not.toContain('server_error');
+    // The internal error message must never ride the redirect URL.
+    expect(loc).not.toContain('debug=');
+    expect(loc).not.toContain('meta subscribe exploded');
+    // The account row WAS written before the subscribe attempt.
+    expect(fake.rows('instagram_accounts')).toHaveLength(1);
+  });
+
+  it('no redirect from this route ever carries a debug= parameter', async () => {
+    const res = await GET(callbackRequest());
+    expect(location(res)).not.toContain('debug=');
+  });
+});

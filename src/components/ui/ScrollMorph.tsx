@@ -4,9 +4,11 @@
  * ScrollMorph - site-wide scroll reveals, ported from SwitchRoute.
  *
  * The style is SwitchRoute's live V2 "Scale-Up Rotate" (PR #64, merge
- * 021fb11): a block starts smaller, lower and tilted - translateY(30px)
- * scale(0.78) rotate(-5deg), opacity 0 - and settles to full size and
- * level as it enters the viewport.
+ * 021fb11): a block starts smaller, lower and tilted and settles to
+ * full size and level as it enters the viewport. Since 2026-11-09
+ * the start state is the fail-visible tuning in globals.css
+ * (opacity 0.3, translateY(12px) scale(0.94) rotate(-1.5deg)) — same
+ * morph read, but content is never unreadable while waiting.
  *
  * Adaptation for open-autoDM: the dashboard does not scroll the window.
  * <main> is the scroll container (overflow-y-auto inside a 100vh flex
@@ -60,10 +62,12 @@ export function ScrollMorph() {
           observer.unobserve(el);
           el.classList.add("is-revealed");
           const delay = Number(el.dataset.revealDelay || 0);
-          window.setTimeout(() => el.classList.add("is-settled"), 800 + delay);
+          window.setTimeout(() => el.classList.add("is-settled"), 550 + delay);
         }
       },
-      { root, threshold: 0.08, rootMargin: "0px 0px -4% 0px" },
+      // Fire on first contact (2026-11-09 fail-visible tuning): no
+      // threshold/rootMargin holding below-fold blocks back.
+      { root, threshold: 0, rootMargin: "0px" },
     );
 
     const tag = (root: ParentNode) => {

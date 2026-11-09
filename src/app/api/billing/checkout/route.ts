@@ -9,7 +9,10 @@
  * lib/billing/activeProvider.ts). Customers are both Indian (UPI,
  * INR) and international (cards, USD) — the checkout currency follows
  * the caller's currency field, which the BillingPanel resolves from
- * the geo display currency (India → INR, else USD).
+ * the geo display currency (India → INR, else USD) — and since
+ * 2026-11-09 the route VERIFIES that field against its own
+ * server-side geo resolution (400 CURRENCY_MISMATCH; audit Bug 5)
+ * and refuses annual periods outright (monthly only; audit Bug 6).
  *
  * SCAFFOLDING — deliberately inert until the owner enables it:
  *  - BILLING_ENABLED off (default)            → 503 BILLING_DISABLED
@@ -60,6 +63,7 @@ import {
   type CashfreeConfig,
 } from "@/lib/billing/cashfree";
 import { resolveActiveBillingProvider } from "@/lib/billing/activeProvider";
+import { serverCurrencyForRequest } from "@/lib/billing/geo";
 import {
   billingWorkspaceSelector,
   resolveBillingWorkspace,
@@ -131,13 +135,34 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
-  const currency = (fields.currency ?? "INR") as CurrencyCode;
-  if (!(CURRENCIES as readonly string[]).includes(currency)) {
-    return Response.json(
-      { ok: false, code: "INVALID_CURRENCY", message: "Currency must be INR or USD." },
-      { status: 400 },
-    );
+  // Currency is decided SERVER-SIDE from the caller's geo (audit
+  // Bug 5 fix, 2026-11-09): the body's currency is only accepted
+  // when it matches the geo resolution (edge country header /
+  // geo cookie — see lib/billing/geo.ts serverCurrencyForRequest).
+  // A mismatch is refused (400 CURRENCY_MISMATCH) instead of
+  // silently charging the cheaper figure; with no geo signal at
+  // all (local/non-edge runtimes) the body's currency stands, and
+  // an omitted currency falls back to the geo resolution.
+  const serverCurrency = serverCurrencyForRequest(request);
+  if (fields.currency !== undefined && fields.currency !== null) {
+    if (!(CURRENCIES as readonly string[]).includes(fields.currency as CurrencyCode)) {
+      return Response.json(
+        { ok: false, code: "INVALID_CURRENCY", message: "Currency must be INR or USD." },
+        { status: 400 },
+      );
+    }
+    if (serverCurrency && fields.currency !== serverCurrency) {
+      return Response.json(
+        {
+          ok: false,
+          code: "CURRENCY_MISMATCH",
+          message: `Prices for your region are in ${serverCurrency}; checkout cannot be opened in ${String(fields.currency)}.`,
+        },
+        { status: 400 },
+      );
+    }
   }
+  const currency = (fields.currency ?? serverCurrency ?? "INR") as CurrencyCode;
   const period = (fields.period ?? "monthly") as BillingPeriod;
   if (!(PERIODS as readonly string[]).includes(period)) {
     return Response.json(
@@ -145,10 +170,24 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
+  // Monthly only (owner instruction 2026-11-08; audit Bug 6 fix,
+  // 2026-11-09): no UI offers annual, and the API no longer sells
+  // it either — an annual request is refused, not discounted.
+  if (period !== "monthly") {
+    return Response.json(
+      {
+        ok: false,
+        code: "PERIOD_NOT_OFFERED",
+        message: "Only monthly billing is offered.",
+      },
+      { status: 400 },
+    );
+  }
 
   const plan = getPlan(planId as PlanId);
   const price = plan.prices[currency];
-  const amountMinor = period === "annual" ? price.annualTotalMinor : price.monthlyMinor;
+  // Monthly-only (the guard above has already refused 'annual').
+  const amountMinor = price.monthlyMinor;
   if (amountMinor <= 0) {
     return Response.json(
       {

@@ -299,7 +299,13 @@ describe('Programme 34 §4 UX-1 — members email presentation', () => {
   it('renders an explicit "Email not stored" affordance instead of the bare user ID', () => {
     expect(members).toContain('Email not stored');
     expect(members).toContain('data-testid="member-email-not-stored"');
-    expect(members).toContain('Member ID {m.userId}');
+    // Updated 2026-11-09 (customer fix O): the visible "Member ID
+    // {userId}" fragment this pin used to REQUIRE is exactly what
+    // the fix removed — raw member UUIDs no longer render in the
+    // row at all (the joined date is formatted human-readably
+    // instead of a raw ISO timestamp). The §4 posture is preserved:
+    // email still comes only from the members route, never metadata.
+    expect(members).not.toContain('Member ID');
     // The old presentation (raw user ID as the identity line) is gone.
     expect(members).not.toContain('{m.email ?? m.userId ?? "Unknown user"}');
   });

@@ -17,11 +17,18 @@
 
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createUserRpcClient } from '@/lib/supabase/userClient';
+import { createServiceClient } from '@/lib/supabase/service';
+import {
+  evaluateEntitlementGate,
+  planLimitResponse,
+  countWorkspaceMembers,
+} from '@/lib/entitlements/guard';
 import {
   workspaceDisabledResponse,
   readJsonBody,
   stringField,
   rpcErrorResponse,
+  hashInvitationToken,
 } from '../workspaceShared';
 
 export const runtime = 'nodejs';
@@ -40,11 +47,48 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'An invitation token is required' }, { status: 400 });
   }
 
+  // Trial/workspace farming fix (2026-11-09): accepting consumes
+  // one of the target workspace's `teamSeats` — gate BEFORE the RPC
+  // creates the membership (the invitations route gates creation
+  // the same way). The target workspace is read from the invitation
+  // row by token hash (service role; the row carries no secret —
+  // only the hash is stored). The lookup runs ONLY inside the
+  // gate's context thunk, so with ENTITLEMENTS_ENFORCED off the
+  // route performs no extra read and behaves exactly as before.
+  // An unknown/expired/already-accepted token resolves no live
+  // invitation → no gate → the RPC below reports it faithfully.
+  const gateDb = () => createServiceClient();
+  const gate = await evaluateEntitlementGate(gateDb(), {
+    dimension: 'teamSeats',
+    resolveContext: async () => {
+      const db = gateDb();
+      const { data } = await db
+        .from('workspace_invitations')
+        .select('workspace_id, accepted_at, expires_at')
+        .eq('token_hash', hashInvitationToken(token))
+        .maybeSingle();
+      const inv = data as { workspace_id?: unknown; accepted_at?: unknown; expires_at?: unknown } | null;
+      const live =
+        inv &&
+        typeof inv.workspace_id === 'string' &&
+        !inv.accepted_at &&
+        typeof inv.expires_at === 'string' &&
+        Date.parse(inv.expires_at) > Date.now();
+      if (!live) return { workspaceId: null, usage: { teamSeatsUsed: 0 } };
+      const workspaceId = inv.workspace_id as string;
+      return {
+        workspaceId,
+        usage: { teamSeatsUsed: await countWorkspaceMembers(db, workspaceId) },
+      };
+    },
+  });
+  if (gate.blocked) return planLimitResponse(gate);
+
   // F-J1 (Programme 19): accept_workspace_invitation derives its actor
   // (and the verified-email match) from auth.uid(), which is NULL under
   // the service role — the RPC must run through the caller's own
-  // user-JWT client (see userClient.ts). This route no longer uses the
-  // service client at all.
+  // user-JWT client (see userClient.ts). (The service client above is
+  // used ONLY for the entitlement gate's read-only seat check.)
   const rpcClient = await createUserRpcClient(request, user.id);
   if (!rpcClient.ok) {
     return Response.json({ error: rpcClient.error }, { status: rpcClient.status });

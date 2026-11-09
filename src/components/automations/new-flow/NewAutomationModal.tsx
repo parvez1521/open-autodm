@@ -144,9 +144,17 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     const [activateError, setActivateError] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<'save' | 'activate' | null>(null);
 
-    const { data: igAccounts } = useInstagramAccounts();
+    const { data: igAccounts, isLoading: accountsLoading } = useInstagramAccounts();
     const activeAccount = igAccounts?.find((a) => a.id === accountId) ?? igAccounts?.[0] ?? null;
     const firstAccountId = activeAccount?.id ?? null;
+    // Silent-save fix (2026-11-09): in create mode with NO connected
+    // Instagram account, saving used to do nothing a user could see —
+    // the only feedback was a truncated 12px note in the header, and
+    // the row can never be created (automations.instagram_account_id
+    // is NOT NULL in the schema, so an account-less draft is not
+    // storable). The blocker is now a persistent banner at the save
+    // step with both actions disabled — saving never fails silently.
+    const noAccountBlocker = !isEditMode && !accountsLoading && igAccounts !== undefined && !firstAccountId;
     const createMutation = useCreateAutomation();
     const updateMutation = useUpdateAutomation();
 
@@ -341,13 +349,8 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
 
                                 {step === 2 && (
                                     <>
-                                        {activateError && (
-                                            <span className="text-[12px] text-destructive font-medium max-w-[240px] truncate flex items-center gap-1">
-                                                <Warning className="w-3 h-3 shrink-0" />{activateError}
-                                            </span>
-                                        )}
                                         <button
-                                            disabled={isPending}
+                                            disabled={isPending || noAccountBlocker}
                                             onClick={() => handleSave(false)}
                                             className="inline-flex items-center gap-1.5 h-8 px-3 text-[13px] font-medium text-foreground border border-border hover:bg-muted disabled:opacity-50 rounded-lg transition-colors"
                                         >
@@ -355,7 +358,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             {isSaving ? "Saving…" : "Save"}
                                         </button>
                                         <button
-                                            disabled={isPending || (!isEditMode && !firstAccountId)}
+                                            disabled={isPending || noAccountBlocker || (!isEditMode && !firstAccountId)}
                                             onClick={() => handleSave(true)}
                                             className="inline-flex items-center gap-1.5 h-8 px-3 text-[13px] font-semibold bg-foreground text-background hover:opacity-90 disabled:opacity-50 rounded-lg transition-opacity"
                                         >
@@ -371,6 +374,27 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                 </button>
                             </div>
                         </div>
+
+                        {/* Save feedback — full-width and unmissable
+                            (2026-11-09 silent-save fix): mutation
+                            errors and the no-account blocker render
+                            here, never as truncated header microcopy. */}
+                        {step === 2 && noAccountBlocker && (
+                            <div role="alert" className="shrink-0 border-b border-border bg-amber-500/10 px-4 py-2.5 flex items-center gap-2">
+                                <Warning className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <p className="text-[12.5px] font-medium text-foreground">
+                                    No Instagram account is connected to this workspace, so this automation cannot be saved yet.{" "}
+                                    <a href="/settings" className="underline underline-offset-2">Connect an account in Settings</a>{" "}
+                                    first — your configuration here stays open while you do.
+                                </p>
+                            </div>
+                        )}
+                        {step === 2 && activateError && !noAccountBlocker && (
+                            <div role="alert" className="shrink-0 border-b border-border bg-destructive/10 px-4 py-2.5 flex items-center gap-2">
+                                <Warning className="w-4 h-4 text-destructive shrink-0" />
+                                <p className="text-[12.5px] font-medium text-foreground">{activateError}</p>
+                            </div>
+                        )}
 
                         {/* Content */}
                         <div className="flex-1 overflow-hidden">

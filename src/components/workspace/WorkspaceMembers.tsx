@@ -52,6 +52,15 @@ interface InviteResult {
     role: string;
 }
 
+/** "9 Nov 2026" style; an unparseable/missing value renders "—". */
+function formatJoinedDate(iso: string | null): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime())
+        ? "—"
+        : d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
 const ROLE_OPTIONS = ["owner", "admin", "member", "viewer"] as const;
 const INVITE_ROLE_OPTIONS = ["admin", "member", "viewer"] as const;
 
@@ -291,8 +300,12 @@ export function WorkspaceMembers({ workspaceRuntimeEnabled }: { workspaceRuntime
                                             ))}
                                     </span>
                                     <span className="text-[11px] text-muted-foreground truncate">
-                                        Joined {m.joined_at ?? "—"}
-                                        {!m.email && m.userId ? <> · Member ID {m.userId}</> : null}
+                                        {/* 2026-11-09: human-readable joined
+                                            date; the raw member UUID that
+                                            used to ride this line is gone
+                                            (it is an internal id, not
+                                            support information). */}
+                                        Joined {formatJoinedDate(m.joined_at)}
                                     </span>
                                 </div>
                                 <span className="text-[10px] font-medium uppercase tracking-wide rounded-full border border-border px-1.5 py-0.5 text-muted-foreground">

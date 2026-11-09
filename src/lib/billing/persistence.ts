@@ -39,7 +39,7 @@ import {
   type NormalizedPaymentEvent,
   type SubscriptionRecord,
 } from './events';
-import type { SubscriptionStatus } from './lifecycle';
+import { isPeriodLapsed, type SubscriptionStatus } from './lifecycle';
 import type { BillingPeriod, CurrencyCode, PlanId } from './catalogue';
 import type { ProviderId } from './provider';
 
@@ -471,7 +471,47 @@ export async function persistWebhookOutcome(
   }
 
   if (finalRecord?.status === 'active') {
-    const start = new Date(event.occurredAt);
+    const paidAt = new Date(event.occurredAt);
+    // Early-renewal fix (2026-11-09): a renewal paid while the SAME
+    // plan's current period is still running must EXTEND that
+    // period, not restart it at the payment instant (paying on day
+    // 20 of 30 previously forfeited the remaining 10 days). The new
+    // period therefore starts at max(payment time, the existing
+    // period end) when the existing row is active, on the same
+    // plan, and unlapsed; a lapsed row, a different plan, or a
+    // trial conversion starts at the payment time as before.
+    let start = paidAt;
+    let end = periodEnd(start, orderCtx.period);
+    const existingSub = await getWorkspaceSubscription(db, orderCtx.workspaceId);
+    // Idempotency guard for the stacking rule below: a REDELIVERY of
+    // the same order's payment (the row is already bound to this
+    // provider subscription id) must leave the period exactly as the
+    // first delivery left it — otherwise every duplicate webhook
+    // would stack another month. A genuine renewal always arrives
+    // under a NEW order id, so it never matches this guard.
+    const sameOrderRedelivery =
+      existingSub &&
+      existingSub.providerSubscriptionId !== null &&
+      existingSub.providerSubscriptionId === event.providerSubscriptionId &&
+      existingSub.currentPeriodStart &&
+      existingSub.currentPeriodEnd;
+    if (sameOrderRedelivery) {
+      start = new Date(existingSub.currentPeriodStart as string);
+      end = new Date(existingSub.currentPeriodEnd as string);
+    } else if (
+      existingSub &&
+      existingSub.status === 'active' &&
+      existingSub.planId === orderCtx.planId &&
+      existingSub.currentPeriodEnd &&
+      !isPeriodLapsed(
+        { status: existingSub.status, currentPeriodEnd: existingSub.currentPeriodEnd },
+        paidAt,
+      )
+    ) {
+      const existingEnd = new Date(existingSub.currentPeriodEnd);
+      if (existingEnd.getTime() > start.getTime()) start = existingEnd;
+      end = periodEnd(start, orderCtx.period);
+    }
     await upsertWorkspaceSubscription(db, orderCtx.workspaceId, {
       planId: orderCtx.planId,
       status: 'active',
@@ -481,7 +521,7 @@ export async function persistWebhookOutcome(
       amountMinor: orderCtx.amountMinor,
       currency: orderCtx.currency,
       currentPeriodStart: start.toISOString(),
-      currentPeriodEnd: periodEnd(start, orderCtx.period).toISOString(),
+      currentPeriodEnd: end.toISOString(),
       lastProviderEventAt: occurredIso,
     });
     const claimedPaymentId = event.providerEventId.split(':')[1];

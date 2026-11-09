@@ -337,7 +337,11 @@ describe('Phase 14 admin prototype contract (migration + UI gating)', () => {
     for (const p of pages) {
       const src = fs.readFileSync(path.resolve(process.cwd(), p), 'utf8');
       expect(src, p).toContain('evaluatePlatformAdminGate');
-      expect(src, p).toContain('AdminAccessDenied');
+      // Posture change (2026-11-09, live-QA fix): a failed gate is
+      // now notFound() — a plain 404 like /admin — instead of the
+      // HTTP-200 "Access denied" surface this pin used to require.
+      expect(src, p).toContain('notFound()');
+      expect(src, p).not.toContain('AdminAccessDenied');
     }
   });
 });

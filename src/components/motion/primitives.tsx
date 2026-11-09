@@ -62,7 +62,7 @@ export function FadeIn({
   className,
   delay = 0,
   x = 0,
-  y = 18,
+  y = 10,
 }: {
   children: ReactNode;
   className?: string;
@@ -75,9 +75,12 @@ export function FadeIn({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, x, y }}
+      // Fail-visible (2026-11-09): start near-visible (0.3), small
+      // offset, short duration — content is readable even before
+      // the entrance completes (see presets.ts fadeUp).
+      initial={{ opacity: 0.3, x, y }}
       animate={{ opacity: 1, x: 0, y: 0 }}
-      transition={{ duration: 0.6, delay, ease: EASE_OUT }}
+      transition={{ duration: 0.45, delay, ease: EASE_OUT }}
     >
       {children}
     </motion.div>
@@ -99,7 +102,10 @@ export function Stagger({
       variants={staggerParent}
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, margin: "-6% 0px -6% 0px" }}
+      // No negative margin (2026-11-09 fail-visible tuning): the
+      // reveal fires the moment any part enters the viewport, so
+      // below-fold groups never sit ghosted waiting on a threshold.
+      viewport={{ once: true, margin: "0px" }}
     >
       {children}
     </motion.div>

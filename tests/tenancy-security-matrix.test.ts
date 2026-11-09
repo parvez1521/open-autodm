@@ -587,10 +587,19 @@ describe('§5 no app-layer path writes workspace_memberships (self-escalation sc
     // ADMIN_EMAILS gate (404 for everyone else; see
     // tests/admin-panel.test.ts). The self-escalation concern of §5
     // is writes; the no-mutation scan below still covers this file.
+    // Reconciliation (2026-11-09, customer fixes A): two more
+    // SELECT-only readers, both for the trial/workspace farming fix —
+    // lib/entitlements/guard.ts (listOwnedWorkspaceIds /
+    // countWorkspaceMembers feed the ENTITLEMENTS_ENFORCED gates)
+    // and app/api/billing/trial/route.ts (the one-trial-per-user
+    // check lists the caller's OWN owned workspaces). Neither writes;
+    // the no-mutation scan below covers both.
     expect(readers.sort()).toEqual([
       'app/api/ai/generate/route.ts',
+      'app/api/billing/trial/route.ts',
       'app/api/workspaces/[workspaceId]/members/route.ts',
       'lib/admin/panel.ts',
+      'lib/entitlements/guard.ts',
       'lib/tenancy/context.ts',
     ]);
   });

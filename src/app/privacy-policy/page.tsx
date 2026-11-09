@@ -15,9 +15,16 @@
  *     DPA contracting entity). Owner/legal to decide whether to align this page text
  *     to the DPA entity.
  *
- * Visible text below is intentionally UNCHANGED — it is byte-identical to the text
- * production currently serves (restored from commit 3296125). Any wording change is
- * an owner/legal decision, not an engineering one.
+ * Visible text below was restored byte-identical from commit 3296125.
+ * EXCEPTION (owner-directed, 2026-11-09): the passages describing
+ * registration and billing were rewritten to the SaaS reality —
+ * the old text claimed public self-registration is disabled and
+ * accounts are owner-provisioned, which stopped being true when
+ * the hosted service at opendm.in opened public signup with
+ * workspaces and Cashfree billing. The edits are factual and
+ * minimal (operator/account definitions in §1, §2A, the new §2D
+ * payment-data entry, and Cashfree's entry in §5); everything else
+ * is unchanged. Notes (a) and (b) above still stand.
  */
 import type { Metadata } from 'next';
 import { LegalLayout } from '@/components/legal/LegalLayout';
@@ -40,7 +47,8 @@ export default function PrivacyPolicyPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-heading font-bold text-foreground">1. Overview &amp; Scope</h2>
         <p>
-          open-autoDM is a self-hosted, open-source automation application designed to help creators and businesses
+          open-autoDM is an automation service (open-source, also available as the hosted service at opendm.in)
+          designed to help creators and businesses
           manage and automate Instagram comment replies, story reply acknowledgments, and direct messages via the
           official Meta Instagram Graph API.
         </p>
@@ -50,8 +58,9 @@ export default function PrivacyPolicyPage() {
         </p>
         <ul className="list-disc pl-5 space-y-1.5 text-muted-foreground">
           <li>
-            <strong className="text-foreground">Instance Operators:</strong> Authenticated administrators who log into
-            the open-autoDM console and connect Instagram Professional or Creator accounts.
+            <strong className="text-foreground">Account Holders &amp; Workspace Members:</strong> People who register
+            an account, log into the open-autoDM console (in their own workspace, or one they were invited to), and
+            connect Instagram Professional or Creator accounts.
           </li>
           <li>
             <strong className="text-foreground">Audience Members:</strong> Instagram users who publicly comment on
@@ -71,10 +80,11 @@ export default function PrivacyPolicyPage() {
 
         <div className="space-y-4 pt-2">
           <div className="p-4 rounded-lg bg-muted/40 border border-border">
-            <h3 className="font-semibold text-foreground text-[15px] mb-1">A. Operator Account Data</h3>
+            <h3 className="font-semibold text-foreground text-[15px] mb-1">A. Account &amp; Workspace Data</h3>
             <p className="text-muted-foreground text-[13.5px]">
-              Instance operators authenticate via Supabase Auth using email and password. Public self-registration is
-              disabled; operator accounts are provisioned exclusively by the instance owner.
+              Anyone may register publicly with an email and password (authentication via Supabase Auth). Each account
+              works inside one or more workspaces; a workspace owner can invite additional members, and workspace
+              membership and role data is stored so the service can scope access correctly.
             </p>
           </div>
 
@@ -110,7 +120,17 @@ export default function PrivacyPolicyPage() {
           </div>
 
           <div className="p-4 rounded-lg bg-muted/40 border border-border">
-            <h3 className="font-semibold text-foreground text-[15px] mb-1">D. Delivery Logs &amp; Idempotency Records</h3>
+            <h3 className="font-semibold text-foreground text-[15px] mb-1">D. Subscription &amp; Payment Data</h3>
+            <p className="text-muted-foreground text-[13.5px]">
+              Paid plans are billed through Cashfree. open-autoDM stores the subscription record for each workspace
+              (plan, status, billing period, amount, currency, and the payment provider&apos;s order identifiers) so
+              access can be granted and renewed. Card and bank details are entered on Cashfree&apos;s own payment
+              pages and are never received or stored by open-autoDM.
+            </p>
+          </div>
+
+          <div className="p-4 rounded-lg bg-muted/40 border border-border">
+            <h3 className="font-semibold text-foreground text-[15px] mb-1">E. Delivery Logs &amp; Idempotency Records</h3>
             <p className="text-muted-foreground text-[13.5px]">
               To prevent duplicate messages and enforce rate limits, the system records sent message logs (
               <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">dm_sent_log</code>) and atomic private reply
@@ -185,6 +205,11 @@ export default function PrivacyPolicyPage() {
           <li>
             <strong className="text-foreground">Supabase, Inc.:</strong> Provides database infrastructure, user
             authentication, and secure file storage for automation media assets.
+          </li>
+          <li>
+            <strong className="text-foreground">Cashfree Payments:</strong> Processes subscription payments for paid
+            plans. Payment instruments (cards, UPI, netbanking) are handled on Cashfree&apos;s own pages; open-autoDM
+            receives only the payment outcome and order identifiers needed to activate and renew a workspace&apos;s plan.
           </li>
           <li>
             <strong className="text-foreground">Cloudflare, Inc.:</strong> Provides serverless compute, global CDN

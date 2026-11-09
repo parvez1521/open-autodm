@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { evaluatePlatformAdminGate } from "@/lib/admin/guard";
 import { AdminService } from "@/lib/admin/service";
 import { createSyntheticAdminStore } from "@/lib/admin/store";
-import AdminAccessDenied from "@/lib/admin/denied";
 import { SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/lifecycle";
 
 const FILTERS: readonly (SubscriptionStatus | "free")[] = [...SUBSCRIPTION_STATUSES, "free"];
@@ -18,7 +18,10 @@ export default async function AdminSubscriptionsPage({
   searchParams?: Promise<{ status?: string }>;
 }) {
   const gate = evaluatePlatformAdminGate(process.env);
-  if (!gate.allowed || !gate.actor) return <AdminAccessDenied reason={gate.reason} />;
+  // Gate posture (2026-11-09): like /admin, a failed gate is a plain
+  // 404 — an "Access denied" page with HTTP 200 told anonymous
+  // visitors this restricted area exists.
+  if (!gate.allowed || !gate.actor) notFound();
 
   const params = (await searchParams) ?? {};
   const status = FILTERS.find((f) => f === params.status);
@@ -27,7 +30,7 @@ export default async function AdminSubscriptionsPage({
   return (
     <div className="space-y-6" data-testid="admin-subscriptions">
       <div>
-        <h1 className="font-heading text-2xl font-semibold">Subscriptions (prototype)</h1>
+        <h1 className="font-heading text-2xl font-semibold">Subscriptions</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Status filter:{" "}
           <Link href="/admin/subscriptions" className="underline">all</Link>

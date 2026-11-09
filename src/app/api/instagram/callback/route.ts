@@ -316,7 +316,25 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     // Per-account webhook subscription - without this NO events are delivered.
-    await subscribeToWebhookFields(profile.user_id, longLived.access_token);
+    // Callback hardening (2026-11-09): the account row is already
+    // written at this point, so a subscription failure must NOT fail
+    // the whole connect with server_error — the account IS connected;
+    // the subscription can be repaired (Settings → resubscribe)
+    // while a failed connect would strand the user at an error for
+    // an account that actually saved. Degrade to a server-side
+    // warning and complete the connect.
+    try {
+      await subscribeToWebhookFields(profile.user_id, longLived.access_token);
+    } catch (subErr) {
+      logger.warn(
+        { err: subErr, userId, username: profile.username },
+        'Account connected but webhook field subscription failed; connect continues',
+      );
+      debugLog('oauth', 'warn', 'webhook_subscribe_failed', 'error', `Webhook subscription failed after connect for @${profile.username}`, {
+        userId,
+        ...(workspaceId ? { workspaceId } : {}),
+      });
+    }
 
     debugLog('oauth', 'info', 'oauth_complete', 'ok', `Instagram @${profile.username} connected`, {
       userId,
@@ -333,7 +351,12 @@ export async function GET(request: Request): Promise<Response> {
     if (message.includes('Unsupported request - method type: get')) {
       return settingsRedirect('instagram_error=test_user_required');
     }
-    return settingsRedirect(`instagram_error=server_error&debug=${encodeURIComponent(message.slice(0, 200))}`);
+    // Callback hardening (2026-11-09): the raw error message used to
+    // ride the redirect as &debug=… — an information leak into the
+    // browser URL (history, logs, screenshots). The message stays
+    // server-side (logger.error + debugLog above); the redirect
+    // carries only the error code.
+    return settingsRedirect('instagram_error=server_error');
   }
 }
 

@@ -43,6 +43,35 @@ export function isCurrencyCode(value: string | null | undefined): value is Curre
 }
 
 /**
+ * The caller's geo currency as the SERVER can prove it for this
+ * request — the edge country header (x-vercel-ip-country, with
+ * cf-ipcountry as the Cloudflare fallback: the same headers the
+ * middleware writes the geo cookie from), falling back to that
+ * cookie. Returns null when the request carries NO geo signal at
+ * all (local development, non-edge runtimes): callers must treat
+ * null as "cannot verify" rather than as a country, because
+ * currencyForCountry(null) would silently mean USD.
+ *
+ * Checkout/trial currency fix (2026-11-09, audit Bug 5): the routes
+ * used to trust the body's currency outright, so a non-India buyer
+ * could POST currency:"INR" and pay ₹299 instead of $5. They now
+ * compare the body against this server-side resolution and refuse
+ * a mismatch (400 CURRENCY_MISMATCH) whenever a signal exists.
+ */
+export function serverCurrencyForRequest(request: Request): CurrencyCode | null {
+  const country =
+    request.headers.get("x-vercel-ip-country") ?? request.headers.get("cf-ipcountry");
+  if (country) return currencyForCountry(country);
+  const cookie = request.headers.get("cookie");
+  if (cookie) {
+    const match = new RegExp(`(?:^|;\\s*)${GEO_CURRENCY_COOKIE}=([^;]*)`).exec(cookie);
+    const value = match ? decodeURIComponent(match[1]!) : null;
+    if (isCurrencyCode(value)) return value;
+  }
+  return null;
+}
+
+/**
  * Render an integer minor-unit amount in ONE currency — the shared
  * formatter for every pricing surface (₹299 / $9 style, no decimals
  * for the catalogue's whole-unit figures).

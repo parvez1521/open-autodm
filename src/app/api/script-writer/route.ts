@@ -16,11 +16,19 @@ import { getAuthenticatedUser, unauthorized } from "@/lib/auth";
 import { createLogger } from "@/lib/logger";
 import { buildScriptMessages, parseGeneratedScript } from "@/lib/script-writer/prompt";
 import { generateWithAi, providerStatus, NO_PROVIDER_MESSAGE } from "@/lib/script-writer/providers";
+import { createPerUserRateLimiter } from "@/lib/studio/groq";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const logger = createLogger("api:script-writer");
+
+// Rate limiting (2026-11-09): the Studio AI routes have always run
+// behind the shared per-user limiter (lib/studio/groq.ts); this
+// route generated against the same free AI quota WITHOUT one. Same
+// limiter, same defaults (10/min burst, 50/day per user), counted
+// on attempts so a failing provider cannot be hammered either.
+const limiter = createPerUserRateLimiter();
 
 const GenerateSchema = z.object({
   topic: z.string().min(3, "topic is too short").max(600),
@@ -70,6 +78,22 @@ export async function POST(request: Request): Promise<Response> {
       { status: 400 },
     );
   }
+
+  const refusal = limiter.check(user.id);
+  if (refusal) {
+    logger.warn({ userId: user.id, refusal }, "Script generation refused by per-user limiter");
+    return Response.json(
+      {
+        error: refusal,
+        message:
+          refusal === "daily_quota_reached"
+            ? "You have reached today's script generation limit. Please try again tomorrow."
+            : "Too many script requests in a row. Please wait a minute and try again.",
+      },
+      { status: 429 },
+    );
+  }
+  limiter.record(user.id);
 
   const messages = buildScriptMessages(parsed.data);
   const result = await generateWithAi(messages, parsed.data.provider);

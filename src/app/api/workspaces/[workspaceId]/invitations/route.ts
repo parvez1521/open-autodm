@@ -20,6 +20,11 @@
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import {
+  evaluateEntitlementGate,
+  planLimitResponse,
+  countWorkspaceMembers,
+} from '@/lib/entitlements/guard';
+import {
   resolveRouteWorkspaceContext,
   requireCapability,
 } from '@/lib/tenancy/routeContext';
@@ -71,6 +76,20 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       { status: 400 },
     );
   }
+
+  // Trial/workspace farming fix (2026-11-09): an invitation that is
+  // accepted consumes one of the plan's `teamSeats`. Gate the CREATE
+  // here (and the accept in /api/workspaces/accept) so a workspace
+  // cannot grow past its plan's seats by invitation. Flag off ⇒
+  // pass-through, zero behaviour change (lib/entitlements/guard.ts).
+  const gate = await evaluateEntitlementGate(db, {
+    dimension: 'teamSeats',
+    resolveContext: async () => ({
+      workspaceId: resolved.ctx.workspaceId,
+      usage: { teamSeatsUsed: await countWorkspaceMembers(db, resolved.ctx.workspaceId) },
+    }),
+  });
+  if (gate.blocked) return planLimitResponse(gate);
 
   const token = generateInvitationToken();
   const tokenHash = hashInvitationToken(token);

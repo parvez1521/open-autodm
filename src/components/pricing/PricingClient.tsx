@@ -327,7 +327,7 @@ export default function PricingClient({ checkoutLive }: { checkoutLive: boolean 
   return (
     <div className="space-y-6">
       <motion.div variants={fadeUp} initial="hidden" animate="show">
-        <h1 className="font-heading text-2xl font-semibold">Pricing (prototype)</h1>
+        <h1 className="font-heading text-2xl font-semibold">Pricing</h1>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           Catalogue status: <strong>{CATALOGUE_STATUS}</strong> — these prices were set by the
           owner on 2026-11-08.

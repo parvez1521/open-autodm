@@ -1,5 +1,5 @@
+import { notFound } from "next/navigation";
 import { evaluatePlatformAdminGate } from "@/lib/admin/guard";
-import AdminAccessDenied from "@/lib/admin/denied";
 
 /**
  * Phase 14 prototype — manual support override form (MOCK).
@@ -11,20 +11,23 @@ import AdminAccessDenied from "@/lib/admin/denied";
  */
 export default function AdminOverridesPage() {
   const gate = evaluatePlatformAdminGate(process.env);
-  if (!gate.allowed || !gate.actor) return <AdminAccessDenied reason={gate.reason} />;
+  // Gate posture (2026-11-09): like /admin, a failed gate is a plain
+  // 404 — an "Access denied" page with HTTP 200 told anonymous
+  // visitors this restricted area exists.
+  if (!gate.allowed || !gate.actor) notFound();
 
   return (
     <div className="mx-auto max-w-lg space-y-6" data-testid="admin-overrides">
       <div>
-        <h1 className="font-heading text-2xl font-semibold">Support override (mock)</h1>
+        <h1 className="font-heading text-2xl font-semibold">Support override</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Prototype form over synthetic data. Every override requires a reason and writes an
+          Form over synthetic data — submission is disabled. Every override requires a reason and writes an
           append-only audit event before any state changes; if the audit write fails, the
           override is aborted. Refund execution is not available here — refunds are
-          recording-only in mock mode.
+          recording-only.
         </p>
       </div>
-      <form className="space-y-4 rounded-xl border border-border bg-card p-6" aria-label="Override form (mock)">
+      <form className="space-y-4 rounded-xl border border-border bg-card p-6" aria-label="Override form">
         <label className="block text-sm">
           Workspace (synthetic)
           <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" defaultValue="ws-beta" disabled>
@@ -46,7 +49,7 @@ export default function AdminOverridesPage() {
           <textarea className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2" rows={3} placeholder="e.g. Support ticket #0000 — payment method update in progress" disabled />
         </label>
         <button type="submit" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground opacity-50" disabled>
-          Apply override (disabled in prototype)
+          Apply override (disabled)
         </button>
       </form>
     </div>

@@ -82,7 +82,13 @@ export default function AnalyticsPage() {
         };
     }, [rangeDays]);
 
-    const { data, isLoading } = useAnalytics({ from, to, automationId, accountId });
+    // Settle guarantee (2026-11-09): this page used to read only
+    // { data, isLoading } — a failed query left `data` undefined
+    // forever and the render treated "!data" as "still loading", so
+    // any error (or a workspace with no connected accounts erroring
+    // the route) showed a lone spinner indefinitely. The query's
+    // error state is now rendered as an honest, retryable panel.
+    const { data, isLoading, isError, error, refetch, isFetching } = useAnalytics({ from, to, automationId, accountId });
 
     const gridStroke = resolvedTheme === "light" ? "#EDEDEF" : "#232329";
     const axisTick = { fontSize: 10.5, fill: "#898781" } as const;
@@ -149,9 +155,24 @@ export default function AnalyticsPage() {
                 </div>
             </div>
 
-            {isLoading || !data ? (
+            {isLoading ? (
                 <div className="py-24 flex justify-center">
                     <CircleNotch className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+            ) : isError || !data ? (
+                <div className="py-16 flex flex-col items-center text-center gap-3" role="alert">
+                    <Warning className="w-6 h-6 text-muted-foreground/50" />
+                    <p className="text-[13.5px] font-medium text-foreground">Analytics could not be loaded</p>
+                    <p className="text-[12.5px] text-muted-foreground max-w-sm">
+                        {error instanceof Error ? error.message : "Something went wrong while loading your numbers."}
+                    </p>
+                    <button
+                        onClick={() => void refetch()}
+                        disabled={isFetching}
+                        className="mt-1 inline-flex h-8 items-center rounded-lg border border-border px-3 text-[12.5px] font-medium text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                    >
+                        {isFetching ? "Retrying…" : "Retry"}
+                    </button>
                 </div>
             ) : (
                 <>
@@ -159,6 +180,13 @@ export default function AnalyticsPage() {
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 text-[12px] font-medium text-amber-600 dark:text-amber-400">
                             <Warning className="w-3.5 h-3.5" />
                             Very large range - numbers are computed from the first 20,000 events.
+                        </div>
+                    )}
+
+                    {totals && totals.triggers === 0 && data.perAutomation.length === 0 && (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-[12px] font-medium text-muted-foreground">
+                            <ChartBar className="w-3.5 h-3.5 shrink-0" />
+                            No activity in this range yet — once a connected account&apos;s automations start triggering, the numbers appear here.
                         </div>
                     )}
 

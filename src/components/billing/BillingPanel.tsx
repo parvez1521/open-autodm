@@ -162,6 +162,14 @@ export default function BillingPanel() {
   // Cashfree is the active provider — or if the checkout route asks.
   const [phone, setPhone] = useState("");
   const [needsPhone, setNeedsPhone] = useState(false);
+  // Checkout UX fixes (2026-11-09): the phone validation message
+  // renders AT the phone field (it used to be a page-level alert
+  // far from the field, so a blocked Switch click read as "nothing
+  // happens"), and a Cashfree window that never settles gets a
+  // dismissible escape hatch instead of an eternal "Working…".
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [cashfreeOpen, setCashfreeOpen] = useState(false);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -260,7 +268,9 @@ export default function BillingPanel() {
     const customerPhone = phone.replace(/[\s-]/g, "");
     if (cashfreeFlow && !/^\d{10}$/.test(customerPhone)) {
       setNeedsPhone(true);
-      setError("Enter your 10-digit mobile number — the payment window needs it to open.");
+      setPhoneError("Enter a valid 10-digit mobile number — the payment window needs it to open.");
+      phoneInputRef.current?.focus();
+      phoneInputRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
       return;
     }
     setBusyPlan(plan.id);
@@ -284,7 +294,10 @@ export default function BillingPanel() {
         order?: { id: string; amount: number; currency: string };
       } | null;
       if (!res.ok || !data?.ok || !data.order) {
-        if (data?.code === "INVALID_CUSTOMER_PHONE") setNeedsPhone(true);
+        if (data?.code === "INVALID_CUSTOMER_PHONE") {
+          setNeedsPhone(true);
+          setPhoneError("Enter a valid 10-digit mobile number — the payment window needs it to open.");
+        }
         setError(
           data?.code === "PAYMENTS_NOT_CONFIGURED" || data?.code === "BILLING_DISABLED"
             ? "Payments are being switched on for this deployment — nothing was charged. You can start the free trial meanwhile."
@@ -306,10 +319,22 @@ export default function BillingPanel() {
           return;
         }
         const cashfree = window.Cashfree({ mode: data.mode ?? "sandbox" });
-        const result = await cashfree.checkout({
-          paymentSessionId: data.paymentSessionId,
-          redirectTarget: "_modal",
-        });
+        // The SDK promise settles when the modal closes — but a
+        // provider-side rejection can leave the modal (and this
+        // await) hanging with the button stuck on "Working…". The
+        // cashfreeOpen bar below gives the user a way out: dismissing
+        // it clears the busy state; a payment that did complete
+        // still activates via the webhook + status polling.
+        setCashfreeOpen(true);
+        let result: Awaited<ReturnType<typeof cashfree.checkout>>;
+        try {
+          result = await cashfree.checkout({
+            paymentSessionId: data.paymentSessionId,
+            redirectTarget: "_modal",
+          });
+        } finally {
+          setCashfreeOpen(false);
+        }
         if (result?.error) {
           setError(result.error.message ?? "The payment did not go through. Nothing was charged.");
         } else {
@@ -437,8 +462,31 @@ export default function BillingPanel() {
         </div>
       )}
       {error && (
-        <div className="border border-border p-4" role="alert">
+        <div className="border border-border p-4 flex items-start justify-between gap-3" role="alert">
           <p className="text-sm">{error}</p>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            aria-label="Dismiss"
+            className="shrink-0 text-sm text-muted-foreground underline underline-offset-2"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      {cashfreeOpen && (
+        <div className="border border-border p-4 flex items-start justify-between gap-3" role="status" data-testid="billing-cashfree-open">
+          <p className="text-sm">
+            The payment window is open. If it is stuck, blank, or you already closed it, dismiss this —
+            a payment that did complete still activates your plan automatically.
+          </p>
+          <button
+            type="button"
+            onClick={() => { setCashfreeOpen(false); setBusyPlan(null); }}
+            className="shrink-0 text-sm font-medium text-foreground underline underline-offset-2"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -450,17 +498,28 @@ export default function BillingPanel() {
           <input
             id="billing-phone-input"
             data-testid="billing-phone-input"
+            ref={phoneInputRef}
             type="tel"
             inputMode="numeric"
             autoComplete="tel-national"
             placeholder="10-digit mobile number"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            aria-invalid={phoneError ? true : undefined}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              if (/^\d{10}$/.test(e.target.value.replace(/[\s-]/g, ""))) setPhoneError(null);
+            }}
             className="mt-2 block h-9 w-full max-w-xs rounded-lg border border-border bg-background px-3 text-sm"
           />
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            The payment window needs a mobile number to open. It is sent only with your checkout — it is not saved to your profile.
-          </p>
+          {phoneError ? (
+            <p className="mt-1 text-[12px] font-medium text-destructive" role="alert" data-testid="billing-phone-error">
+              {phoneError}
+            </p>
+          ) : (
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              The payment window needs a mobile number to open. It is sent only with your checkout — it is not saved to your profile.
+            </p>
+          )}
         </div>
       )}
 

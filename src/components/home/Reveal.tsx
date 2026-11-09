@@ -32,7 +32,7 @@ export function Reveal({
   children,
   className,
   delay = 0,
-  y = 28,
+  y = 12,
 }: {
   children: ReactNode;
   className?: string;
@@ -44,10 +44,16 @@ export function Reveal({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y }}
+      // Fail-visible (2026-11-09, live-QA fix): sections used to sit
+      // at opacity 0 until a -8% viewport threshold fired, leaving
+      // blank gaps at the page bottom and a ghosted first paint.
+      // Reveals now start near-visible (0.3), rise only 12px, fire
+      // on first contact with the viewport, and settle in 0.45s —
+      // readable at every instant, animated or not.
+      initial={{ opacity: 0.3, y }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-8% 0px -8% 0px" }}
-      transition={{ duration: 0.7, delay, ease: EASE }}
+      viewport={{ once: true, margin: "0px" }}
+      transition={{ duration: 0.45, delay, ease: EASE }}
     >
       {children}
     </motion.div>
@@ -64,8 +70,8 @@ export function RevealRule({ className }: { className?: string }) {
       className={`block h-px origin-left bg-foreground/60 ${className ?? ""}`}
       initial={{ scaleX: 0 }}
       whileInView={{ scaleX: 1 }}
-      viewport={{ once: true, margin: "-8% 0px -8% 0px" }}
-      transition={{ duration: 0.9, ease: EASE }}
+      viewport={{ once: true, margin: "0px" }}
+      transition={{ duration: 0.5, ease: EASE }}
     />
   );
 }

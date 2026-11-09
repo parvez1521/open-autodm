@@ -19,7 +19,10 @@
  *
  * One trial per workspace (see evaluateTrialStart): already-active →
  * 409 ALREADY_SUBSCRIBED, already-trialing → 409 ALREADY_TRIALING,
- * trial previously used → 409 TRIAL_ALREADY_USED. Re-posting the same
+ * trial previously used → 409 TRIAL_ALREADY_USED. Since 2026-11-09
+ * the route ALSO enforces one trial per USER: a trial already used
+ * in another workspace the caller owns refuses with the same
+ * TRIAL_ALREADY_USED (trial/workspace farming fix). Re-posting the same
  * start while trialing the SAME plan is treated as an idempotent
  * read of the running trial (200, no state change) so client retries
  * are safe.
@@ -46,6 +49,7 @@ import {
   trialDaysRemaining,
 } from "@/lib/billing/trial";
 import { applyPeriodLapse } from "@/lib/billing/lifecycle";
+import { serverCurrencyForRequest } from "@/lib/billing/geo";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -87,17 +91,43 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   const planId = fields.planId as PlanId;
-  const currency = (fields.currency ?? "INR") as CurrencyCode;
-  if (!(CURRENCIES as readonly string[]).includes(currency)) {
-    return Response.json(
-      { ok: false, code: "INVALID_CURRENCY", message: "Currency must be INR or USD." },
-      { status: 400 },
-    );
+  // Currency is decided SERVER-SIDE from the caller's geo, exactly
+  // as in checkout (audit Bug 5 fix, 2026-11-09): a body currency
+  // that disagrees with the geo resolution is refused (400
+  // CURRENCY_MISMATCH) whenever a geo signal exists; an omitted
+  // currency falls back to the geo resolution.
+  const serverCurrency = serverCurrencyForRequest(request);
+  if (fields.currency !== undefined && fields.currency !== null) {
+    if (!(CURRENCIES as readonly string[]).includes(fields.currency as CurrencyCode)) {
+      return Response.json(
+        { ok: false, code: "INVALID_CURRENCY", message: "Currency must be INR or USD." },
+        { status: 400 },
+      );
+    }
+    if (serverCurrency && fields.currency !== serverCurrency) {
+      return Response.json(
+        {
+          ok: false,
+          code: "CURRENCY_MISMATCH",
+          message: `Prices for your region are in ${serverCurrency}; a trial cannot be started in ${String(fields.currency)}.`,
+        },
+        { status: 400 },
+      );
+    }
   }
+  const currency = (fields.currency ?? serverCurrency ?? "INR") as CurrencyCode;
   const period = (fields.period ?? "monthly") as BillingPeriod;
   if (!(PERIODS as readonly string[]).includes(period)) {
     return Response.json(
       { ok: false, code: "INVALID_PERIOD", message: "Period must be monthly or annual." },
+      { status: 400 },
+    );
+  }
+  // Monthly only (owner instruction 2026-11-08; audit Bug 6 fix,
+  // 2026-11-09): trials are monthly, like everything else.
+  if (period !== "monthly") {
+    return Response.json(
+      { ok: false, code: "PERIOD_NOT_OFFERED", message: "Only monthly billing is offered." },
       { status: 400 },
     );
   }
@@ -159,6 +189,43 @@ export async function POST(request: Request): Promise<Response> {
         { ok: false, code: decision.code, message: decision.message },
         { status },
       );
+    }
+
+    // Trial farming fix (2026-11-09): the trial is one per USER,
+    // not one per workspace. evaluateTrialStart above only sees
+    // THIS workspace's row; a user who already trialed in another
+    // workspace they own must not get a second trial by minting a
+    // fresh workspace. Any OTHER owned workspace whose subscription
+    // row carries the trial-used marker (trial_ends_at — payment
+    // conversion deliberately keeps it as history) refuses the
+    // start with the same TRIAL_ALREADY_USED code.
+    const { data: ownedRows } = await db
+      .from("workspace_memberships")
+      .select("workspace_id")
+      .eq("user_id", user.id)
+      .eq("role", "owner");
+    const otherOwnedIds = (ownedRows ?? [])
+      .map((r) => (r as { workspace_id?: unknown }).workspace_id)
+      .filter((v): v is string => typeof v === "string" && v !== workspaceId);
+    if (otherOwnedIds.length > 0) {
+      let trialedElsewhere = false;
+      for (const otherId of otherOwnedIds) {
+        const otherSub = await getWorkspaceSubscription(db, otherId);
+        if (otherSub?.trialEndsAt) {
+          trialedElsewhere = true;
+          break;
+        }
+      }
+      if (trialedElsewhere) {
+        return Response.json(
+          {
+            ok: false,
+            code: "TRIAL_ALREADY_USED",
+            message: "You have already used your free trial in another workspace.",
+          },
+          { status: 409 },
+        );
+      }
     }
 
     if (existing && existing.currency !== currency) {

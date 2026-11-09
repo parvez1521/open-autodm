@@ -334,13 +334,24 @@ describe('source pins: no service-role membership RPC remains', () => {
     expect(src).not.toContain('@/lib/supabase/service');
   });
 
-  it('accept route: no service client remains at all; the RPC receiver is the factory client', () => {
+  it('accept route: the RPC receiver is the factory client; service client only for the flag-gated entitlement gate (2026-11-09 exception)', () => {
     const src = readSrc('app/api/workspaces/accept/route.ts');
-    expect(src).not.toContain('createServiceClient');
-    expect(src).not.toContain('@/lib/supabase/service');
+    // P19 invariant, unchanged: the membership-writing RPC runs
+    // through the caller's user-JWT client — never the service role.
     expect(src).toContain('createUserRpcClient(request, user.id)');
     expect(src).toContain('const db = rpcClient.client;');
     expect(src).toContain("db.rpc('accept_workspace_invitation'");
+    // Dated exception (2026-11-09, trial/workspace farming fix): the
+    // route DOES now construct a service client, for exactly one
+    // purpose — the ENTITLEMENTS_ENFORCED-gated, read-only teamSeats
+    // check BEFORE the RPC. The invitation-by-token-hash lookup is
+    // impossible on the user client (the invitee is not yet a member;
+    // RLS invitations_select_owner_admin), and the queries run only
+    // inside the gate's context thunk (flag off ⇒ never executed).
+    // Classified as a reviewed exception in
+    // tests/p17-service-role-pins.test.ts.
+    expect(src).toContain('evaluateEntitlementGate');
+    expect(src).toContain('hashInvitationToken(token)');
   });
 
   it('members/[userId] route: both RPCs run on rpcClient.client; context resolves on that same user client (P30/AA-6: no service client remains)', () => {
