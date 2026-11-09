@@ -11,12 +11,14 @@
  *   .ce-out  the sheet lifts and the hero's [data-hero] entrance is
  *            released (globals.css holds it paused until then)
  *
- * Compressed from the reference's timeline to the owner's cap:
- * the exit is forced ~550ms after .ce-go and the attribute is
- * cleaned up by 1.5s, so the whole moment stays around ~1.2s and
- * the page is NEVER trapped — every path (reduced motion, coarse
- * pointer, repeat visit, JS error, slow fonts) resolves to "skip"
- * or a forced exit.
+ * Timeline: originally compressed to the owner's ~1.2s cap;
+ * lengthened 2026-11-10 (owner directive ~02:19 IST) when the
+ * sheet's content became a three-beat workflow animation
+ * (IntroWorkflow) — the exit is now forced 1650ms after .ce-go
+ * (the beats land by ~1.7s) and the attribute is cleaned up by
+ * 2.5s. The page is NEVER trapped — every path (reduced motion,
+ * coarse pointer, repeat visit, JS error, slow fonts) resolves
+ * to "skip" or a forced exit.
  */
 export const introScript = `(function(){try{
 var h=document.documentElement;if(location.pathname!=="/")return;
@@ -26,8 +28,8 @@ h.dataset.intro="play";
 var started=false;
 function go(){if(started)return;started=true;requestAnimationFrame(function(){requestAnimationFrame(function(){
 h.classList.add("ce-go");
-setTimeout(function(){h.classList.add("ce-out")},550);
-setTimeout(function(){h.dataset.intro="skip"},1500);
+setTimeout(function(){h.classList.add("ce-out")},1650);
+setTimeout(function(){h.dataset.intro="skip"},2500);
 })})}
 function wait(){if(!document.querySelector(".oadm-intro")){requestAnimationFrame(wait);return}
 var f=document.fonts&&document.fonts.ready;if(f){Promise.race([f,new Promise(function(r){setTimeout(r,600)})]).then(go)}else go()}

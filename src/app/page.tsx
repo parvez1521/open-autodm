@@ -37,7 +37,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { faqPageJsonLd, softwareApplicationJsonLd } from "@/lib/seo/schema";
 import { KeywordTicker } from "@/components/home/KeywordTicker";
 import { Reveal, RevealRule, Parallax } from "@/components/home/Reveal";
-import { HERO_CREATOR_IMG, STUDIO_DESK_IMG, INK_TEXTURE_IMG } from "@/lib/landing-images";
+import { HERO_CREATOR_IMG, STUDIO_DESK_IMG } from "@/lib/landing-images";
 import { ScrollProgress } from "@/components/motion/primitives";
 import { LIFT_HOVER, PRESS_HOVER, PRESS_TAP, SPRING_PRESS, SPRING_SNAPPY } from "@/lib/motion/presets";
 import { PLANS, TRIAL_DAYS } from "@/lib/billing/catalogue";
@@ -973,17 +973,10 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                {/* Round 4 (2026-11-08): a quiet print moment between the
-                    questions and the ask — generated ink-and-orange texture,
-                    decorative only. */}
-                <div className="border-t border-border" aria-hidden="true">
-                    <img
-                        src={INK_TEXTURE_IMG}
-                        alt=""
-                        className="h-28 w-full object-cover sm:h-36"
-                        loading="lazy"
-                    />
-                </div>
+                {/* The round-4 ink-texture band that sat here was
+                    REMOVED 2026-11-10 (owner directive ~02:19 IST):
+                    a decorative strip with no content — the page now
+                    flows FAQ → final CTA directly. */}
 
                 {/* ── Final CTA ────────────────────────────────────── */}
                 <section className="border-t border-border">

@@ -185,7 +185,10 @@ describe("design pass round 4 — KeywordTicker, images, pricing band", () => {
     expect(page).toContain("landing-images");
     expect(page).toContain("HERO_CREATOR_IMG");
     expect(page).toContain("STUDIO_DESK_IMG");
-    expect(page).toContain("INK_TEXTURE_IMG");
+    // INK_TEXTURE_IMG's pin inverted 2026-11-10 (owner directive
+    // ~02:19 IST): the decorative ink band between the FAQ and the
+    // final CTA was removed, so the page must not reference it.
+    expect(page).not.toContain("INK_TEXTURE_IMG");
     expect(page).toContain("A creator recording a short video");
     expect(page).toContain("A creator's desk with a laptop");
     const mod = read("lib/landing-images.ts");
@@ -301,6 +304,37 @@ describe("design pass round 5 — motion kit, hero choreography, pipeline packet
     for (const w of ["Turn", "comments", "into", "customers", "on", "autopilot"]) {
       expect(page).toContain(`>${w}<`);
     }
+  });
+
+  it("the brand intro plays a workflow animation, not the wave bars (owner directive 2026-11-10)", () => {
+    // Owner directive 2026-11-10 ~02:19 IST: the intro's three-bar
+    // wave read as "music lines" ("wo nahi chahiye tha") — the
+    // sheet now runs a small three-beat workflow animation
+    // (comment → auto-reply → DM delivered) like Open Caption's.
+    // BrandWave itself survives as the console page loader; only
+    // its intro use is gone.
+    const intro = read("components/home/BrandIntro.tsx");
+    const flow = read("components/home/IntroWorkflow.tsx");
+    const gate = read("components/home/intro.ts");
+    expect(intro).toContain("IntroWorkflow");
+    expect(intro).not.toContain("BrandWave");
+    for (const beat of [
+      "intro-flow-beat-1",
+      "intro-flow-beat-2",
+      "intro-flow-beat-3",
+      "intro-flow-beat-4",
+      "LINK",
+      "check your inbox",
+      "Direct message",
+      "Send me the link",
+      "Delivered automatically",
+    ]) {
+      expect(flow).toContain(beat);
+    }
+    expect(css).toContain("@keyframes intro-beat-in");
+    expect(css).toContain("@keyframes intro-chip-pop");
+    // The gate gives the beats their ~1.7s before forcing the exit.
+    expect(gate).toContain("},1650)");
   });
 
   it("a packet travels the pipeline rail while the loop plays", () => {
