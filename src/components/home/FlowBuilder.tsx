@@ -51,7 +51,7 @@ const PAYLOADS: Record<Payload, { label: string; comment: string; dm: string; ca
   },
   demo: {
     label: "Book a demo",
-    comment: "Demo chahiye",
+    comment: "I need a demo",
     dm: "Done — pick a slot that suits you and we will walk through the whole setup live, on your own account.",
     card: "Book a 15-minute demo",
   },

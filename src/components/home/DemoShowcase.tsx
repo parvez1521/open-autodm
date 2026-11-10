@@ -57,7 +57,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     keyword: "DEMO",
-    comment: "Demo chahiye",
+    comment: "I need a demo",
     dmBody:
       "Done — pick a slot that suits you and we will walk through the whole setup live, on your own account.",
     dmCardTitle: "Book a 15-minute demo",

@@ -132,8 +132,10 @@ describe('B-A2 — ScriptSampleShowcase (functional pacing demo)', () => {
   it('carries the same sample content verbatim (no invented copy)', () => {
     const src = read(samplePath);
     expect(src).toContain('3 free AI websites — student edition');
-    expect(src).toContain('Paid tools pe paise waste karna band karo');
-    expect(src).toContain('Teeno ke links chahiye to comment me LINK likho, DM me bhej dunga.');
+    // Owner directive 2026-11-10: the sample script was translated
+    // from Hinglish to English; pin the English lines now.
+    expect(src).toContain('Stop wasting money on paid tools — these 3 websites are completely free.');
+    expect(src).toContain("Want all three links? Comment LINK and I'll send them to your DM.");
     expect(src).toContain('Example output');
   });
 

@@ -34,14 +34,14 @@ const SAMPLE_SECTIONS = [
     {
         time: "0–3s",
         label: "Hook",
-        spoken: "Paid tools pe paise waste karna band karo — ye 3 websites bilkul free hain.",
+        spoken: "Stop wasting money on paid tools — these 3 websites are completely free.",
         // Scaled from the section's own 3-second span.
         holdMs: 3000,
     },
     {
         time: "8–15s",
         label: "Value",
-        spoken: "Pehli website tumhare notes ko flashcards aur quiz me badal deti hai. Revision 10x fast, bina extra app ke.",
+        spoken: "The first website turns your notes into flashcards and quizzes. Revision 10x faster, with no extra app.",
         // The section spans 7 seconds of speech; the playback caps the
         // hold at 4.2s so the sample stays a sample.
         holdMs: 4200,
@@ -49,7 +49,7 @@ const SAMPLE_SECTIONS = [
     {
         time: "27–30s",
         label: "CTA",
-        spoken: "Teeno ke links chahiye to comment me LINK likho, DM me bhej dunga.",
+        spoken: "Want all three links? Comment LINK and I'll send them to your DM.",
         holdMs: 3000,
     },
 ] as const;
