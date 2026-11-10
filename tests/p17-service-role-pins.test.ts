@@ -441,7 +441,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 46 importing files, 90 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site)', () => {
+  it('counts reconcile with the audit: 46 importing files, 91 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site; workspace-mode connect default 2026-11-11: instagram/connect route gains one service-client call to resolve the single membership of the caller for the default-workspace binding (file already classified) — +1 call site)', () => {
     const importers = serviceImporters();
     expect(importers.length).toBe(46);
     let calls = 0;
@@ -454,7 +454,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(90);
+    expect(calls).toBe(91);
   });
 
   it('every classified file still carries its audited guard tokens', () => {

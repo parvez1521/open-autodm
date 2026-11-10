@@ -550,6 +550,67 @@ describe('GET /api/instagram/connect workspace gate', () => {
   });
 });
 
+// ── 5b-ii. Connect route — workspace-mode default (2026-11-11 live bug) ──
+// Regression: with WORKSPACE_RUNTIME_ENABLED on, the Settings Connect
+// button and the account switcher start a BARE connect (no ?workspace=),
+// so the signed state carried no workspaceId and the callback wrote an
+// UNBOUND instagram_accounts row (workspace_id NULL, no mapping) — the
+// connect reported success, yet every workspace-scoped listing surface
+// (settings list, dashboard status, switcher, post picker) filters by
+// workspace_id and showed nothing. In workspace mode a bare connect
+// must bind to the caller's single workspace (owner/admin), and fail
+// closed when no unique default exists.
+describe('GET /api/instagram/connect workspace-mode default binding', () => {
+  beforeEach(() => {
+    seedAppSettings();
+    mockAuth.mockResolvedValue({ id: CALLER_ID, email: 'caller@example.com' });
+    process.env['WORKSPACE_RUNTIME_ENABLED'] = 'true';
+  });
+
+  afterEach(() => {
+    delete process.env['WORKSPACE_RUNTIME_ENABLED'];
+  });
+
+  it('bare connect, exactly one owned workspace: state carries that workspaceId', async () => {
+    fake.seed('workspace_memberships', [
+      { workspace_id: WS1, user_id: CALLER_ID, role: 'owner' },
+    ]);
+    const res = await connectGET(new Request('https://app.opendm.in/api/instagram/connect'));
+    expect(res.status).toBe(200);
+    const { url } = (await res.json()) as { url: string };
+    const state = new URL(url).searchParams.get('state')!;
+    await expect(verifyOAuthState(state)).resolves.toEqual({
+      userId: CALLER_ID,
+      workspaceId: WS1,
+    });
+  });
+
+  it('bare connect, no memberships: fails closed with an instagram_error redirect, no URL issued', async () => {
+    const res = await connectGET(new Request('https://app.opendm.in/api/instagram/connect'));
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toContain('instagram_error=workspace_not_authorized');
+  });
+
+  it('bare connect, two memberships: fails closed — no default workspace exists', async () => {
+    fake.seed('workspace_memberships', [
+      { workspace_id: WS1, user_id: CALLER_ID, role: 'owner' },
+      { workspace_id: WS2, user_id: CALLER_ID, role: 'owner' },
+    ]);
+    const res = await connectGET(new Request('https://app.opendm.in/api/instagram/connect'));
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toContain('instagram_error=workspace_not_authorized');
+  });
+
+  it('bare connect, single membership as member (not owner/admin): fails closed', async () => {
+    fake.seed('workspace_memberships', [
+      { workspace_id: WS1, user_id: CALLER_ID, role: 'member' },
+    ]);
+    const res = await connectGET(new Request('https://app.opendm.in/api/instagram/connect'));
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toContain('instagram_error=workspace_not_authorized');
+  });
+});
+
 // ── 5c. Callback route workspace binding ───────────────────────────────────
 
 describe('GET /api/instagram/callback workspace binding', () => {

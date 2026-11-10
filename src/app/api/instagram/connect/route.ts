@@ -10,7 +10,15 @@
  * Failure is closed: a redirect to /settings with instagram_error,
  * mirroring the callback's error surface, and NO OAuth URL is issued.
  * Without the param the legacy single-owner flow is byte-for-byte
- * unchanged.
+ * unchanged — EXCEPT in workspace mode (WORKSPACE_RUNTIME_ENABLED):
+ * there every listing surface is workspace-scoped, so an unbound
+ * connect would write an account nobody can see (the 2026-11-11 live
+ * bug: success banner, then "No accounts connected yet" everywhere).
+ * Workspace mode therefore resolves the caller's default workspace —
+ * the billing doctrine (lib/billing/access.ts): list memberships,
+ * exactly ONE ⇒ re-resolve + owner/admin gate; zero or several ⇒
+ * fail closed like the explicit-param branch. Flag OFF keeps the
+ * legacy flow untouched.
  */
 
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
@@ -18,7 +26,12 @@ import { isAdminEmail } from '@/lib/admin/panel';
 import { getMetaSettings } from '@/lib/settings';
 import { buildOAuthUrl, signOAuthState } from '@/lib/instagram/oauth';
 import { createServiceClient } from '@/lib/supabase/service';
-import { resolveWorkspaceContext, requireWorkspaceRole } from '@/lib/tenancy/context';
+import {
+  resolveWorkspaceContext,
+  requireWorkspaceRole,
+  listMembershipsForUser,
+} from '@/lib/tenancy/context';
+import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
 import { getAppUrl } from '@/lib/env';
 
 export const runtime = 'nodejs';
@@ -49,6 +62,31 @@ export async function GET(request: Request): Promise<Response> {
   if (workspaceParam) {
     try {
       const ctx = await resolveWorkspaceContext(createServiceClient(), user.id, workspaceParam);
+      requireWorkspaceRole(ctx, ['owner', 'admin']);
+      workspaceId = ctx.workspaceId;
+    } catch {
+      return Response.redirect(
+        `${getAppUrl(request)}/settings?instagram_error=workspace_not_authorized`,
+        302
+      );
+    }
+  } else if (readWorkspaceFlags(process.env).workspaceRuntimeEnabled) {
+    // Workspace mode, no explicit selector (the Settings Connect
+    // button and the account switcher's Add account both start here):
+    // bind the connect to the caller's one workspace, resolved the
+    // documented way (routeContext doctrine — list, then re-resolve
+    // so the membership check runs in full), with the same
+    // owner/admin gate as the explicit branch. listMembershipsForUser
+    // fails closed to [] on any lookup error, and zero/several
+    // memberships have no default — both end at the same closed
+    // redirect, never at an unbound (invisible) account.
+    try {
+      const db = createServiceClient();
+      const memberships = await listMembershipsForUser(db, user.id);
+      if (memberships.length !== 1) {
+        throw new Error('No unique default workspace for workspace-mode connect');
+      }
+      const ctx = await resolveWorkspaceContext(db, user.id, memberships[0]!.workspaceId);
       requireWorkspaceRole(ctx, ['owner', 'admin']);
       workspaceId = ctx.workspaceId;
     } catch {
