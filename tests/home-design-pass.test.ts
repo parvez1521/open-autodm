@@ -309,32 +309,58 @@ describe("design pass round 5 — motion kit, hero choreography, pipeline packet
   it("the brand intro plays a workflow animation, not the wave bars (owner directive 2026-11-10)", () => {
     // Owner directive 2026-11-10 ~02:19 IST: the intro's three-bar
     // wave read as "music lines" ("wo nahi chahiye tha") — the
-    // sheet now runs a small three-beat workflow animation
-    // (comment → auto-reply → DM delivered) like Open Caption's.
+    // sheet runs a workflow animation like Open Caption's instead.
     // BrandWave itself survives as the console page loader; only
     // its intro use is gone.
+    //
+    // Shape changed again 2026-11-10 ~02:44 IST (owner feedback):
+    // the compact centered card read as too basic ("sirf beech me
+    // chota sa box hai") — the workflow is now a wide horizontal
+    // strip: three separate panels (Comment → AutoDM → DM) that
+    // enter one by one LEFT → RIGHT with dashed connectors that
+    // light up between them; on small screens the strip stacks
+    // top→bottom in the same order.
     const intro = read("components/home/BrandIntro.tsx");
     const flow = read("components/home/IntroWorkflow.tsx");
     const gate = read("components/home/intro.ts");
     expect(intro).toContain("IntroWorkflow");
     expect(intro).not.toContain("BrandWave");
-    for (const beat of [
-      "intro-flow-beat-1",
-      "intro-flow-beat-2",
-      "intro-flow-beat-3",
-      "intro-flow-beat-4",
+    for (const piece of [
+      "intro-flow-panel-1",
+      "intro-flow-panel-2",
+      "intro-flow-panel-3",
+      "intro-flow-link-1",
+      "intro-flow-link-2",
+      "max-w-[64rem]",
       "LINK",
+      "AutoDM",
       "check your inbox",
       "Direct message",
       "Send me the link",
       "Delivered automatically",
     ]) {
-      expect(flow).toContain(beat);
+      expect(flow).toContain(piece);
     }
-    expect(css).toContain("@keyframes intro-beat-in");
-    expect(css).toContain("@keyframes intro-chip-pop");
-    // The gate gives the beats their ~1.7s before forcing the exit.
-    expect(gate).toContain("},1650)");
+    // The stacked single card is gone — no beat classes remain.
+    expect(flow).not.toContain("intro-flow-beat");
+    expect(css).not.toContain("intro-flow-beat");
+    // Panels slide in one by one from the left (from above when
+    // stacked) and the connectors draw between them.
+    for (const kf of [
+      "@keyframes intro-panel-in-x",
+      "@keyframes intro-panel-in-y",
+      "@keyframes intro-draw-x",
+      "@keyframes intro-draw-y",
+      "@keyframes intro-head-in",
+      "@keyframes intro-chip-pop",
+    ]) {
+      expect(css).toContain(kf);
+    }
+    expect(css).toContain(".intro-flow-panel-3");
+    expect(css).toContain(".intro-flow-link-2 .intro-flow-fill-h");
+    // The gate gives the strip its ~2s before forcing the exit
+    // (last panel lands ~1.95s).
+    expect(gate).toContain("},2100)");
   });
 
   it("a packet travels the pipeline rail while the loop plays", () => {

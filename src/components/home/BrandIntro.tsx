@@ -8,12 +8,14 @@ import { IntroWorkflow } from "@/components/home/IntroWorkflow";
  * Brand intro — the reference's brand-moment concept, adopted
  * 2026-11-09. Content changed 2026-11-10 (owner directive
  * ~02:19 IST): the three-bar wave under the wordmark read as
- * "music lines" and was rejected — the sheet now plays a small
- * workflow animation (components/home/IntroWorkflow.tsx: comment
- * → auto-reply → DM delivered) and the moment runs ~2s to fit
- * its three beats.
+ * "music lines" and was rejected for a workflow animation;
+ * reshaped again the same night (owner feedback ~02:44 IST —
+ * the compact centered card read as too basic) into a wide
+ * horizontal strip (components/home/IntroWorkflow.tsx: Comment
+ * → AutoDM → DM panels entering one by one, left to right) and
+ * the moment runs ~2.1s to fit the sequence.
  *
- * A dark sheet carrying the wordmark + the workflow card plays
+ * A dark sheet carrying the wordmark + the workflow strip plays
  * once per session on the landing, then lifts and releases the
  * hero's [data-hero] entrance (globals.css holds it paused until
  * html.ce-out). All timing lives in the pre-paint gate script
@@ -34,8 +36,8 @@ export function BrandIntro() {
       return;
     }
     // Fallbacks only — the gate script normally drives .ce-out.
-    const out = setTimeout(() => html.classList.add("ce-out"), 2100);
-    const off = setTimeout(() => setGone(true), 3000);
+    const out = setTimeout(() => html.classList.add("ce-out"), 2500);
+    const off = setTimeout(() => setGone(true), 3400);
     return () => {
       clearTimeout(out);
       clearTimeout(off);
@@ -53,7 +55,7 @@ export function BrandIntro() {
     <div className="oadm-intro" aria-hidden>
       <div data-sheet onClick={skip} className="cursor-pointer">
         <div data-inner className="grid h-full place-items-center px-6">
-          <div className="flex flex-col items-center gap-5">
+          <div className="flex w-full flex-col items-center gap-6">
             <span className="flex items-center gap-3">
               <LogoMark className="h-11 w-11" />
               <span className="font-heading text-4xl font-extrabold leading-none tracking-tight text-foreground">

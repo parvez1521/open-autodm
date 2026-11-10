@@ -440,25 +440,55 @@ html.ce-out .oadm-intro [data-sheet] { animation: intro-sheet 0.6s cubic-bezier(
   .oadm-intro { display: none !important; }
 }
 
-/* ── Intro workflow beats (owner directive 2026-11-10 ~02:19 IST) ──
-   The sheet's content is a three-beat workflow animation
-   (components/home/IntroWorkflow.tsx) — comment lands with its
-   keyword chip popped, the auto-reply follows, then the DM card
-   and its delivered line. Beats are keyed to the sheet's .ce-go
-   gate exactly like [data-inner] above, hold their end state
-   (fill both), and the last one lands at ~1.65s, just before the
-   gate script forces .ce-out at 1650ms. Reduced-motion visitors
-   never see the sheet (kill-switch above + intro.ts), so no
-   per-beat guard is needed. */
-.intro-flow-beat { opacity: 0; }
-html.ce-go .intro-flow-beat-1 { animation: intro-beat-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
-html.ce-go .intro-flow-beat-2 { animation: intro-beat-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) 0.65s both; }
-html.ce-go .intro-flow-beat-3 { animation: intro-beat-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) 1s both; }
-html.ce-go .intro-flow-beat-4 { animation: intro-beat-in 0.3s ease 1.35s both; }
+/* ── Intro workflow strip (owner feedback 2026-11-10 ~02:44 IST) ──
+   The sheet's content is a horizontal workflow strip
+   (components/home/IntroWorkflow.tsx): three panels — Comment →
+   AutoDM → DM — spanning the sheet and entering ONE BY ONE from
+   the left, with dashed connectors that light up as the flow
+   advances; the compact centered card before it ("sirf beech me
+   chota sa box") was rejected as too basic. All pieces are keyed
+   to the sheet's .ce-go gate exactly like [data-inner] above and
+   hold their end state (fill both); the last panel lands at
+   ~1.95s, just before the gate script forces .ce-out at 2100ms.
+   On small screens the strip stacks vertically: panels slide
+   down in the same order and the connectors run top→bottom.
+   Reduced-motion visitors never see the sheet (kill-switch
+   above + intro.ts), so no per-piece guard is needed. */
+.intro-flow-panel { opacity: 0; }
+html.ce-go .intro-flow-panel-1 { animation: intro-panel-in-x 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+html.ce-go .intro-flow-panel-2 { animation: intro-panel-in-x 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.75s both; }
+html.ce-go .intro-flow-panel-3 { animation: intro-panel-in-x 0.4s cubic-bezier(0.16, 1, 0.3, 1) 1.45s both; }
+@media (max-width: 767px) {
+  html.ce-go .intro-flow-panel-1 { animation-name: intro-panel-in-y; }
+  html.ce-go .intro-flow-panel-2 { animation-name: intro-panel-in-y; }
+  html.ce-go .intro-flow-panel-3 { animation-name: intro-panel-in-y; }
+}
+@keyframes intro-panel-in-x { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+@keyframes intro-panel-in-y { from { opacity: 0; transform: translateY(-14px); } to { opacity: 1; transform: none; } }
 .intro-flow-chip { display: inline-block; }
-html.ce-go .intro-flow-chip { animation: intro-chip-pop 0.45s ease-in-out 0.45s both; }
-@keyframes intro-beat-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+html.ce-go .intro-flow-chip { animation: intro-chip-pop 0.45s ease-in-out 0.5s both; }
 @keyframes intro-chip-pop { 0% { transform: scale(1); } 45% { transform: scale(1.22); } 100% { transform: scale(1); } }
+/* Connectors: a dim dashed track; the fill draws over it in the
+   primary colour just before the next panel enters, and the
+   arrow head fades in coloured at the draw's end. */
+html:not(.ce-go) .intro-flow-link { opacity: 0; }
+.intro-flow-track { background-image: repeating-linear-gradient(to right, var(--border) 0 6px, transparent 6px 12px); }
+@media (max-width: 767px) {
+  .intro-flow-track { background-image: repeating-linear-gradient(to bottom, var(--border) 0 6px, transparent 6px 12px); }
+}
+.intro-flow-fill { position: absolute; inset: 0; opacity: 0; }
+.intro-flow-fill-h { background-image: repeating-linear-gradient(to right, var(--primary) 0 6px, transparent 6px 12px); transform-origin: left center; }
+.intro-flow-fill-v { background-image: repeating-linear-gradient(to bottom, var(--primary) 0 6px, transparent 6px 12px); transform-origin: center top; }
+html.ce-go .intro-flow-link-1 .intro-flow-fill-h { animation: intro-draw-x 0.3s linear 0.5s both; }
+html.ce-go .intro-flow-link-2 .intro-flow-fill-h { animation: intro-draw-x 0.3s linear 1.2s both; }
+html.ce-go .intro-flow-link-1 .intro-flow-fill-v { animation: intro-draw-y 0.3s linear 0.5s both; }
+html.ce-go .intro-flow-link-2 .intro-flow-fill-v { animation: intro-draw-y 0.3s linear 1.2s both; }
+@keyframes intro-draw-x { from { opacity: 1; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes intro-draw-y { from { opacity: 1; transform: scaleY(0); } to { opacity: 1; transform: scaleY(1); } }
+.intro-flow-head { color: var(--muted-foreground); opacity: 0.35; }
+html.ce-go .intro-flow-link-1 .intro-flow-head { animation: intro-head-in 0.25s ease 0.78s both; }
+html.ce-go .intro-flow-link-2 .intro-flow-head { animation: intro-head-in 0.25s ease 1.48s both; }
+@keyframes intro-head-in { from { opacity: 0.35; color: var(--muted-foreground); } to { opacity: 1; color: var(--primary); } }
 
 /* ── Scroll morph reveals (ScrollMorph) ─────────────────────────────
    Ported from SwitchRoute's live V2 "Scale-Up Rotate" (PR #64):
