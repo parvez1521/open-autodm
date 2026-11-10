@@ -32,11 +32,19 @@ import {
   PLAN_PICKER_DESTINATION,
   resolvePostAuthDestination,
 } from "@/lib/billing/planChoiceServer";
+import { createPerUserRateLimiter } from "@/lib/studio/groq";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const logger = createLogger("api:billing:plan-choice");
+
+// Rate limiting (security audit Phase B, 2026-11-10 — finding #8):
+// the shared per-user limiter the Studio AI / script-writer routes
+// already use (lib/studio/groq.ts), same defaults (10/min burst,
+// 50/day per user). Applies to the POST mutation only; the GET
+// destination read stays unthrottled like other billing reads.
+const limiter = createPerUserRateLimiter();
 
 export async function GET(request: Request): Promise<Response> {
   const user = await getAuthenticatedUser(request);
@@ -54,6 +62,23 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   const user = await getAuthenticatedUser(request);
   if (!user) return unauthorized();
+
+  const refusal = limiter.check(user.id);
+  if (refusal) {
+    logger.warn({ userId: user.id, refusal }, "plan-choice refused by per-user limiter");
+    return Response.json(
+      {
+        ok: false,
+        code: refusal === "daily_quota_reached" ? "DAILY_QUOTA_REACHED" : "RATE_LIMITED",
+        message:
+          refusal === "daily_quota_reached"
+            ? "You have reached today's billing request limit. Please try again tomorrow."
+            : "Too many billing requests in a row. Please wait a minute and try again.",
+      },
+      { status: 429 },
+    );
+  }
+  limiter.record(user.id);
 
   try {
     const db = createServiceClient();

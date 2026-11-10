@@ -82,6 +82,13 @@ export async function GET(request: Request): Promise<Response> {
   const setupCompleted = (row?.setup_completed as boolean | null) ?? false;
   const maySeeToken = !setupCompleted || isInstanceOwner(user);
 
+  // The Meta App ID identifies the platform's Meta app (security audit
+  // Phase B, 2026-11-10 — finding #3): only the instance owner may see
+  // it. Non-owner authenticated callers get the same response shape
+  // with the ID redacted (null); the owner response is unchanged. The
+  // first-run token behaviour above is deliberately NOT changed here.
+  const maySeeMetaAppId = isInstanceOwner(user);
+
   return Response.json({
     configured: !!settings,
     // Caller-admin flag (owner directive, 2026-11-10): whether THIS
@@ -90,7 +97,7 @@ export async function GET(request: Request): Promise<Response> {
     // like the Setup Wizard link — the allowlist itself is never
     // serialized, only the caller's own boolean.
     isAdmin: isAdminEmail(user.email, process.env),
-    metaAppId: (row?.meta_app_id as string | null) ?? null,
+    metaAppId: maySeeMetaAppId ? ((row?.meta_app_id as string | null) ?? null) : null,
     webhookVerifyToken: maySeeToken ? ((row?.webhook_verify_token as string | null) ?? null) : null,
     webhookUrl: `${appUrl}/api/webhook`,
     oauthRedirectUri: `${appUrl}/api/instagram/callback`,

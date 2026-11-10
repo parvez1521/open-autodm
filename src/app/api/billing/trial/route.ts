@@ -50,11 +50,19 @@ import {
 } from "@/lib/billing/trial";
 import { applyPeriodLapse } from "@/lib/billing/lifecycle";
 import { serverCurrencyForRequest } from "@/lib/billing/geo";
+import { createPerUserRateLimiter } from "@/lib/studio/groq";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const logger = createLogger("api:billing:trial");
+
+// Rate limiting (security audit Phase B, 2026-11-10 — finding #8):
+// the shared per-user limiter the Studio AI / script-writer routes
+// already use (lib/studio/groq.ts), same defaults (10/min burst,
+// 50/day per user), counted on authenticated attempts so trial
+// starts cannot be churned per account.
+const limiter = createPerUserRateLimiter();
 
 const PLAN_IDS: readonly PlanId[] = ["free", "starter", "creator-pro", "agency", "enterprise"];
 const CURRENCIES: readonly CurrencyCode[] = ["INR", "USD"];
@@ -134,6 +142,22 @@ export async function POST(request: Request): Promise<Response> {
 
   const user = await getAuthenticatedUser(request);
   if (!user) return unauthorized();
+  const refusal = limiter.check(user.id);
+  if (refusal) {
+    logger.warn({ userId: user.id, refusal }, "trial start refused by per-user limiter");
+    return Response.json(
+      {
+        ok: false,
+        code: refusal === "daily_quota_reached" ? "DAILY_QUOTA_REACHED" : "RATE_LIMITED",
+        message:
+          refusal === "daily_quota_reached"
+            ? "You have reached today's billing request limit. Please try again tomorrow."
+            : "Too many billing requests in a row. Please wait a minute and try again.",
+      },
+      { status: 429 },
+    );
+  }
+  limiter.record(user.id);
   const db = createServiceClient();
   const resolved = await resolveBillingWorkspace(
     db,

@@ -166,7 +166,9 @@ describe('GET /api/setup', () => {
     const res = await GET(new Request('https://app.opendm.in/api/setup'));
     const body = (await res.json()) as { webhookVerifyToken: string | null; metaAppId: string | null };
     expect(body.webhookVerifyToken).toBeNull();
-    expect(body.metaAppId).toBe('123456789012'); // non-secret fields stay visible
+    // Phase B (2026-11-10): metaAppId is owner-only too — redacted for
+    // non-owner authenticated callers (was visible to any signed-in user).
+    expect(body.metaAppId).toBeNull();
   });
 
   it('returns the token to the owner once setup is complete', async () => {
@@ -174,8 +176,10 @@ describe('GET /api/setup', () => {
     process.env['OWNER_USER_ID'] = OWNER.id;
     mockAuth.mockResolvedValue(OWNER);
     const res = await GET(new Request('https://app.opendm.in/api/setup'));
-    const body = (await res.json()) as { webhookVerifyToken: string | null };
+    const body = (await res.json()) as { webhookVerifyToken: string | null; metaAppId: string | null };
     expect(body.webhookVerifyToken).toBe('live-verify-token');
+    // Owner response unchanged by Phase B: the app ID stays visible.
+    expect(body.metaAppId).toBe('123456789012');
   });
 
   it('returns the token during first run (wizard needs it before completion)', async () => {

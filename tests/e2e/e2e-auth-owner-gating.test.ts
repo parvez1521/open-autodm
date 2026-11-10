@@ -122,7 +122,9 @@ describe('one owner configuration, consistent across both gated surfaces', () =>
     const getRes = await setupGET(setupGetRequest());
     const body = (await getRes.json()) as { webhookVerifyToken: string | null; metaAppId: string | null };
     expect(body.webhookVerifyToken).toBeNull();
-    expect(body.metaAppId).toBe('123456789012'); // non-secret fields stay visible
+    // Phase B (2026-11-10): metaAppId is owner-only too — redacted for
+    // non-owner authenticated callers (was visible to any signed-in user).
+    expect(body.metaAppId).toBeNull();
 
     mockGetAuthenticatedUser.mockResolvedValue(OTHER);
     expect((await setupPOST(setupPostRequest())).status).toBe(403);
