@@ -9,7 +9,7 @@ import { createLogger } from '@/lib/logger';
 import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
 import { resolveRouteWorkspaceContext, requireCapability } from '@/lib/tenancy/routeContext';
 import { createTenantRepository } from '@/lib/tenancy/repository';
-import { WorkspaceAccessError } from '@/lib/tenancy/context';
+import { WorkspaceAccessError, listMembershipsForUser } from '@/lib/tenancy/context';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -64,6 +64,15 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
 // (verified through the repository's getByIdInWorkspace; foreign or
 // unbound ⇒ 404, zero mutation). The delete itself goes through the
 // repository's scoped deleteById.
+//
+// Bare-call default (2026-11-12, mirrors the connect route's fix): the
+// Settings page's Disconnect button calls this route with NO selector,
+// which used to fail closed with 'workspace-context-required' — the
+// button could never work. When no selector is supplied, resolve the
+// caller's default the documented routeContext way: list memberships,
+// and only when there is exactly ONE, re-resolve it in full through
+// resolveRouteWorkspaceContext (the membership + capability checks all
+// still run). Zero or several memberships keep the fail-closed 400.
 async function p18Disconnect(
   request: Request,
   user: { id: string },
@@ -72,10 +81,18 @@ async function p18Disconnect(
   const { accountId } = await context.params;
   const db = createServiceClient();
   const header = request.headers.get('x-workspace-id');
-  const selector =
+  let selector =
     header && header.trim().length > 0
       ? header
       : new URL(request.url).searchParams.get('workspace');
+  if (!selector) {
+    // listMembershipsForUser fails closed to [] on any lookup error, so
+    // a failed list lands on the same closed 400 as zero memberships.
+    const memberships = await listMembershipsForUser(db, user.id);
+    if (memberships.length === 1) {
+      selector = memberships[0]!.workspaceId;
+    }
+  }
   const resolved = await resolveRouteWorkspaceContext(db, user.id, selector);
   if (!resolved.ok) {
     return Response.json({ error: resolved.message, code: resolved.code }, { status: resolved.status });

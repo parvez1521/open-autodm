@@ -149,6 +149,35 @@ describe('disconnect (accountAdmin)', () => {
     expect(foreign.status).toBe(404);
     expect(fake.rows('instagram_accounts').some((r) => r['id'] === ACCT_B)).toBe(true);
   });
+
+  it('bare call (no selector — the Settings Disconnect button) resolves the single-membership default and disconnects', async () => {
+    mockAuth.mockResolvedValue(OWNER_A);
+    const res = await disconnectDELETE(wsReq(`https://app.opendm.in/api/instagram/disconnect/${ACCT_A}`, { method: 'DELETE' }), acctCtx(ACCT_A));
+    expect(res.status).toBe(200);
+    expect(fake.rows('instagram_accounts').some((r) => r['id'] === ACCT_A)).toBe(false);
+  });
+
+  it('bare call still enforces accountAdmin: a member with one membership is denied 403, zero mutation', async () => {
+    mockAuth.mockResolvedValue(MEMBER_A);
+    const res = await disconnectDELETE(wsReq(`https://app.opendm.in/api/instagram/disconnect/${ACCT_A}`, { method: 'DELETE' }), acctCtx(ACCT_A));
+    expect(res.status).toBe(403);
+    expect(fake.rows('instagram_accounts').some((r) => r['id'] === ACCT_A)).toBe(true);
+  });
+
+  it('bare call with two memberships fails closed 400 (workspace-context-required), zero mutation', async () => {
+    const TWO_WS_OWNER = { id: 'user-two-ws', email: 'two@example.com' };
+    fake.replaceRows('workspace_memberships', [
+      ...fake.rows('workspace_memberships'),
+      { workspace_id: WS_A, user_id: TWO_WS_OWNER.id, role: 'owner' },
+      { workspace_id: WS_B, user_id: TWO_WS_OWNER.id, role: 'owner' },
+    ]);
+    mockAuth.mockResolvedValue(TWO_WS_OWNER);
+    const res = await disconnectDELETE(wsReq(`https://app.opendm.in/api/instagram/disconnect/${ACCT_A}`, { method: 'DELETE' }), acctCtx(ACCT_A));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { code?: string };
+    expect(body.code).toBe('workspace-context-required');
+    expect(fake.rows('instagram_accounts').some((r) => r['id'] === ACCT_A)).toBe(true);
+  });
 });
 
 describe('refresh (accountAdmin)', () => {
