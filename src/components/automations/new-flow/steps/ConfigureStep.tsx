@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { AutomationFlowData, DMResponse, CardButton } from "../NewAutomationModal";
 import { CommentsPhone, DMConversationPhone, StoryPhone } from "./PhoneComponents";
-import { MAX_DM_RESPONSES } from "@/lib/api/schemas";
+import { MAX_DM_RESPONSES, MAX_DM_OPENING_VARIATIONS } from "@/lib/api/schemas";
 
 interface ConfigureStepProps {
     data: AutomationFlowData;
@@ -383,7 +383,7 @@ function ResponseBlock({ res, idx, onUpdate, onDelete }: {
         <div className="border border-border rounded-lg overflow-hidden">
             <div className="flex items-center justify-between px-3 h-9 bg-muted/50 border-b border-border">
                 <div className="flex items-center gap-2">
-                    <span className="w-4.5 h-4.5 w-[18px] h-[18px] rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">{idx + 1}</span>
+                    <span className="w-[18px] h-[18px] rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">{idx + 1}</span>
                     <span className="text-[12px] font-semibold text-foreground">{typeLabel}</span>
                 </div>
                 <div className="flex items-center">
@@ -424,6 +424,35 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
     const [commentInput, setCommentInput] = useState("");
     // AI-drafted opening variations offered as a picker (transient, never persisted).
     const [openingAiOptions, setOpeningAiOptions] = useState<string[] | null>(null);
+    // Opening-message variations - the tab the editor is looking at.
+    // One variation is picked at random for each DM the engine sends.
+    const variations = data.dmOpeningMessageVariations.length > 0
+        ? data.dmOpeningMessageVariations
+        : [data.dmOpeningMessage];
+    const [activeVariationTab, setActiveVariationTab] = useState(0);
+    const safeVariationTab = Math.min(activeVariationTab, variations.length - 1);
+    const activeOpeningMessage = variations[safeVariationTab] ?? data.dmOpeningMessage;
+    // Small screens show form OR live preview, never both - xl shows both.
+    const [mobileTab, setMobileTab] = useState<"form" | "preview">("form");
+
+    const updateVariation = (idx: number, value: string) => {
+        const next = [...variations];
+        next[idx] = value;
+        // Variation 1 stays mirrored into the legacy single-message field.
+        onUpdate({ dmOpeningMessageVariations: next, dmOpeningMessage: next[0] ?? value });
+    };
+    const addVariation = () => {
+        if (variations.length >= MAX_DM_OPENING_VARIATIONS) return;
+        const next = [...variations, ""];
+        onUpdate({ dmOpeningMessageVariations: next });
+        setActiveVariationTab(next.length - 1);
+    };
+    const removeVariation = (idx: number) => {
+        if (variations.length <= 1) return;
+        const next = variations.filter((_, i) => i !== idx);
+        onUpdate({ dmOpeningMessageVariations: next, dmOpeningMessage: next[0] ?? data.dmOpeningMessage });
+        setActiveVariationTab(Math.max(0, Math.min(safeVariationTab, next.length - 1)));
+    };
 
     const flowType = data.type ?? "comment-dm";
     const isComment = flowType === "comment-dm";
@@ -470,9 +499,32 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
         (data.dmOpeningMessageEnabled ? true : data.dmResponses.length < 1);
 
     return (
-        <div className="flex h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
+            {/* Form / Preview switch - small screens only. Below xl the
+                phone preview used to be unreachable (hidden xl:flex with
+                no way to see it); xl still shows both side by side. */}
+            <div className="flex xl:hidden items-center gap-1 px-3 pt-3 shrink-0">
+                <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
+                    {(["form", "preview"] as const).map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setMobileTab(tab)}
+                            className={cn(
+                                "h-7 px-3 rounded-[7px] text-[12px] font-medium capitalize transition-colors",
+                                mobileTab === tab
+                                    ? "bg-card text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {tab === "form" ? "Edit" : "Preview"}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="flex flex-1 min-h-0 overflow-hidden">
             {/* ── Left - form ── */}
-            <div className="flex-1 min-w-0 overflow-y-auto p-5 space-y-6 custom-scrollbar">
+            <div className={cn("flex-1 min-w-0 overflow-y-auto p-5 space-y-6 custom-scrollbar", mobileTab === "preview" && "hidden xl:block")}>
 
                 {/* Name */}
                 <section className="space-y-2">
@@ -524,7 +576,10 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                 {/* Public comment replies - comment automations only */}
                 {isComment && (
                     <section className="space-y-2.5">
-                        <SectionHeader title="Public comment reply" />
+                        <SectionHeader
+                            title="Public comment reply"
+                            action={<span className="text-[11px] font-medium text-muted-foreground">{data.customReplies.length} variation{data.customReplies.length === 1 ? "" : "s"}</span>}
+                        />
                         <p className="text-[12px] text-muted-foreground">
                             A random line from this list is posted publicly under the trigger comment.
                         </p>
@@ -535,7 +590,8 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                     <span className="flex-1 text-[13px] text-foreground bg-muted/40 rounded-lg px-3 py-1.5 truncate">{r}</span>
                                     <button
                                         onClick={() => onUpdate({ customReplies: data.customReplies.filter((_, j) => j !== i) })}
-                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-muted-foreground hover:text-destructive transition-all shrink-0"
+                                        className="opacity-50 hover:opacity-100 focus-visible:opacity-100 p-1.5 text-muted-foreground hover:text-destructive transition-all shrink-0"
+                                        title="Remove this variation"
                                     >
                                         <X className="w-3 h-3" />
                                     </button>
@@ -615,16 +671,58 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                                 className="overflow-hidden"
                                             >
                                                 <div className="p-3 space-y-2.5">
+                                                    {/* Variations - one is picked at random for each DM.
+                                                        Restored 2026-11-12: this selector was lost in
+                                                        the 985ed5c redesign, so the editor showed a
+                                                        single message and the "3 variations" were
+                                                        nowhere to be found. */}
+                                                    <div className="flex items-center gap-1 flex-wrap">
+                                                        <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
+                                                            {variations.map((_, i) => (
+                                                                <button
+                                                                    key={i}
+                                                                    onClick={() => setActiveVariationTab(i)}
+                                                                    className={cn(
+                                                                        "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
+                                                                        safeVariationTab === i
+                                                                            ? "bg-card text-foreground shadow-sm"
+                                                                            : "text-muted-foreground hover:text-foreground"
+                                                                    )}
+                                                                >
+                                                                    Variation {i + 1}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                        {variations.length < MAX_DM_OPENING_VARIATIONS && (
+                                                            <button
+                                                                onClick={addVariation}
+                                                                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-semibold text-primary hover:bg-primary/10 transition-colors"
+                                                            >
+                                                                <Plus className="w-3 h-3" /> Add variation
+                                                            </button>
+                                                        )}
+                                                        {variations.length > 1 && (
+                                                            <button
+                                                                onClick={() => removeVariation(safeVariationTab)}
+                                                                className="inline-flex items-center gap-1 h-7 px-2 text-[12px] font-medium text-muted-foreground hover:text-destructive transition-colors"
+                                                            >
+                                                                <Trash className="w-3 h-3" /> Remove
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[11px] text-muted-foreground">
+                                                        {variations.length} variation{variations.length === 1 ? "" : "s"} - one is picked at random for each DM, so repeat commenters don&apos;t get the identical message every time.
+                                                    </p>
                                                     <div className="relative">
                                                         <textarea
-                                                            value={data.dmOpeningMessage}
-                                                            onChange={e => onUpdate({ dmOpeningMessage: e.target.value })}
+                                                            value={activeOpeningMessage}
+                                                            onChange={e => updateVariation(safeVariationTab, e.target.value)}
                                                             rows={4}
                                                             maxLength={1000}
                                                             placeholder="Hey! Thanks so much for stopping by…"
                                                             className={textareaCls}
                                                         />
-                                                        <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground tabular-nums">{data.dmOpeningMessage.length}/1000</span>
+                                                        <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground tabular-nums">{activeOpeningMessage.length}/1000</span>
                                                     </div>
                                                     {isComment && (
                                                         <p className="text-[10px] text-muted-foreground">
@@ -656,7 +754,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                                             {openingAiOptions.map((v, i) => (
                                                                 <button
                                                                     key={i}
-                                                                    onClick={() => { onUpdate({ dmOpeningMessage: v }); setOpeningAiOptions(null); }}
+                                                                    onClick={() => { updateVariation(safeVariationTab, v); setOpeningAiOptions(null); }}
                                                                     className="block w-full text-left text-[13px] text-foreground bg-muted/40 hover:bg-muted rounded-lg px-3 py-2 transition-colors"
                                                                 >
                                                                     {v}
@@ -879,7 +977,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
             </div>
 
             {/* ── Right - phones ── */}
-            <div className="hidden xl:flex w-[600px] shrink-0 bg-[#0a0a0b] border-l border-border overflow-hidden relative">
+            <div className={cn("w-full xl:w-[600px] shrink-0 bg-[#0a0a0b] border-l border-border overflow-hidden relative", mobileTab === "preview" ? "flex" : "hidden xl:flex")}>
                 <motion.div
                     initial={{ y: 24, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -901,7 +999,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                     {data.isAutoDmEnabled && (
                         <DMConversationPhone
                             openingEnabled={data.dmOpeningMessageEnabled}
-                            openingMessage={data.dmOpeningMessage}
+                            openingMessage={activeOpeningMessage}
                             openingBtnTitle={data.dmOpeningMessageButtonTitle}
                             askToFollowEnabled={data.askToFollowEnabled}
                             askToFollowMessage={data.askToFollowMessage}
@@ -915,6 +1013,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                         />
                     )}
                 </motion.div>
+            </div>
             </div>
         </div>
     );

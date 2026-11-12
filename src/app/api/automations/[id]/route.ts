@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createLogger } from '@/lib/logger';
-import { DMResponseSchema, MAX_DM_RESPONSES } from '@/lib/api/schemas';
+import { DMResponseSchema, MAX_DM_RESPONSES, MAX_DM_OPENING_VARIATIONS } from '@/lib/api/schemas';
 import { automationToFlowGraph, hasComplexBranches, validateFlowGraph } from '@/lib/automation/flowGraph';
 import type { FlowGraph } from '@/lib/types';
 import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
@@ -33,6 +33,7 @@ const UpdateAutomationSchema = z.object({
   comment_reply_options: z.array(z.string()).optional(),
   dm_opening_message_enabled: z.boolean().optional(),
   dm_opening_message: z.string().optional(),
+  dm_opening_message_variations: z.array(z.string()).max(MAX_DM_OPENING_VARIATIONS, `Max ${MAX_DM_OPENING_VARIATIONS} opening-message variations per automation`).optional(),
   dm_opening_message_button_title: z.string().nullable().optional(),
   dm_opening_message_button_link: z.string().nullable().optional(),
   post_thumbnail_url: z.string().nullable().optional(),

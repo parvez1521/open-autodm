@@ -55,6 +55,9 @@ export type AutomationFlowData = {
     isAutoDmEnabled: boolean;
     dmOpeningMessageEnabled: boolean;
     dmOpeningMessage: string;
+    /** Opening-message variations - one is picked at random per DM.
+        Restored 2026-11-12; the 985ed5c redesign dropped this field. */
+    dmOpeningMessageVariations: string[];
     dmOpeningMessageButtonTitle: string;
     askToFollowEnabled: boolean;
     askToFollowMessage: string;
@@ -78,6 +81,18 @@ const DEFAULT_NAMES: Record<string, string> = {
     "story-reply": "Story reply funnel",
 };
 
+const DEFAULT_OPENING_MESSAGE =
+    "Hey there!\n\nI'm so happy you're here, thank you so much for your interest 🥰\n\nClick below and I'll send you the link in just a sec ✨";
+
+/** The 3 default opening variations - variation 1 is the message
+    new automations already shipped with; 2 and 3 are the originals
+    from the a091ade builder. One is picked at random per DM. */
+const DEFAULT_OPENING_MESSAGE_VARIATIONS = [
+    DEFAULT_OPENING_MESSAGE,
+    "Thanks for your comment, {username}! Super excited to share this with you ✨",
+    "Hey {username}! Really appreciate your interest! Here is everything you need 🚀",
+];
+
 const defaultFlowData = (): AutomationFlowData => ({
     name: "New automation",
     type: null,
@@ -89,7 +104,8 @@ const defaultFlowData = (): AutomationFlowData => ({
     customReplies: ["Sent! 🚀", "Check your DMs 📬", "Got it, check your inbox! ✉️"],
     isAutoDmEnabled: true,
     dmOpeningMessageEnabled: true,
-    dmOpeningMessage: "Hey there!\n\nI'm so happy you're here, thank you so much for your interest 🥰\n\nClick below and I'll send you the link in just a sec ✨",
+    dmOpeningMessage: DEFAULT_OPENING_MESSAGE,
+    dmOpeningMessageVariations: [...DEFAULT_OPENING_MESSAGE_VARIATIONS],
     dmOpeningMessageButtonTitle: "Send me the link",
     askToFollowEnabled: false,
     askToFollowMessage: "Hey! It seems you're not following me yet 😊",
@@ -122,6 +138,11 @@ function automationToFlowData(automation: AutomationFromDB): AutomationFlowData 
         isAutoDmEnabled: automation.dm_opening_message_enabled,
         dmOpeningMessageEnabled: automation.dm_opening_message_enabled,
         dmOpeningMessage: automation.dm_opening_message || defaults.dmOpeningMessage,
+        dmOpeningMessageVariations: automation.dm_opening_message_variations?.length > 0
+            ? automation.dm_opening_message_variations
+            : automation.dm_opening_message
+                ? [automation.dm_opening_message]
+                : defaults.dmOpeningMessageVariations,
         dmOpeningMessageButtonTitle: automation.dm_opening_message_button_title ?? defaults.dmOpeningMessageButtonTitle,
         askToFollowEnabled: automation.ask_to_follow_enabled,
         askToFollowMessage: automation.ask_to_follow_message || defaults.askToFollowMessage,
@@ -237,7 +258,10 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
             followUpDelayMinutes: flowData.followUpDelayMinutes,
             followUpMessage: flowData.followUpMessage,
             dmOpeningMessageEnabled: flowData.isAutoDmEnabled && flowData.dmOpeningMessageEnabled,
-            dmOpeningMessage: flowData.dmOpeningMessage,
+            // Variation 1 stays mirrored into the legacy single-message
+            // field so the engine's "opening off" check keeps working.
+            dmOpeningMessage: flowData.dmOpeningMessageVariations[0] ?? flowData.dmOpeningMessage,
+            dmOpeningMessageVariations: flowData.dmOpeningMessageVariations,
             dmOpeningMessageButtonTitle: flowData.dmOpeningMessageButtonTitle || null,
             dmOpeningMessageButtonLink: null,
             askToFollowEnabled: flowData.askToFollowEnabled,
@@ -253,7 +277,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
         setPendingAction(activate ? 'activate' : 'save');
 
         if (isEditMode && editAutomation) {
-            const { name, commentReplyOptions, dmOpeningMessageEnabled, dmOpeningMessage, dmOpeningMessageButtonTitle,
+            const { name, commentReplyOptions, dmOpeningMessageEnabled, dmOpeningMessage, dmOpeningMessageVariations, dmOpeningMessageButtonTitle,
                 askToFollowEnabled, askToFollowMessage, askToFollowVisitProfileButton,
                 askToFollowConfirmButton, dmResponses, keywords, postThumbnailUrl, postCaption,
                 publicReplyEnabled, publicReplyOptions, followUpEnabled, followUpDelayMinutes, followUpMessage } = buildPayload(null);
@@ -270,6 +294,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                 follow_up_message: followUpMessage,
                 dm_opening_message_enabled: dmOpeningMessageEnabled,
                 dm_opening_message: dmOpeningMessage,
+                dm_opening_message_variations: dmOpeningMessageVariations,
                 dm_opening_message_button_title: dmOpeningMessageButtonTitle ?? null,
                 dm_opening_message_button_link: null,
                 post_thumbnail_url: postThumbnailUrl ?? null,
@@ -318,7 +343,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-3">
+                <div data-no-reveal className="fixed inset-0 z-[200] flex items-center justify-center p-3">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}

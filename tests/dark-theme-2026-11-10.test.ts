@@ -6,7 +6,9 @@
  * near-black #141412 ground, #1C1C1A / #232320 surfaces, cream
  * #FFFFEB text, accents unchanged (lavender #F0D7FF, emerald
  * #34D399, orange #FFA946). Typography and all restyle animations
- * stay; the logo is untouched ("logo pehle waala hi rakh").
+ * stay; the logo is the original solid orange (the 2026-11-12 UI
+ * fix port restored it — the 2026-11-09 orange->emerald gradient
+ * is gone; "logo pehle waala hi rakh").
  *
  * These pins keep the dark token set from silently drifting back
  * to a light palette, and keep the theme pinned dark-only.
@@ -25,10 +27,13 @@ describe("dark theme — token layer (2026-11-10)", () => {
   it(":root carries the dark tokens", () => {
     expect(css).toContain("--background: #141412;");
     expect(css).toContain("--foreground: #FFFFEB;");
-    expect(css).toContain("--card: #1C1C1A;");
+    // Contrast step-up from the 2026-11-12 UI fix port: card
+    // #1C1C1A -> #121215, muted text #A9A99C -> #B9B9C2, borders
+    // #2E2E2A -> #2F2F37. Ground, ink and accents are unchanged.
+    expect(css).toContain("--card: #121215;");
     expect(css).toContain("--popover: #232320;");
-    expect(css).toContain("--muted-foreground: #A9A99C;");
-    expect(css).toContain("--border: #2E2E2A;");
+    expect(css).toContain("--muted-foreground: #B9B9C2;");
+    expect(css).toContain("--border: #2F2F37;");
   });
 
   it("no light ground survives as a semantic token", () => {
@@ -76,9 +81,11 @@ describe("dark theme — pinning and surfaces (2026-11-10)", () => {
     ]) {
       expect(read(f)).not.toContain("ThemeToggle");
     }
-    expect(read("components/ui/ThemeToggle.tsx")).toContain(
-      "REMOVED 2026-11-10",
-    );
+    // 2026-11-12 UI fix port: the stub file itself is deleted (the
+    // 2026-11-10 pass had left a REMOVED-marker stub behind).
+    expect(
+      fs.existsSync(path.join(ROOT, "components/ui/ThemeToggle.tsx")),
+    ).toBe(false);
   });
 
   it("the sidebar's active item pairs lavender with obsidian text", () => {
@@ -99,10 +106,14 @@ describe("dark theme — pinning and surfaces (2026-11-10)", () => {
     expect(page).toContain('const gridStroke = "#2E2E2A";');
   });
 
-  it("the logo mark is untouched (owner: pehle waala logo)", () => {
+  it("the logo mark is the original solid orange (owner: pehle waala logo)", () => {
+    // 2026-11-12 UI fix port: the 2026-11-09 orange->emerald gradient
+    // is gone; the mark is the original solid brand orange #F97316
+    // with a white bolt, and the wordmark accents autoDM in orange.
     const logo = read("components/ui/Logo.tsx");
-    expect(logo).toContain('fill="url(#oadm-grad)"');
-    expect(logo).toContain('<stop offset="0%" stopColor="#FFA946" />');
-    expect(logo).toContain('<stop offset="100%" stopColor="#34D399" />');
+    expect(logo).toContain('fill="#F97316"');
+    expect(logo).not.toContain("oadm-grad");
+    expect(logo).not.toContain("linearGradient");
+    expect(logo).toContain('text-[#F97316]');
   });
 });

@@ -936,7 +936,14 @@ export async function processAutoDmJob(payload: AutoDmJobPayload, attempt: numbe
     }
   }
 
-  const messageText = renderTemplate(automation.dm_opening_message.trim(), payload.triggerUsername);
+  // If variations exist, one is picked at random for this DM - same
+  // rotation pattern as the public comment replies above. Falls back
+  // to the legacy single opening message when no variations are stored.
+  const openingVariations = (automation.dm_opening_message_variations ?? []).filter((v) => v.trim());
+  const openingText = openingVariations.length > 0
+    ? openingVariations[Math.floor(Math.random() * openingVariations.length)]!
+    : automation.dm_opening_message;
+  const messageText = renderTemplate(openingText.trim(), payload.triggerUsername);
   const openingLink = automation.dm_opening_message_button_link?.trim();
 
   // Comment triggers go out as PRIVATE REPLIES (recipient: comment_id) -

@@ -70,7 +70,7 @@ function AutomationsContent() {
     };
 
     return (
-        <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
+        <div data-no-reveal className="w-full max-w-5xl mx-auto space-y-6 pb-16">
 
             {/* Tabs + new */}
             <div className="flex items-center justify-between gap-4">

@@ -115,13 +115,13 @@
 :root {
   /* DARK - warm near-black ground, cream ink (owner directive
      2026-11-10). Contrast, verified numerically: cream on ground
-     18.2:1, on card 16.9:1, on popover 15.6:1; muted #A9A99C on
-     ground 7.8:1, on card 7.2:1, on muted surface 6.6:1 — body
-     text clears AA on every surface. */
+     18.2:1, on card 16.9:1, on popover 15.6:1; muted #B9B9C2 on
+     ground (brighter than the old #A9A99C, ported from the UI fix
+     for contrast) — body text clears AA on every surface. */
   --background: #141412;
   --foreground: #FFFFEB;
 
-  --card: #1C1C1A;
+  --card: #121215;
   --card-foreground: #FFFFEB;
 
   --popover: #232320;
@@ -134,7 +134,7 @@
   --secondary-foreground: #1A1A1A;
 
   --muted: #232320;
-  --muted-foreground: #A9A99C;
+  --muted-foreground: #B9B9C2;
 
   --accent: #F0D7FF;
   --accent-foreground: #1A1A1A;
@@ -145,8 +145,8 @@
   --destructive: #EF4444;
   --destructive-foreground: #1A1A1A;
 
-  --border: #2E2E2A;
-  --input: #3A3A35;
+  --border: #2F2F37;
+  --input: #2F2F37;
   --ring: #FFA946;
 }
 
@@ -158,7 +158,7 @@
   --background: #141412;
   --foreground: #FFFFEB;
 
-  --card: #1C1C1A;
+  --card: #121215;
   --card-foreground: #FFFFEB;
 
   --popover: #232320;
@@ -171,7 +171,7 @@
   --secondary-foreground: #1A1A1A;
 
   --muted: #232320;
-  --muted-foreground: #A9A99C;
+  --muted-foreground: #B9B9C2;
 
   --accent: #F0D7FF;
   --accent-foreground: #1A1A1A;
@@ -179,8 +179,8 @@
   --destructive: #EF4444;
   --destructive-foreground: #1A1A1A;
 
-  --border: #2E2E2A;
-  --input: #3A3A35;
+  --border: #2F2F37;
+  --input: #2F2F37;
   --ring: #FFA946;
 }
 
@@ -207,6 +207,17 @@ em,
   font-weight: 400;
   font-synthesis: none;
   letter-spacing: 0;
+}
+
+/* The one warm thread - solid brand orange (UI fix port: the
+   Instagram sunset gradient ending in purple is gone; purple
+   gradients are on the design ban list, so the thread and rings
+   are flat #F97316 now). No call sites on the preview line yet. */
+.ig-thread {
+  background-color: #F97316;
+}
+.ig-ring {
+  background-color: #F97316;
 }
 
 /* Text selection takes the lavender side tint (reference). */
@@ -369,6 +380,20 @@ em,
 
 ::-webkit-scrollbar-thumb:hover {
   background: #FFA946;
+}
+
+/* Open AutoDM loader bar - an orange segment slides across the track.
+   Indeterminate: no fake percentage, it just shows work is happening. */
+@keyframes loader-bar {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+.loader-bar {
+  animation: loader-bar 1.4s ease-in-out infinite;
 }
 
 .custom-scrollbar {

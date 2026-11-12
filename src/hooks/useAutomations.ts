@@ -35,6 +35,7 @@ export interface AutomationFromDB {
   follow_up_message?: string;
   dm_opening_message_enabled: boolean;
   dm_opening_message: string;
+  dm_opening_message_variations: string[];
   dm_opening_message_button_title: string | null;
   dm_opening_message_button_link: string | null;
   ask_to_follow_enabled: boolean;
@@ -77,6 +78,7 @@ export interface CreateAutomationPayload {
   commentReplyOptions?: string[];
   dmOpeningMessageEnabled?: boolean;
   dmOpeningMessage?: string;
+  dmOpeningMessageVariations?: string[];
   dmOpeningMessageButtonTitle?: string | null;
   dmOpeningMessageButtonLink?: string | null;
   askToFollowEnabled?: boolean;
@@ -98,6 +100,7 @@ export interface UpdateAutomationPayload {
   comment_reply_options?: string[];
   dm_opening_message_enabled?: boolean;
   dm_opening_message?: string;
+  dm_opening_message_variations?: string[];
   dm_opening_message_button_title?: string | null;
   dm_opening_message_button_link?: string | null;
   post_thumbnail_url?: string | null;

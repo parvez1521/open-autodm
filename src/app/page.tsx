@@ -317,8 +317,11 @@ export default function LandingPage() {
             </header>
 
             <main className="relative z-10">
-                {/* ── Hero ─────────────────────────────────────────── */}
-                <section className="mx-auto max-w-7xl px-6 pb-20 pt-14 lg:px-10 lg:pb-28 lg:pt-20">
+                {/* ── Hero ───────────────────────────────────────────
+                    data-no-reveal: the hero must never be morph-scaled or
+                    rotated - the scale/rotate entrance clipped the second
+                    line of the headline mid-animation. */}
+                <section data-no-reveal className="mx-auto max-w-7xl px-6 pb-20 pt-14 lg:px-10 lg:pb-28 lg:pt-20">
                     <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,0.88fr)] lg:gap-16">
                         <div className="max-w-3xl">
                         <h1 className="font-heading text-[40px] font-bold leading-[1.08] tracking-tight text-foreground sm:text-5xl lg:text-[56px]">

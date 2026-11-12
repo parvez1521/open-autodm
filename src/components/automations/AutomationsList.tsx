@@ -126,7 +126,7 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                         transition={{ delay: Math.min(idx * 0.04, 0.3), duration: 0.45, ease: EASE_OUT }}
                         className={cn(
                             "group relative bg-card rounded-xl border transition-colors overflow-hidden",
-                            isActive ? "border-border hover:border-foreground/20" : "border-border opacity-70"
+                            isActive ? "border-border hover:border-foreground/20" : "border-border"
                         )}
                     >
                         <div className="flex items-center justify-between gap-4 p-3.5">
@@ -160,6 +160,11 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                         <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0", typeConfig.className)}>
                                             {typeConfig.label}
                                         </span>
+                                        {!isActive && (
+                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 bg-muted text-muted-foreground">
+                                                Paused
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center text-[12px] text-muted-foreground gap-3 min-w-0">
                                         <span className="flex items-center gap-1 truncate">
@@ -187,18 +192,20 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                 </div>
 
                                 <div className="flex items-center gap-1">
-                                    {/* Toggle — works both ways (audit fix): the list
-                                        switch pauses AND activates directly. */}
-                                    <div className="relative group/toggle mr-1">
+                                    {/* Toggle - works both ways: pause or resume
+                                        straight from the list. It used to be
+                                        frozen while inactive ("open edit to
+                                        activate"), which read as broken. */}
+                                    <div className="relative mr-1">
                                         <button
                                             onClick={() => onToggle(automation.id, isActive)}
                                             role="switch"
                                             aria-checked={isActive}
                                             className={cn(
-                                                "relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                                                isActive ? "bg-secondary" : "bg-muted"
+                                                "relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 cursor-pointer",
+                                                isActive ? "bg-secondary" : "bg-muted-foreground/25"
                                             )}
-                                            title={isActive ? "Pause automation" : "Activate automation"}
+                                            title={isActive ? "Pause automation" : "Resume automation"}
                                         >
                                             <span className={cn(
                                                 "pointer-events-none inline-block h-4 w-4 translate-y-[2px] rounded-full bg-white shadow-sm transition-transform",

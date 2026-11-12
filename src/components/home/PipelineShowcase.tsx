@@ -33,7 +33,9 @@ import {
     PlugsConnected,
 } from "@/components/phosphor";
 
-const IG_GRADIENT = "linear-gradient(90deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)";
+// Solid brand orange - the sunset gradient ending in purple is on the
+// design ban list, and the owner keeps the old orange identity.
+const ACCENT_ORANGE = "#F97316";
 const STEP_MS = [3400, 4000, 4200, 3800];
 
 const STEPS = [
@@ -114,7 +116,7 @@ function Scene({ step }: { step: number }) {
                     <div className="flex items-center gap-3">
                         <span
                             className="h-9 w-9 shrink-0 rounded-full"
-                            style={{ background: IG_GRADIENT }}
+                            style={{ background: ACCENT_ORANGE }}
                         />
                         <span className="text-sm font-semibold text-foreground">sarah_creator</span>
                     </div>
@@ -189,7 +191,7 @@ function Scene({ step }: { step: number }) {
                     <div className="flex items-center gap-2.5">
                         <span
                             className="h-6 w-6 shrink-0 rounded-full"
-                            style={{ background: IG_GRADIENT }}
+                            style={{ background: ACCENT_ORANGE }}
                         />
                         <span className="text-[13px] font-semibold text-foreground">sarah_creator</span>
                         <span className="text-[11px] text-muted-foreground">replying publicly</span>
@@ -223,7 +225,7 @@ function Scene({ step }: { step: number }) {
                 <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3">
                     <span
                         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-white"
-                        style={{ background: IG_GRADIENT }}
+                        style={{ background: ACCENT_ORANGE }}
                     >
                         <DownloadSimple className="h-4 w-4" />
                     </span>
@@ -329,7 +331,7 @@ export function PipelineShowcase() {
                     <motion.span
                         aria-hidden
                         className="pointer-events-none absolute -top-[3px] z-10 h-[5px] w-[5px] rounded-full"
-                        style={{ background: IG_GRADIENT }}
+                        style={{ background: ACCENT_ORANGE }}
                         initial={{ left: "1%" }}
                         animate={{ left: "99%" }}
                         transition={{
@@ -378,7 +380,7 @@ export function PipelineShowcase() {
                                         duration: isActive && playing ? STEP_MS[step]! / 1000 : 0.3,
                                         ease: "linear",
                                     }}
-                                    style={{ background: IG_GRADIENT }}
+                                    style={{ background: ACCENT_ORANGE }}
                                     className="absolute inset-x-0 bottom-0 h-[2.5px] origin-left"
                                 />
                             )}
@@ -447,7 +449,7 @@ export function PipelineShowcase() {
                         initial={{ left: "5%", opacity: 0 }}
                         animate={{ left: "92%", opacity: [0, 1, 1, 0] }}
                         transition={{ duration: 1.6, delay: 0.3, ease: "easeInOut" }}
-                        style={{ background: IG_GRADIENT }}
+                        style={{ background: ACCENT_ORANGE }}
                         className="absolute bottom-[11px] h-[3px] w-10 rounded-full"
                     />
                 </div>

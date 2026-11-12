@@ -70,7 +70,7 @@ export function AppProviders({ children }: AppProvidersProps) {
           is pinned to dark — globals.css carries a single dark
           token set (:root mirrored by .dark), so no stored or
           system preference can produce a light palette. */}
-      <ThemeProvider attribute="class" defaultTheme="dark" disableTransitionOnChange>
+      <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" disableTransitionOnChange>
         {/* Motion system (2026-11-08): every motion component on the
             site honours the visitor's reduced-motion preference. */}
         <MotionConfig reducedMotion="user">

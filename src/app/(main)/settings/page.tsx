@@ -13,10 +13,11 @@ import { apiClient, ApiError } from "@/lib/api/client";
 import { useInstagramAccounts, useRefreshInstagramToken, useResubscribeWebhook, useCheckSubscription } from "@/hooks/useInstagramAccounts";
 import { useSetupStatus } from "@/hooks/useSetup";
 import { useQueryClient } from "@tanstack/react-query";
+import { AppLoader } from "@/components/ui/AppLoader";
 
 export default function SettingsPage() {
     return (
-        <Suspense fallback={<div className="w-full max-w-3xl mx-auto py-24 flex justify-center"><BrandWave /></div>}>
+        <Suspense fallback={<AppLoader compact label="Loading settings…" />}>
             <SettingsContent />
         </Suspense>
     );

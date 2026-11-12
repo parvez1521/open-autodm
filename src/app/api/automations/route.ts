@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createLogger } from '@/lib/logger';
-import { DMResponseSchema, MAX_DM_RESPONSES } from '@/lib/api/schemas';
+import { DMResponseSchema, MAX_DM_RESPONSES, MAX_DM_OPENING_VARIATIONS } from '@/lib/api/schemas';
 import { validateFlowGraph } from '@/lib/automation/flowGraph';
 import type { FlowGraph } from '@/lib/types';
 import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
@@ -40,6 +40,7 @@ const CreateAutomationSchema = z.object({
   commentReplyOptions: z.array(z.string()).default([]),
   dmOpeningMessageEnabled: z.boolean().default(true),
   dmOpeningMessage: z.string().default(''),
+  dmOpeningMessageVariations: z.array(z.string()).max(MAX_DM_OPENING_VARIATIONS, `Max ${MAX_DM_OPENING_VARIATIONS} opening-message variations per automation`).default([]),
   dmOpeningMessageButtonTitle: z.string().nullable().optional(),
   dmOpeningMessageButtonLink: z.string().nullable().optional(),
   askToFollowEnabled: z.boolean().default(false),
@@ -108,7 +109,7 @@ export async function GET(request: Request): Promise<Response> {
           comment_reply_options, public_reply_enabled, public_reply_options,
           follow_up_enabled, follow_up_delay_minutes, follow_up_message,
           dm_opening_message_enabled,
-          dm_opening_message, dm_opening_message_button_title, dm_opening_message_button_link,
+          dm_opening_message, dm_opening_message_variations, dm_opening_message_button_title, dm_opening_message_button_link,
           ask_to_follow_enabled, ask_to_follow_message,
           ask_to_follow_visit_profile_button, ask_to_follow_confirm_button,
           dm_responses, trigger_config, flow_graph, total_dms_sent, created_at, updated_at,
@@ -221,7 +222,10 @@ export async function POST(request: Request): Promise<Response> {
       follow_up_delay_minutes: data.followUpDelayMinutes,
       follow_up_message: data.followUpMessage,
       dm_opening_message_enabled: data.dmOpeningMessageEnabled,
-      dm_opening_message: data.dmOpeningMessage,
+      // Variation 1 stays mirrored into the legacy single-message column
+      // so older engine paths and the "opening off" check keep working.
+      dm_opening_message: data.dmOpeningMessageVariations[0] ?? data.dmOpeningMessage,
+      dm_opening_message_variations: data.dmOpeningMessageVariations,
       dm_opening_message_button_title: data.dmOpeningMessageButtonTitle ?? null,
       dm_opening_message_button_link: data.dmOpeningMessageButtonLink ?? null,
       ask_to_follow_enabled: data.askToFollowEnabled,
@@ -422,7 +426,10 @@ async function p18CreateAutomation(
       follow_up_delay_minutes: data.followUpDelayMinutes,
       follow_up_message: data.followUpMessage,
       dm_opening_message_enabled: data.dmOpeningMessageEnabled,
-      dm_opening_message: data.dmOpeningMessage,
+      // Variation 1 stays mirrored into the legacy single-message column
+      // so older engine paths and the "opening off" check keep working.
+      dm_opening_message: data.dmOpeningMessageVariations[0] ?? data.dmOpeningMessage,
+      dm_opening_message_variations: data.dmOpeningMessageVariations,
       dm_opening_message_button_title: data.dmOpeningMessageButtonTitle ?? null,
       dm_opening_message_button_link: data.dmOpeningMessageButtonLink ?? null,
       ask_to_follow_enabled: data.askToFollowEnabled,

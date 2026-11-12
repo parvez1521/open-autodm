@@ -116,6 +116,7 @@ export interface AutomationRow {
   flow_graph?: FlowGraph | null;
   dm_opening_message_enabled: boolean;
   dm_opening_message: string;
+  dm_opening_message_variations: string[];
   dm_opening_message_button_title: string | null;
   dm_opening_message_button_link: string | null;
   ask_to_follow_enabled: boolean;

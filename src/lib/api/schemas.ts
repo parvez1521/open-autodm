@@ -13,6 +13,15 @@ import { z } from 'zod';
  */
 export const MAX_DM_RESPONSES = 5;
 
+/**
+ * Max opening-message variations per automation. The editor shows them
+ * as tabs (Variation 1/2/3…) and the engine picks one at random for
+ * each DM, so repeat commenters do not get the identical message every
+ * time. Restored 2026-11-12: the 985ed5c redesign dropped the
+ * dmOpeningMessageVariations field the a091ade builder had.
+ */
+export const MAX_DM_OPENING_VARIATIONS = 5;
+
 export const DMResponseSchema = z.object({
   id: z.string(),
   type: z.enum(['text', 'card', 'ask_follow', 'lead_form']),
