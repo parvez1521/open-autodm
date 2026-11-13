@@ -94,6 +94,161 @@ export function cleanAiOutput(text: string): string {
 }
 
 /**
+ * Groq free-tier models, best first. Mirrors lib/script-writer/providers.ts
+ * (and lib/studio/groq.ts) — the older llama names were retired by Groq and
+ * answer 404/model_not_found, so the same rotation is tried in order and
+ * the first model that answers wins. Keep the lists in step.
+ */
+const GROQ_MODELS = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'openai/gpt-oss-20b'];
+
+/**
+ * Random tone angles — one is picked per request and appended to the
+ * prompt, so identical user prompts still yield different outputs run
+ * to run (same temperature, different angle). The angle is a style cue
+ * only; it never reaches the user-facing text.
+ */
+export const AI_STYLE_ANGLES = [
+  'playful and energetic',
+  'warm and personal, like a message from a friend',
+  'short, punchy and confident',
+  'grateful and enthusiastic',
+  'calm, clear and helpful',
+  'excited, with a sense of delight',
+];
+
+export function pickRandomStyleAngle(): string {
+  return AI_STYLE_ANGLES[randomIndex(AI_STYLE_ANGLES.length)] ?? AI_STYLE_ANGLES[0]!;
+}
+
+/** Crypto-random index in [0, n) (Math.random fallback for runtimes without WebCrypto). */
+function randomIndex(n: number): number {
+  if (n <= 1) return 0;
+  try {
+    const cryptoObj = (globalThis as { crypto?: { getRandomValues?: (arr: Uint32Array) => Uint32Array } }).crypto;
+    if (cryptoObj?.getRandomValues) {
+      const buf = new Uint32Array(1);
+      cryptoObj.getRandomValues(buf);
+      return (buf[0] ?? 0) % n;
+    }
+  } catch {
+    // Fall through to Math.random below.
+  }
+  return Math.floor(Math.random() * n);
+}
+
+/** Fisher-Yates shuffle returning a new array (crypto-random when available). */
+export function shuffleCopy<T>(items: readonly T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = randomIndex(i + 1);
+    const tmp = arr[i]!;
+    arr[i] = arr[j]!;
+    arr[j] = tmp;
+  }
+  return arr;
+}
+
+/**
+ * Varied fallback: a fresh random ordering of the pool, exactly `count`
+ * unique items. Two consecutive calls practically never return the
+ * identical ordered set.
+ */
+export function sampleFallback(pool: readonly string[], count: number): string[] {
+  return shuffleCopy(pool).slice(0, Math.max(0, Math.min(count, pool.length)));
+}
+
+/** Varied single-item fallback: one random entry from the pool. */
+export function pickRandomFallback(pool: readonly string[]): string {
+  return pool[randomIndex(pool.length)] ?? pool[0]!;
+}
+
+/**
+ * Groq free-tier chat completion — the second provider attempt, only when
+ * GROQ_API_KEY is set (free at console.groq.com; same key the Script
+ * Writer already uses). Model rotation mirrors
+ * lib/script-writer/providers.ts. Returns null when unset, when every
+ * model fails, or when a model returns no text. No new dependencies —
+ * plain fetch to Groq's OpenAI-compatible endpoint.
+ */
+async function tryGroqChat(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  maxTokens: number
+): Promise<{ text: string; model: string } | null> {
+  const key = process.env.GROQ_API_KEY?.trim();
+  if (!key) return null;
+  for (const model of GROQ_MODELS) {
+    try {
+      const res = await withTimeout(
+        () =>
+          fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, messages, max_tokens: maxTokens, temperature: 0.7 }),
+          }),
+        AI_REQUEST_TIMEOUT_MS
+      );
+      if (!res.ok) {
+        logger.warn({ model, status: res.status }, 'Groq call failed, trying next model');
+        continue;
+      }
+      const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const text = json?.choices?.[0]?.message?.content ?? '';
+      if (text.trim()) return { text, model };
+    } catch (err) {
+      logger.warn({ err, model }, 'Groq call failed, trying next model');
+    }
+  }
+  return null;
+}
+
+/**
+ * Run a chat completion through Workers AI first (injected binding or the
+ * resolved binding/REST fallback), then Groq when GROQ_API_KEY is set.
+ * Returns null when no provider answers — the caller then serves the
+ * (varied) template fallback. `injectedAi` is the test seam: when a
+ * binding is injected, getAiBinding() is skipped.
+ */
+async function runChatCompletion(
+  injectedAi: WorkersAiBinding | null | undefined,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  maxTokens: number
+): Promise<{ text: string; model: string } | null> {
+  const ai = injectedAi ?? (await getAiBinding());
+  if (ai) {
+    try {
+      const raw = (await withTimeout(
+        () =>
+          ai.run(DEFAULT_AI_MODEL, {
+            messages,
+            max_tokens: maxTokens,
+            temperature: 0.7,
+          }),
+        AI_REQUEST_TIMEOUT_MS
+      )) as { response?: string };
+      const text = typeof raw?.response === 'string' ? raw.response : '';
+      if (text.trim()) return { text, model: DEFAULT_AI_MODEL };
+    } catch (err) {
+      logger.warn({ err }, 'Workers AI generation failed - trying Groq fallback');
+    }
+  }
+  return tryGroqChat(messages, maxTokens);
+}
+
+/**
+ * Pad a partial provider result up to `count` with pool templates not
+ * already present. Iterates a fresh shuffle, so it can never loop forever
+ * on a duplicate (the old index-based padding could spin when the
+ * computed fallback was already in the list).
+ */
+function padWithFallback(cleaned: string[], pool: readonly string[], count: number): string[] {
+  for (const candidate of shuffleCopy(pool)) {
+    if (cleaned.length >= count) break;
+    if (!cleaned.includes(candidate)) cleaned.push(candidate);
+  }
+  return cleaned;
+}
+
+/**
  * REST-backed stand-in for the Workers AI binding, for runtimes where
  * no binding exists (e.g. Vercel) when CLOUDFLARE_ACCOUNT_ID +
  * CLOUDFLARE_API_TOKEN are set. Mirrors the call pattern already used
@@ -149,22 +304,41 @@ export async function getAiBinding(): Promise<WorkersAiBinding | null> {
   return null;
 }
 
-/** Default 5 opening DM variations when AI is unavailable or prompt is empty. */
+/** Default opening DM variations when AI is unavailable or prompt is empty.
+ * The pool is deliberately larger than any requested count (route caps
+ * count at 10): the fallback shuffles it per request, so two consecutive
+ * clicks practically never return the identical ordered set. The first
+ * five entries are the originals, in their original order. */
 export const DEFAULT_OPENING_VARIATIONS = [
   "Hey {username}! Thanks so much for reaching out! Here is the link you requested: 👇",
   "Thanks for your comment, {username}! Super excited to share this with you ✨",
   "Hey {username}! Really appreciate your interest! Here is everything you need 🚀",
   "Hey {username}! Dropping the details right here in your inbox 📬",
   "So glad you asked, {username}! Here is the link and info you wanted 🙌",
+  "Hey {username}! Your link is on its way — check your DMs in a second 👇",
+  "Thanks for stopping by, {username}! Sending the details over to your inbox now ✨",
+  "Hey {username}! Got you — everything you asked for is in your DMs 🚀",
+  "Appreciate you, {username}! The link you wanted is waiting in your inbox 📬",
+  "Hey {username}! Just sent it your way — take a look in your DMs 🙌",
+  "Thanks for the comment, {username}! Your guide is ready in your inbox ✨",
+  "Hey {username}! Here you go — all the details are in your DMs now 👇",
 ];
 
-/** Default 5 public comment replies when AI is unavailable or as fallback options. */
+/** Default public comment replies when AI is unavailable or as fallback options.
+ * Same shuffle-per-request contract as DEFAULT_OPENING_VARIATIONS. */
 export const DEFAULT_PUBLIC_REPLIES = [
   "Sent you a DM! Check your requests 📥",
   "Check your inbox! Just sent it over ✨",
   "Just messaged you the link! 🚀",
   "Sent to your DMs! Let me know if you got it 📬",
   "All sent! Check your message requests 🙌",
+  "DM sent! It's waiting in your inbox ✨",
+  "Just dropped it in your DMs! 🚀",
+  "Check your DMs — link is on its way! 📬",
+  "Sent! Take a peek at your inbox 🙌",
+  "Your DM is on its way! Check your requests 📥",
+  "Messaged you! The link is in your inbox ✨",
+  "Done — check your DMs! 🚀",
 ];
 
 /** Default DM response draft when AI is unavailable or as fallback. */
@@ -175,6 +349,9 @@ export const DEFAULT_RESPONSE_DRAFTS = [
   "Here is the link and details you requested! Let me know if you need any help getting started 🙌",
   "So glad you reached out! You can access everything right here. Hope you find it super valuable! ✨",
   "Thanks for checking this out! Here are all the details and next steps. Enjoy! 🚀",
+  "Here you go! Everything you asked for is right here — let me know if anything is unclear 🙌",
+  "Happy to share! All the details are in this message, and I'm here if you need anything ✨",
+  "You got it! Here's the link plus a quick rundown — enjoy going through it 🚀",
 ];
 
 /** Default follow-up message when AI is unavailable or as fallback. */
@@ -185,10 +362,14 @@ export const DEFAULT_FOLLOW_UP_DRAFTS = [
   "Hey {username}, did you get a chance to check the details I sent you?",
   "Hey {username}, just checking in to see if you had any questions about the info I sent over! ✨",
   "Quick follow-up, {username}! Did that have everything you were looking for? Happy to help 🙌",
+  "Hey {username}, just floating this back up — did the link work okay for you?",
+  "Hi {username}! Wanted to check if you had a chance to look through what I sent ✨",
+  "Hey {username}, no rush at all — just let me know if you need anything else! 🙌",
 ];
 
 /**
- * Generate 5 opening DM variations using Workers AI with automatic fallback.
+ * Generate 5 opening DM variations using Workers AI (then Groq when
+ * configured) with automatic fallback to a freshly shuffled template set.
  */
 export async function generateOpeningVariations(
   promptContext: string,
@@ -196,15 +377,6 @@ export async function generateOpeningVariations(
   context?: { postCaption?: string; creatorUsername?: string; automationName?: string },
   injectedAi?: WorkersAiBinding | null
 ): Promise<AiGenerationResult<string[]>> {
-  const ai = injectedAi ?? (await getAiBinding());
-  if (!ai) {
-    return {
-      data: DEFAULT_OPENING_VARIATIONS.slice(0, count),
-      status: 'fallback',
-      model: DEFAULT_AI_MODEL,
-    };
-  }
-
   const sanitizedPrompt = sanitizePromptInput(promptContext || context?.automationName || '', 600);
   const sanitizedCaption = context?.postCaption ? sanitizePromptInput(context.postCaption, 300) : '';
 
@@ -218,20 +390,20 @@ export async function generateOpeningVariations(
   const userContent =
     `Creator goal/topic: ${sanitizedPrompt || 'Sharing a valuable resource, guide, or link'}\n` +
     (sanitizedCaption ? `Context from post: ${sanitizedCaption}\n` : '') +
+    `Style angle for this batch: ${pickRandomStyleAngle()}\n` +
     `Generate ${count} distinct opening DM messages.`;
 
-  try {
-    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
-      messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: userContent },
-      ],
-      max_tokens: 350,
-      temperature: 0.7,
-    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
+  const outcome = await runChatCompletion(
+    injectedAi,
+    [
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: userContent },
+    ],
+    350
+  );
 
-    const text = typeof raw?.response === 'string' ? raw.response : '';
-    const lines = text
+  if (outcome) {
+    const lines = outcome.text
       .split('\n')
       .map((l) => l.replace(/^\d+[\.\)\-\s]+/, '').trim())
       .filter((l) => l.length > 5 && !l.startsWith('Here are') && !l.startsWith('Sure'));
@@ -239,44 +411,32 @@ export async function generateOpeningVariations(
     const cleaned = lines.map(cleanAiOutput);
     if (cleaned.length >= 2) {
       // Pad up to requested count with defaults if needed
-      while (cleaned.length < count) {
-        const fallback = DEFAULT_OPENING_VARIATIONS[cleaned.length % DEFAULT_OPENING_VARIATIONS.length] ?? DEFAULT_OPENING_VARIATIONS[0]!;
-        if (!cleaned.includes(fallback)) cleaned.push(fallback);
-      }
+      padWithFallback(cleaned, DEFAULT_OPENING_VARIATIONS, count);
       return {
         data: cleaned.slice(0, count),
         status: 'success',
-        model: DEFAULT_AI_MODEL,
+        model: outcome.model,
       };
     }
-  } catch (err) {
-    logger.warn({ err }, 'Workers AI opening variations generation failed - using defaults');
+    logger.warn({}, 'AI opening variations output too short - using template fallback');
   }
 
   return {
-    data: DEFAULT_OPENING_VARIATIONS.slice(0, count),
+    data: sampleFallback(DEFAULT_OPENING_VARIATIONS, count),
     status: 'fallback',
     model: DEFAULT_AI_MODEL,
   };
 }
 
 /**
- * Generate public comment replies using Workers AI with automatic fallback.
+ * Generate public comment replies using Workers AI (then Groq when
+ * configured) with automatic fallback to a freshly shuffled template set.
  */
 export async function generatePublicReplies(
   promptContext?: string,
   count = 5,
   injectedAi?: WorkersAiBinding | null
 ): Promise<AiGenerationResult<string[]>> {
-  const ai = injectedAi ?? (await getAiBinding());
-  if (!ai) {
-    return {
-      data: DEFAULT_PUBLIC_REPLIES.slice(0, count),
-      status: 'fallback',
-      model: DEFAULT_AI_MODEL,
-    };
-  }
-
   const sanitizedPrompt = sanitizePromptInput(promptContext ?? '', 400);
 
   const systemMessage =
@@ -286,64 +446,52 @@ export async function generatePublicReplies(
 
   const userContent =
     `Context/vibe: ${sanitizedPrompt || 'Notifying commenter that their requested link is in their DMs'}\n` +
+    `Style angle for this batch: ${pickRandomStyleAngle()}\n` +
     `Generate ${count} short variations.`;
 
-  try {
-    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
-      messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: userContent },
-      ],
-      max_tokens: 150,
-      temperature: 0.7,
-    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
+  const outcome = await runChatCompletion(
+    injectedAi,
+    [
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: userContent },
+    ],
+    150
+  );
 
-    const text = typeof raw?.response === 'string' ? raw.response : '';
-    const lines = text
+  if (outcome) {
+    const lines = outcome.text
       .split('\n')
       .map((l) => l.replace(/^\d+[\.\)\-\s]+/, '').trim())
       .filter((l) => l.length > 2 && l.length < 100);
 
     const cleaned = lines.map(cleanAiOutput);
     if (cleaned.length >= 2) {
-      while (cleaned.length < count) {
-        const fallback = DEFAULT_PUBLIC_REPLIES[cleaned.length % DEFAULT_PUBLIC_REPLIES.length] ?? DEFAULT_PUBLIC_REPLIES[0]!;
-        if (!cleaned.includes(fallback)) cleaned.push(fallback);
-      }
+      padWithFallback(cleaned, DEFAULT_PUBLIC_REPLIES, count);
       return {
         data: cleaned.slice(0, count),
         status: 'success',
-        model: DEFAULT_AI_MODEL,
+        model: outcome.model,
       };
     }
-  } catch (err) {
-    logger.warn({ err }, 'Workers AI public replies generation failed - using defaults');
+    logger.warn({}, 'AI public replies output too short - using template fallback');
   }
 
   return {
-    data: DEFAULT_PUBLIC_REPLIES.slice(0, count),
+    data: sampleFallback(DEFAULT_PUBLIC_REPLIES, count),
     status: 'fallback',
     model: DEFAULT_AI_MODEL,
   };
 }
 
 /**
- * Generate a response message draft using Workers AI with automatic fallback.
+ * Generate a response message draft using Workers AI (then Groq when
+ * configured) with automatic fallback to a random template draft.
  */
 export async function generateResponseDraft(
   promptContext?: string,
   context?: { postCaption?: string; creatorUsername?: string; automationName?: string },
   injectedAi?: WorkersAiBinding | null
 ): Promise<AiGenerationResult<string>> {
-  const ai = injectedAi ?? (await getAiBinding());
-  if (!ai) {
-    return {
-      data: DEFAULT_RESPONSE_DRAFT,
-      status: 'fallback',
-      model: DEFAULT_AI_MODEL,
-    };
-  }
-
   const sanitizedPrompt = sanitizePromptInput(promptContext ?? '', 600);
   const sanitizedCaption = context?.postCaption ? sanitizePromptInput(context.postCaption, 300) : '';
   const sanitizedName = context?.automationName ? sanitizePromptInput(context.automationName, 200) : '';
@@ -357,54 +505,46 @@ export async function generateResponseDraft(
   const userContent =
     `Creator message goal: ${sanitizedPrompt || sanitizedName || 'Delivering the requested resource, link, or helpful info'}\n` +
     (sanitizedCaption ? `Context from post: ${sanitizedCaption}\n` : '') +
+    `Style angle for this draft: ${pickRandomStyleAngle()}\n` +
     "Write a direct message response draft:";
 
-  try {
-    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
-      messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: userContent },
-      ],
-      max_tokens: 180,
-      temperature: 0.7,
-    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
+  const outcome = await runChatCompletion(
+    injectedAi,
+    [
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: userContent },
+    ],
+    180
+  );
 
-    const text = typeof raw?.response === 'string' ? cleanAiOutput(raw.response) : '';
+  if (outcome) {
+    const text = cleanAiOutput(outcome.text);
     if (text && text.length > 5) {
       return {
         data: text,
         status: 'success',
-        model: DEFAULT_AI_MODEL,
+        model: outcome.model,
       };
     }
-  } catch (err) {
-    logger.warn({ err }, 'Workers AI response draft generation failed - using default');
+    logger.warn({}, 'AI response draft output too short - using template fallback');
   }
 
   return {
-    data: DEFAULT_RESPONSE_DRAFT,
+    data: pickRandomFallback(DEFAULT_RESPONSE_DRAFTS),
     status: 'fallback',
     model: DEFAULT_AI_MODEL,
   };
 }
 
 /**
- * Generate a follow-up message draft using Workers AI with automatic fallback.
+ * Generate a follow-up message draft using Workers AI (then Groq when
+ * configured) with automatic fallback to a random template draft.
  */
 export async function generateFollowUpDraft(
   promptContext: string,
   context?: { automationName?: string; creatorUsername?: string },
   injectedAi?: WorkersAiBinding | null
 ): Promise<AiGenerationResult<string>> {
-  const ai = injectedAi ?? (await getAiBinding());
-  if (!ai) {
-    return {
-      data: DEFAULT_FOLLOW_UP_MESSAGE,
-      status: 'fallback',
-      model: DEFAULT_AI_MODEL,
-    };
-  }
-
   const sanitizedPrompt = sanitizePromptInput(promptContext || context?.automationName || '', 600);
   // F-5: the creator handle is sanitised like every other interpolation
   // (release-prep interpolated it raw).
@@ -420,32 +560,32 @@ export async function generateFollowUpDraft(
   const userContent =
     `Goal/context: ${sanitizedPrompt || 'Polite check-in on the previously shared link/guide'}\n` +
     (sanitizedCreator ? `Creator handle: @${sanitizedCreator}\n` : '') +
+    `Style angle for this draft: ${pickRandomStyleAngle()}\n` +
     "Write the follow-up message:";
 
-  try {
-    const raw = (await withTimeout(() => ai.run(DEFAULT_AI_MODEL, {
-      messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: userContent },
-      ],
-      max_tokens: 150,
-      temperature: 0.7,
-    }), AI_REQUEST_TIMEOUT_MS)) as { response?: string };
+  const outcome = await runChatCompletion(
+    injectedAi,
+    [
+      { role: 'system', content: systemMessage },
+      { role: 'user', content: userContent },
+    ],
+    150
+  );
 
-    const text = typeof raw?.response === 'string' ? cleanAiOutput(raw.response) : '';
+  if (outcome) {
+    const text = cleanAiOutput(outcome.text);
     if (text && text.length > 5 && text.length <= 500) {
       return {
         data: text,
         status: 'success',
-        model: DEFAULT_AI_MODEL,
+        model: outcome.model,
       };
     }
-  } catch (err) {
-    logger.warn({ err }, 'Workers AI follow-up draft generation failed - using default');
+    logger.warn({}, 'AI follow-up draft output unusable - using template fallback');
   }
 
   return {
-    data: DEFAULT_FOLLOW_UP_MESSAGE,
+    data: pickRandomFallback(DEFAULT_FOLLOW_UP_DRAFTS),
     status: 'fallback',
     model: DEFAULT_AI_MODEL,
   };

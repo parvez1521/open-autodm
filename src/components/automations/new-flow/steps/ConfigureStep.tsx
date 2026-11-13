@@ -431,6 +431,10 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
     const [commentInput, setCommentInput] = useState("");
     // AI-drafted opening variations offered as a picker (transient, never persisted).
     const [openingAiOptions, setOpeningAiOptions] = useState<string[] | null>(null);
+    // True when the shown picker items are template suggestions because no
+    // AI provider answered (status 'fallback') — surfaced honestly in the
+    // picker header instead of presenting canned lines as AI output.
+    const [openingAiFallback, setOpeningAiFallback] = useState(false);
     // Opening-message variations - the tab the editor is looking at.
     // One variation is picked at random for each DM the engine sends.
     const variations = data.dmOpeningMessageVariations.length > 0
@@ -747,21 +751,25 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                                                         onResult={res => {
                                                             if (res.variations && res.variations.length > 0) {
                                                                 setOpeningAiOptions(res.variations);
+                                                                setOpeningAiFallback(res.status === "fallback");
                                                             }
                                                         }}
                                                     />
                                                     {openingAiOptions && openingAiOptions.length > 0 && (
                                                         <div className="space-y-1.5">
-                                                            <div className="flex items-center justify-between">
+                                                            <div className="flex items-center justify-between gap-2">
                                                                 <p className="micro-label">AI variations, pick one</p>
-                                                                <button onClick={() => setOpeningAiOptions(null)} className="text-muted-foreground hover:text-foreground">
+                                                                {openingAiFallback && (
+                                                                    <p className="text-[11px] text-muted-foreground shrink-0">AI unavailable — template suggestions</p>
+                                                                )}
+                                                                <button onClick={() => { setOpeningAiOptions(null); setOpeningAiFallback(false); }} className="text-muted-foreground hover:text-foreground">
                                                                     <X className="w-3.5 h-3.5" />
                                                                 </button>
                                                             </div>
                                                             {openingAiOptions.map((v, i) => (
                                                                 <button
                                                                     key={i}
-                                                                    onClick={() => { updateVariation(safeVariationTab, v); setOpeningAiOptions(null); }}
+                                                                    onClick={() => { updateVariation(safeVariationTab, v); setOpeningAiOptions(null); setOpeningAiFallback(false); }}
                                                                     className="block w-full text-left text-[13px] text-foreground bg-muted/40 hover:bg-muted rounded-lg px-3 py-2 transition-colors"
                                                                 >
                                                                     {v}

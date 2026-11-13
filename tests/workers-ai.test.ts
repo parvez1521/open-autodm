@@ -8,14 +8,17 @@
  * the absence of the runtime surface.
  */
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as workersAi from '@/lib/ai/workersAi';
 import {
   AI_REQUEST_TIMEOUT_MS,
+  AI_STYLE_ANGLES,
   DEFAULT_AI_MODEL,
+  DEFAULT_FOLLOW_UP_DRAFTS,
   DEFAULT_FOLLOW_UP_MESSAGE,
   DEFAULT_OPENING_VARIATIONS,
   DEFAULT_PUBLIC_REPLIES,
+  DEFAULT_RESPONSE_DRAFTS,
   DEFAULT_RESPONSE_DRAFT,
   cleanAiOutput,
   generateFollowUpDraft,
@@ -40,7 +43,7 @@ function neverResolvingAi(): WorkersAiBinding {
 
 async function expectFallbackAfterTimeout<T>(
   invoke: (ai: WorkersAiBinding) => Promise<AiGenerationResult<T>>,
-  expectedData: T,
+  validate: (result: AiGenerationResult<T>) => void,
 ): Promise<void> {
   vi.useFakeTimers();
   const ai = neverResolvingAi();
@@ -48,12 +51,25 @@ async function expectFallbackAfterTimeout<T>(
 
   await vi.advanceTimersByTimeAsync(AI_REQUEST_TIMEOUT_MS);
 
-  await expect(resultPromise).resolves.toMatchObject({
-    data: expectedData,
-    status: 'fallback',
-    model: DEFAULT_AI_MODEL,
-  });
+  const result = await resultPromise;
+  expect(result.status).toBe('fallback');
+  expect(result.model).toBe(DEFAULT_AI_MODEL);
+  validate(result);
   expect(ai.run).toHaveBeenCalledOnce();
+}
+
+/** Order-insensitive fallback check for the list generators: the
+ * fallback is a fresh shuffle per request, so tests assert membership
+ * and length — never an exact order. */
+function expectShuffledFallbackList(data: string[], pool: readonly string[], length: number): void {
+  expect(data).toHaveLength(length);
+  expect(new Set(data).size).toBe(length);
+  for (const item of data) expect(pool).toContain(item);
+}
+
+/** Membership check for the single-draft generators. */
+function expectShuffledFallbackDraft(data: string, pool: readonly string[]): void {
+  expect(pool).toContain(data);
 }
 
 describe('withTimeout', () => {
@@ -87,28 +103,28 @@ describe('Workers AI generation timeout fallbacks', () => {
   it('falls back for opening message variations when inference stalls', async () => {
     await expectFallbackAfterTimeout(
       (ai) => generateOpeningVariations('QA prompt', 2, undefined, ai),
-      DEFAULT_OPENING_VARIATIONS.slice(0, 2),
+      (result) => expectShuffledFallbackList(result.data, DEFAULT_OPENING_VARIATIONS, 2),
     );
   });
 
   it('falls back for public replies when inference stalls', async () => {
     await expectFallbackAfterTimeout(
       (ai) => generatePublicReplies('QA prompt', 2, ai),
-      DEFAULT_PUBLIC_REPLIES.slice(0, 2),
+      (result) => expectShuffledFallbackList(result.data, DEFAULT_PUBLIC_REPLIES, 2),
     );
   });
 
   it('falls back for response drafts when inference stalls', async () => {
     await expectFallbackAfterTimeout(
       (ai) => generateResponseDraft('QA prompt', undefined, ai),
-      DEFAULT_RESPONSE_DRAFT,
+      (result) => expectShuffledFallbackDraft(result.data, DEFAULT_RESPONSE_DRAFTS),
     );
   });
 
   it('falls back for follow-up drafts when inference stalls', async () => {
     await expectFallbackAfterTimeout(
       (ai) => generateFollowUpDraft('QA prompt', undefined, ai),
-      DEFAULT_FOLLOW_UP_MESSAGE,
+      (result) => expectShuffledFallbackDraft(result.data, DEFAULT_FOLLOW_UP_DRAFTS),
     );
   });
 });
@@ -185,10 +201,9 @@ describe('success-path parsing ◆', () => {
     expect(result.data).toHaveLength(5);
     expect(result.data[0]).toBe('Hey {username}! Your free guide is waiting for you 👇');
     expect(result.data[1]).toBe('Thanks for commenting {username} — the link is in your DMs ✨');
-    // Padded with defaults up to the requested count.
-    expect(result.data.slice(2)).toEqual(
-      expect.arrayContaining([expect.stringContaining('Hey {username}!')]),
-    );
+    // Padded with pool templates up to the requested count — no duplicates.
+    expect(new Set(result.data).size).toBe(5);
+    for (const item of result.data.slice(2)) expect(DEFAULT_OPENING_VARIATIONS).toContain(item);
   });
 
   it('public replies: returns genuinely generated variations with status success', async () => {
@@ -217,7 +232,7 @@ describe('success-path parsing ◆', () => {
     const result = await generateResponseDraft('Explain the program', undefined, ai);
 
     expect(result.status).toBe('fallback');
-    expect(result.data).toBe(DEFAULT_RESPONSE_DRAFT);
+    expect(DEFAULT_RESPONSE_DRAFTS).toContain(result.data);
   });
 
   it('follow-up draft: over-length provider output (over 500 chars) falls back', async () => {
@@ -227,7 +242,7 @@ describe('success-path parsing ◆', () => {
     const result = await generateFollowUpDraft('Check-in', undefined, ai);
 
     expect(result.status).toBe('fallback');
-    expect(result.data).toBe(DEFAULT_FOLLOW_UP_MESSAGE);
+    expect(DEFAULT_FOLLOW_UP_DRAFTS).toContain(result.data);
   });
 
   it('follow-up draft: a valid short draft is returned with status success', async () => {
@@ -251,5 +266,186 @@ describe('drafting-only surface ◆', () => {
     expect(typeof workersAi.generateFollowUpDraft).toBe('function');
     expect('generateRuntimePublicReply' in workersAi).toBe(false);
     expect('generateRuntimeDmResponse' in workersAi).toBe(false);
+  });
+});
+
+describe('varied fallbacks ◆', () => {
+  const savedGroqKey = process.env.GROQ_API_KEY;
+
+  beforeEach(() => {
+    // No provider configured: force the template-fallback path.
+    delete process.env.GROQ_API_KEY;
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (savedGroqKey === undefined) delete process.env.GROQ_API_KEY;
+    else process.env.GROQ_API_KEY = savedGroqKey;
+  });
+
+  function failingAi(): WorkersAiBinding {
+    return { run: vi.fn().mockRejectedValue(new Error('provider down')) };
+  }
+
+  it('two consecutive opening-variations fallback calls return different ordered sets', async () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 10; i++) {
+      const result = await generateOpeningVariations('Free guide', 5, undefined, failingAi());
+      expect(result.status).toBe('fallback');
+      expect(result.data).toHaveLength(5);
+      expect(new Set(result.data).size).toBe(5);
+      seen.add(result.data.join('|'));
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('fallback returns exactly count unique items from the pool, even at count 10', async () => {
+    const result = await generateOpeningVariations('Free guide', 10, undefined, failingAi());
+    expect(result.status).toBe('fallback');
+    expect(result.data).toHaveLength(10);
+    expect(new Set(result.data).size).toBe(10);
+    for (const item of result.data) expect(DEFAULT_OPENING_VARIATIONS).toContain(item);
+  });
+
+  it('public-replies fallback also varies run to run', async () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 10; i++) {
+      const result = await generatePublicReplies('Short friendly reply', 5, failingAi());
+      expect(result.status).toBe('fallback');
+      expect(result.data).toHaveLength(5);
+      expect(new Set(result.data).size).toBe(5);
+      seen.add(result.data.join('|'));
+    }
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('single-draft fallbacks pick from their pools, not one fixed string', async () => {
+    const responseSeen = new Set<string>();
+    const followUpSeen = new Set<string>();
+    for (let i = 0; i < 12; i++) {
+      const r = await generateResponseDraft('Explain the program', undefined, failingAi());
+      const f = await generateFollowUpDraft('Check-in', undefined, failingAi());
+      expect(r.status).toBe('fallback');
+      expect(f.status).toBe('fallback');
+      expect(DEFAULT_RESPONSE_DRAFTS).toContain(r.data);
+      expect(DEFAULT_FOLLOW_UP_DRAFTS).toContain(f.data);
+      responseSeen.add(r.data);
+      followUpSeen.add(f.data);
+    }
+    expect(responseSeen.size).toBeGreaterThan(1);
+    expect(followUpSeen.size).toBeGreaterThan(1);
+  });
+});
+
+describe('Groq second provider ◆', () => {
+  const savedGroqKey = process.env.GROQ_API_KEY;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    if (savedGroqKey === undefined) delete process.env.GROQ_API_KEY;
+    else process.env.GROQ_API_KEY = savedGroqKey;
+  });
+
+  const groqOkBody = {
+    choices: [
+      {
+        message: {
+          content: [
+            '1. Hey {username}! Groq line one 👇',
+            '2. Hey {username}! Groq line two ✨',
+            '3. Hey {username}! Groq line three 🚀',
+            '4. Hey {username}! Groq line four 📬',
+            '5. Hey {username}! Groq line five 🙌',
+          ].join('\n'),
+        },
+      },
+    ],
+  };
+
+  it('attempts Groq when Workers AI fails and a key is set', async () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => groqOkBody,
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const failingAi: WorkersAiBinding = { run: vi.fn().mockRejectedValue(new Error('binding down')) };
+
+    const result = await generateOpeningVariations('Free guide', 5, undefined, failingAi);
+
+    expect(result.status).toBe('success');
+    expect(result.model).toBe('openai/gpt-oss-120b');
+    expect(result.data[0]).toContain('Groq line one');
+    expect(result.data).toHaveLength(5);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const call = fetchMock.mock.calls[0]!;
+    expect(call[0]).toBe('https://api.groq.com/openai/v1/chat/completions');
+    const body = JSON.parse(String((call[1] as { body: string }).body));
+    expect(body.model).toBe('openai/gpt-oss-120b');
+    expect(body.temperature).toBe(0.7);
+  });
+
+  it('rotates to the next Groq model when the first answers non-OK', async () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 404, text: async () => 'model not found' })
+      .mockResolvedValueOnce({ ok: true, json: async () => groqOkBody });
+    vi.stubGlobal('fetch', fetchMock);
+    const failingAi: WorkersAiBinding = { run: vi.fn().mockRejectedValue(new Error('binding down')) };
+
+    const result = await generateOpeningVariations('Free guide', 5, undefined, failingAi);
+
+    expect(result.status).toBe('success');
+    expect(result.model).toBe('qwen/qwen3.8-27b');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not call Groq when Workers AI succeeds', async () => {
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const run = vi.fn().mockResolvedValue({
+      response: '1. Hey {username}! Workers line one 👇\n2. Hey {username}! Workers line two ✨',
+    });
+
+    const result = await generateOpeningVariations('Free guide', 5, undefined, { run });
+
+    expect(result.status).toBe('success');
+    expect(run).toHaveBeenCalledOnce();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to templates when Workers AI fails and no Groq key is set', async () => {
+    delete process.env.GROQ_API_KEY;
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const failingAi: WorkersAiBinding = { run: vi.fn().mockRejectedValue(new Error('binding down')) };
+
+    const result = await generateOpeningVariations('Free guide', 5, undefined, failingAi);
+
+    expect(result.status).toBe('fallback');
+    expect(result.data).toHaveLength(5);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('per-request randomness ◆', () => {
+  it('appends a random style angle to the prompt so identical prompts vary', async () => {
+    const run = vi.fn().mockResolvedValue({
+      response: '1. Hey {username}! Angle line one 👇\n2. Hey {username}! Angle line two ✨',
+    });
+    const ai: WorkersAiBinding = { run };
+
+    await generateOpeningVariations('Free guide', 5, undefined, ai);
+
+    expect(run).toHaveBeenCalledOnce();
+    const options = run.mock.calls[0]![1] as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const userMessage = options.messages.find((m) => m.role === 'user')!.content;
+    expect(userMessage).toContain('Style angle for this batch:');
+    const angle = AI_STYLE_ANGLES.find((a) => userMessage.includes(a));
+    expect(angle).toBeDefined();
   });
 });
