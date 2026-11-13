@@ -156,7 +156,7 @@ function AiDraftControl({ action, label, placeholder, defaultPrompt, automationN
                 <button
                     onClick={generate}
                     disabled={busy || disabled}
-                    className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-lg text-[12px] font-semibold border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                    className="inline-flex items-center gap-1.5 h-[34px] px-3 rounded-lg text-[12px] font-semibold border border-border text-foreground hover:bg-muted disabled:cursor-not-allowed transition-colors shrink-0"
                 >
                     <Lightning className="w-3.5 h-3.5 text-primary" />
                     {busy ? "Generating…" : label}

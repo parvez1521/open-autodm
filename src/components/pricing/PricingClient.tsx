@@ -440,7 +440,7 @@ export default function PricingClient({ checkoutLive, welcome = false }: { check
         <table className="mt-4 w-full min-w-[620px] border-collapse text-left text-[13px]">
           <thead>
             <tr className="border-b border-border">
-              <th scope="col" className="py-3 pr-4 font-medium text-muted-foreground">
+              <th scope="col" className="py-3 pr-4 font-medium text-foreground">
                 Included
               </th>
               {PLANS.map((plan) => (
@@ -453,7 +453,7 @@ export default function PricingClient({ checkoutLive, welcome = false }: { check
           <tbody>
             {DIMENSIONS.map((dim) => (
               <tr key={dim.label} className="border-b border-border">
-                <th scope="row" className="py-3 pr-4 font-normal text-muted-foreground">
+                <th scope="row" className="py-3 pr-4 font-normal text-foreground">
                   {dim.label}
                 </th>
                 {PLANS.map((plan) => (

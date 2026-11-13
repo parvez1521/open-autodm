@@ -114,10 +114,11 @@
 
 :root {
   /* DARK - warm near-black ground, cream ink (owner directive
-     2026-11-10). Contrast, verified numerically: cream on ground
-     18.2:1, on card 16.9:1, on popover 15.6:1; muted #B9B9C2 on
-     ground (brighter than the old #A9A99C, ported from the UI fix
-     for contrast) — body text clears AA on every surface. */
+     2026-11-10). Contrast, verified numerically (2026-11-13
+     contrast lift): cream on ground 18.2:1, on card 18.5:1, on
+     muted 15.6:1; muted #D6D6DE on ground 12.8:1, on card 12.9:1,
+     on muted 10.9:1 — secondary text clears AA (4.5:1) on every
+     surface, and stays readable at 70% opacity (6.7:1 on ground). */
   --background: #141412;
   --foreground: #FFFFEB;
 
@@ -134,7 +135,7 @@
   --secondary-foreground: #1A1A1A;
 
   --muted: #232320;
-  --muted-foreground: #B9B9C2;
+  --muted-foreground: #D6D6DE;
 
   --accent: #F0D7FF;
   --accent-foreground: #1A1A1A;
@@ -171,7 +172,7 @@
   --secondary-foreground: #1A1A1A;
 
   --muted: #232320;
-  --muted-foreground: #B9B9C2;
+  --muted-foreground: #D6D6DE;
 
   --accent: #F0D7FF;
   --accent-foreground: #1A1A1A;
@@ -194,6 +195,31 @@
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
   }
+}
+
+/* ── Contrast guards (2026-11-13 site-wide contrast lift) ────────
+   Unlayered on purpose: Tailwind v4 puts its preflight
+   (::placeholder = 50% currentColor) and its disabled:opacity-*
+   utilities in @layer base / utilities, and unlayered author CSS
+   wins over any layered rule, so these hold without !important. */
+
+/* Placeholders: preflight renders them at 50% of the input's text
+   colour (3.1:1 on muted surfaces when the input text is muted,
+   5.3:1 at best) — the "very faint" placeholder everywhere. A
+   solid #CFCFD8 still reads as a placeholder (dimmer than typed
+   cream) at 11.9:1 on ground, 10.2:1 on muted surfaces. */
+::placeholder {
+  color: #CFCFD8;
+  opacity: 1;
+}
+
+/* Disabled buttons: disabled:opacity-50/60 fades label and pill
+   together toward the page ground (Update password read
+   grey-on-grey). Capping the fade at 0.85 keeps the label
+   ≥ 11:1 against its own pill while the button still reads
+   dimmed next to its enabled state. */
+button:disabled {
+  opacity: 0.85;
 }
 
 /* The accent type: every emphasised word (<em>, .italic) and the

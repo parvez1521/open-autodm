@@ -83,7 +83,7 @@ function NavGroups({
             {visibleNav.map(([group, items]) => (
                 <div key={group} className="mb-5">
                     {!collapsed && (
-                        <div className="micro-label px-4 mb-1.5 opacity-70">{group}</div>
+                        <div className="micro-label px-4 mb-1.5">{group}</div>
                     )}
                     <nav className="px-2 space-y-px">
                         {items.map((item) => {

@@ -29,10 +29,13 @@ describe("dark theme — token layer (2026-11-10)", () => {
     expect(css).toContain("--foreground: #FFFFEB;");
     // Contrast step-up from the 2026-11-12 UI fix port: card
     // #1C1C1A -> #121215, muted text #A9A99C -> #B9B9C2, borders
-    // #2E2E2A -> #2F2F37. Ground, ink and accents are unchanged.
+    // #2E2E2A -> #2F2F37. 2026-11-13 contrast lift: muted text
+    // #B9B9C2 -> #D6D6DE (9.5:1 -> 12.8:1 on ground) so secondary
+    // text clears AA on every surface. Ground, ink and accents
+    // are unchanged.
     expect(css).toContain("--card: #121215;");
     expect(css).toContain("--popover: #232320;");
-    expect(css).toContain("--muted-foreground: #B9B9C2;");
+    expect(css).toContain("--muted-foreground: #D6D6DE;");
     expect(css).toContain("--border: #2F2F37;");
   });
 

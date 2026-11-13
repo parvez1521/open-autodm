@@ -288,12 +288,15 @@ describe("design pass round 5 — motion kit, hero choreography, pipeline packet
     // Open Caption animation concepts (owner directive 2026-11-09):
     // the hero entrance moved from motion variants to the
     // reference's pure-CSS [data-hero] system — headline words rise
-    // masked one by one, the serif accent word runs the gradient
-    // text sweep, the primary CTA carries the conic pill, and the
-    // brand intro holds the sequence until its sheet lifts.
+    // masked one by one, the serif accent word is a solid primary
+    // (2026-11-13 contrast lift: the animated gradient text sweep
+    // rendered thin and faint, so word2 + gradient-text-sweep are
+    // gone from the hero), the primary CTA carries the conic pill,
+    // and the brand intro holds the sequence until its sheet lifts.
     expect(page).toContain('data-hero="word"');
-    expect(page).toContain('data-hero="word2"');
-    expect(page).toContain("gradient-text-sweep");
+    expect(page).not.toContain('data-hero="word2"');
+    expect(page).not.toContain("gradient-text-sweep");
+    expect(page).toContain('data-hero="word" className="text-primary"');
     expect(page).toContain("conic-glow-pill");
     expect(page).toContain("BrandIntro");
     expect(css).toContain("@keyframes hero-up");

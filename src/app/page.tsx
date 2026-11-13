@@ -328,7 +328,7 @@ export default function LandingPage() {
                             <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "0ms" } as React.CSSProperties}>Turn</span></span>{" "}
                             <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "75ms" } as React.CSSProperties}>comments</span></span>{" "}
                             <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "150ms" } as React.CSSProperties}>into</span></span>{" "}
-                            <span className="hero-mask"><em data-hero="word2" className="gradient-text-sweep" style={{ "--hero-d": "225ms" } as React.CSSProperties}>customers</em></span>{" "}
+                            <span className="hero-mask"><em data-hero="word" className="text-primary" style={{ "--hero-d": "225ms" } as React.CSSProperties}>customers</em></span>{" "}
                             <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "300ms" } as React.CSSProperties}>on</span></span>{" "}
                             <span className="hero-mask"><span data-hero="word" style={{ "--hero-d": "375ms" } as React.CSSProperties}>autopilot</span></span>
                         </h1>
@@ -986,7 +986,7 @@ export default function LandingPage() {
                     <div className="mx-auto max-w-7xl px-6 py-16 lg:px-10 lg:py-24">
                         <div className="mx-auto max-w-2xl text-center">
                             <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground lg:text-4xl">
-                                Ready to turn comments into <em>customers</em>?
+                                Ready to turn comments into <em className="text-primary">customers</em>?
                             </h2>
                             <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
                                 Sign in to your console, connect Instagram, and turn

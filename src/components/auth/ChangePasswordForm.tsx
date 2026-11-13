@@ -95,7 +95,7 @@ export function ChangePasswordForm() {
             <button
                 type="submit"
                 disabled={isLoading || !password || !confirm}
-                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
                 {isLoading ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : null}
                 {isLoading ? "Updating…" : "Update password"}

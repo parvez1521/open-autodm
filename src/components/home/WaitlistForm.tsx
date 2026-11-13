@@ -69,7 +69,7 @@ export function WaitlistForm() {
                 <button
                     type="submit"
                     disabled={state === "sending"}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-5 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 >
                     {state === "sending" ? (
                         <CircleNotch className="h-4 w-4 animate-spin" />
