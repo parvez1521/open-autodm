@@ -69,6 +69,10 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   const url = new URL(request.url);
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 50);
   const after = url.searchParams.get('after');
+  // `?refresh=1` (picker Refresh button) skips the cache READ so the
+  // list goes back to Meta — the fresh result is still WRITTEN to the
+  // cache below, so the next plain read is served from it.
+  const refresh = url.searchParams.get('refresh') === '1';
 
   const db = createServiceClient();
   const { data: igAccount, error: igError } = await db
@@ -89,7 +93,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   // the account-ownership query above, the cache stays per-user.
   const cacheKey = `${user.id}:${accountId}:${limit}:${after ?? 'first'}`;
   const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+  if (!refresh && hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return Response.json({ ...hit.value, cached: true });
   }
 
@@ -177,6 +181,9 @@ async function p18Posts(
   const url = new URL(request.url);
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '20', 10), 50);
   const after = url.searchParams.get('after');
+  // Same `?refresh=1` contract as the legacy branch above: skip the
+  // cache READ, still write the fresh result into the cache.
+  const refresh = url.searchParams.get('refresh') === '1';
 
   const db = createServiceClient();
   const header = request.headers.get('x-workspace-id');
@@ -201,7 +208,7 @@ async function p18Posts(
 
   const cacheKey = `${ctx.workspaceId}:${user.id}:${accountId}:${limit}:${after ?? 'first'}`;
   const hit = cache.get(cacheKey);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+  if (!refresh && hit && Date.now() - hit.at < CACHE_TTL_MS) {
     return Response.json({ ...hit.value, cached: true });
   }
 

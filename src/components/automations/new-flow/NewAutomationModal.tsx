@@ -468,6 +468,14 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             data={flowData}
                                             onUpdate={updateData}
                                             creatorProfilePicUrl={activeAccount?.profile_picture_url ?? null}
+                                            // The Selected post box's "Change post" button returns
+                                            // to step 1 "Choose a post". The picker already
+                                            // receives selectedPost={flowData.postId}, so the
+                                            // current post comes back pre-selected, and
+                                            // updateData merges — all other fields are preserved.
+                                            // Only comment-dm flows render the box, and step 1
+                                            // exists for those in both create and edit mode.
+                                            onChangePost={() => setStep(1)}
                                         />
                                     )}
                                 </motion.div>

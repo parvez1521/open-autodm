@@ -16,6 +16,12 @@ interface ConfigureStepProps {
     data: AutomationFlowData;
     onUpdate: (d: Partial<AutomationFlowData>) => void;
     creatorProfilePicUrl?: string | null;
+    // Takes the user back to step 1 "Choose a post" (the modal's
+    // existing setStep(1) path). Without this the only way to change
+    // the post was the header Back button, which users did not find.
+    // Only rendered for comment flows — the Selected post box below
+    // only exists for those — so step 1 always exists when it shows.
+    onChangePost?: () => void;
 }
 
 function randomId() { return Math.random().toString(36).slice(2, 9); }
@@ -425,7 +431,7 @@ function ResponseBlock({ res, idx, onUpdate, onDelete }: {
 }
 
 /* ═══════════════════════ Main ConfigureStep ═══════════════════════ */
-export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: ConfigureStepProps) {
+export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePost }: ConfigureStepProps) {
     const [phonePhase, setPhonePhase] = useState<"initial" | "clicked" | "followed">("initial");
     const [repliesSaved, setRepliesSaved] = useState(data.customReplies.length > 0);
     const [commentInput, setCommentInput] = useState("");
@@ -554,12 +560,21 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                         {data.postThumbnailUrl ? (
                             <div className="flex items-center gap-2.5 p-2.5 bg-muted/40 rounded-lg">
                                 <img src={data.postThumbnailUrl} alt="post" className="w-9 h-9 object-cover rounded-md shrink-0" />
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                     <p className="micro-label">Selected post</p>
                                     <p className="text-[12px] text-foreground truncate">
                                         {data.postCaption ? data.postCaption.slice(0, 70) : "No caption"}
                                     </p>
                                 </div>
+                                {onChangePost && (
+                                    <button
+                                        type="button"
+                                        onClick={onChangePost}
+                                        className="inline-flex items-center h-7 px-2.5 text-[12px] font-medium border border-border hover:bg-muted rounded-lg transition-colors shrink-0"
+                                    >
+                                        Change post
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-lg">

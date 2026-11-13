@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useWorkspace } from '@/components/workspace/WorkspaceProvider';
 import {
@@ -45,14 +46,22 @@ const PAGE_LIMIT = 20;
 
 export function useInstagramPosts(accountId: string | null | undefined) {
   const requestScope = useWorkspaceRequestScope();
-  return useInfiniteQuery<PostsPage, Error>({
+  // Refresh nonce: bumping it starts a fresh query whose fetches carry
+  // `refresh=1`, so the server skips its 5-minute in-memory cache read
+  // and goes back to Meta (live: the picker showed the same 2 posts
+  // even after a hard refresh, because the server cache outlived it).
+  // The nonce sits in the query key so a refresh restarts pagination
+  // from page 1 with fresh data; the picker's local filter/search
+  // state is untouched, so they re-apply to the fresh pages.
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const query = useInfiniteQuery<PostsPage, Error>({
     queryKey:
       requestScope.kind === 'workspace'
-        ? ['instagram-posts', accountId, requestScope.workspaceId]
-        : ['instagram-posts', accountId],
+        ? ['instagram-posts', accountId, requestScope.workspaceId, refreshNonce]
+        : ['instagram-posts', accountId, refreshNonce],
     queryFn: ({ pageParam }) => {
       const cursor = pageParam as string | undefined;
-      const url = `/instagram/posts/${accountId}?limit=${PAGE_LIMIT}${cursor ? `&after=${encodeURIComponent(cursor)}` : ''}`;
+      const url = `/instagram/posts/${accountId}?limit=${PAGE_LIMIT}${cursor ? `&after=${encodeURIComponent(cursor)}` : ''}${refreshNonce > 0 ? '&refresh=1' : ''}`;
       return sendWorkspaceRequest<PostsPage>(requestScope, url);
     },
     initialPageParam: undefined,
@@ -63,4 +72,8 @@ export function useInstagramPosts(accountId: string | null | undefined) {
     enabled: !!accountId && requestScope.kind !== 'unavailable',
     staleTime: 5 * 60 * 1000,
   });
+  return {
+    ...query,
+    refresh: () => setRefreshNonce((n) => n + 1),
+  };
 }

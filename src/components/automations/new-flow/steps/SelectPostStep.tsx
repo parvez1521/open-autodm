@@ -3,6 +3,7 @@ import { ChatCircle, PlayCircle, Stack, MagnifyingGlass, InstagramLogo, Heart } 
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useInstagramPosts } from "@/hooks/useInstagramPosts";
+import { shouldShowLoadMore } from "./postPickerUtils";
 
 interface SelectPostStepProps {
     onSelect: (postId: string, name: string, thumbnailUrl?: string | null, caption?: string) => void;
@@ -14,7 +15,7 @@ interface SelectPostStepProps {
 export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAccountId }: SelectPostStepProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [filter, setFilter] = useState<"all" | "reels" | "posts">("all");
-    const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInstagramPosts(instagramAccountId);
+    const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching, refresh } = useInstagramPosts(instagramAccountId);
 
     const allPosts = data?.pages.flatMap(p => p.posts) ?? [];
 
@@ -27,7 +28,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
         return matchesSearch && matchesFilter;
     });
 
-    const hasMore = hasNextPage && !searchQuery && filter === "all";
+    const hasMore = shouldShowLoadMore(hasNextPage);
 
     return (
         <div className="flex flex-col w-full h-full">
@@ -57,6 +58,15 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                         >
                             <Stack className="w-3.5 h-3.5 opacity-60" />
                             Trigger on all posts
+                        </button>
+                        <button
+                            type="button"
+                            onClick={refresh}
+                            disabled={isFetching}
+                            title="Reload posts from Instagram (skips the 5-minute cache)"
+                            className="inline-flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium border border-border hover:border-foreground/25 rounded-lg transition-colors disabled:opacity-60"
+                        >
+                            {isFetching ? "Refreshing…" : "Refresh"}
                         </button>
                     </div>
 

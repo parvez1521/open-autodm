@@ -464,8 +464,13 @@ describe('source pins — builder flow wiring', () => {
 
   it('useInstagramPosts: the builder post picker is scoped, with a workspace-named cache key', () => {
     expect(postsSrc).toContain('sendWorkspaceRequest');
-    expect(postsSrc).toContain("? ['instagram-posts', accountId, requestScope.workspaceId]");
-    expect(postsSrc).toContain(": ['instagram-posts', accountId]");
+    // Refresh nonce (2026-11-13): the picker Refresh button bumps a
+    // nonce in the key so the refetch carries `refresh=1` past the
+    // server's 5-minute cache. The scope invariant is unchanged — the
+    // workspace key still names the workspace, the legacy key still
+    // does not.
+    expect(postsSrc).toContain("? ['instagram-posts', accountId, requestScope.workspaceId, refreshNonce]");
+    expect(postsSrc).toContain(": ['instagram-posts', accountId, refreshNonce]");
     expect(postsSrc).not.toContain('apiClient');
   });
 
