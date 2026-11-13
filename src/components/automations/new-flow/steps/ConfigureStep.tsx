@@ -22,7 +22,14 @@ function randomId() { return Math.random().toString(36).slice(2, 9); }
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
 
-const inputCls = "w-full text-[13px] bg-background border border-border rounded-lg px-3 py-2 outline-none focus:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors";
+// `overflow-y-auto` makes overflow-x compute to `auto`, so the form
+// column could scroll horizontally and clip its own left edge (live:
+// Name showed "mment funnel", labels lost their first letters, header
+// and preview untouched). `overflow-x-clip` forbids horizontal
+// scrolling entirely — even focus/programmatic scrolls — while keeping
+// vertical scroll. Belt-and-braces with the `min-w-0` on the flex-row
+// inputs below, the real fix for rows that could force the column wider.
+const inputCls = "w-full min-w-0 text-[13px] bg-background border border-border rounded-lg px-3 py-2 outline-none focus:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors";
 const textareaCls = "w-full text-[13px] bg-background border border-border rounded-lg px-3 py-2 outline-none focus:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors resize-none";
 
 /* Per-type copy - the builder speaks the trigger's language */
@@ -523,8 +530,8 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
             </div>
 
             <div className="flex flex-1 min-h-0 overflow-hidden">
-            {/* ── Left - form ── */}
-            <div className={cn("flex-1 min-w-0 overflow-y-auto p-5 space-y-6 custom-scrollbar", mobileTab === "preview" && "hidden xl:block")}>
+            {/* ── Left - form ── (overflow-x-clip: this column must never scroll sideways — see note on inputCls) */}
+            <div className={cn("flex-1 min-w-0 overflow-y-auto overflow-x-clip p-5 space-y-6 custom-scrollbar", mobileTab === "preview" && "hidden xl:block")}>
 
                 {/* Name */}
                 <section className="space-y-2">
@@ -578,7 +585,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                     <section className="space-y-2.5">
                         <SectionHeader
                             title="Public comment reply"
-                            action={<span className="text-[11px] font-medium text-muted-foreground">{data.customReplies.length} variation{data.customReplies.length === 1 ? "" : "s"}</span>}
+                            action={<span className="text-[11px] font-medium text-muted-foreground shrink-0">{data.customReplies.length} variation{data.customReplies.length === 1 ? "" : "s"}</span>}
                         />
                         <p className="text-[12px] text-muted-foreground">
                             A random line from this list is posted publicly under the trigger comment.
@@ -587,7 +594,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl }: Configur
                         <div className="space-y-1.5">
                             {data.customReplies.map((r, i) => (
                                 <div key={i} className="flex items-center gap-1.5 group">
-                                    <span className="flex-1 text-[13px] text-foreground bg-muted/40 rounded-lg px-3 py-1.5 truncate">{r}</span>
+                                    <span className="flex-1 min-w-0 text-[13px] text-foreground bg-muted/40 rounded-lg px-3 py-1.5 truncate">{r}</span>
                                     <button
                                         onClick={() => onUpdate({ customReplies: data.customReplies.filter((_, j) => j !== i) })}
                                         className="opacity-50 hover:opacity-100 focus-visible:opacity-100 p-1.5 text-muted-foreground hover:text-destructive transition-all shrink-0"

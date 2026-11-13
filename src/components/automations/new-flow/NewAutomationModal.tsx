@@ -1,6 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
+import { createPortal } from "react-dom";
 import { X, ArrowLeft, Check, Warning, CircleNotch } from "@/components/phosphor";
 import { useState, useEffect, useCallback } from "react";
 
@@ -164,6 +165,11 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     const [showConfirm, setShowConfirm] = useState(false);
     const [activateError, setActivateError] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<'save' | 'activate' | null>(null);
+    // Portal gate: the modal renders into document.body (client-only),
+    // so its `fixed` positioning is always viewport-relative. It must
+    // not render on the server, where `document` does not exist.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
 
     const { data: igAccounts, isLoading: accountsLoading } = useInstagramAccounts();
     const activeAccount = igAccounts?.find((a) => a.id === accountId) ?? igAccounts?.[0] ?? null;
@@ -340,7 +346,15 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
         : step === 1 ? "Choose a post"
         : isEditMode ? `Edit - ${flowData.name}` : flowData.name || "Configure";
 
-    return (
+    // Portaled to document.body: rendered inside <main>, the modal's
+    // `fixed inset-0` can be captured by a transformed ancestor (the
+    // PageTransition motion wrapper), which shifts the whole panel
+    // off-centre — live, the panel sat ~45px right of centre and the
+    // form column's left edge slid under the panel edge. At the body
+    // root, `fixed` is always viewport-relative, immune to that.
+    // React context (queries, theme) flows through portals unchanged.
+    if (!mounted) return null;
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <div data-no-reveal className="fixed inset-0 z-[200] flex items-center justify-center p-3">
@@ -505,6 +519,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                     </motion.div>
                 </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }
