@@ -1,8 +1,8 @@
 import { motion } from "motion/react";
 import { ChatCircle, PlayCircle, Stack, MagnifyingGlass, InstagramLogo, Heart } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { useInstagramPosts } from "@/hooks/useInstagramPosts";
+import { useState, type FormEvent } from "react";
+import { useInstagramPosts, useResolveInstagramPost } from "@/hooks/useInstagramPosts";
 import { shouldShowLoadMore } from "./postPickerUtils";
 
 interface SelectPostStepProps {
@@ -16,8 +16,33 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
     const [searchQuery, setSearchQuery] = useState("");
     const [filter, setFilter] = useState<"all" | "reels" | "posts">("all");
     const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching, refresh } = useInstagramPosts(instagramAccountId);
+    const resolvePost = useResolveInstagramPost();
+    const [pasteUrl, setPasteUrl] = useState("");
+    const [pasteError, setPasteError] = useState<string | null>(null);
+    const [pasteLoading, setPasteLoading] = useState(false);
 
     const allPosts = data?.pages.flatMap(p => p.posts) ?? [];
+
+    // Paste-link: the list only ever shows posts the connected account
+    // OWNS (collab posts owned by the other account never appear), so
+    // a pasted link resolves the post by ID and selects it through the
+    // exact same onSelect path as clicking a tile.
+    async function handlePasteSubmit(e: FormEvent) {
+        e.preventDefault();
+        if (!instagramAccountId || pasteLoading) return;
+        const url = pasteUrl.trim();
+        if (!url) return;
+        setPasteLoading(true);
+        setPasteError(null);
+        try {
+            const post = await resolvePost(instagramAccountId, url);
+            onSelect(post.id, flowName, post.thumbnail_url ?? post.media_url ?? null, post.caption ?? "");
+        } catch (err) {
+            setPasteError(err instanceof Error ? err.message : "Is post ko load nahi kar paye — link check karo.");
+        } finally {
+            setPasteLoading(false);
+        }
+    }
 
     const filteredPosts = allPosts.filter(post => {
         const matchesSearch = post.caption.toLowerCase().includes(searchQuery.toLowerCase());
@@ -192,6 +217,38 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                 </div>
                             )}
                         </>
+                    )}
+
+                    {/* Paste a post link — the grid only lists posts this
+                        account owns; a collab reel owned by the other
+                        account (e.g. the newest reel) never appears there,
+                        so its link resolves it directly instead. */}
+                    {instagramAccountId && (
+                        <form onSubmit={handlePasteSubmit} className="mt-6 border border-border rounded-xl p-4">
+                            <p className="text-[13px] font-medium">Post list mein nahi dikh raha?</p>
+                            <p className="text-[12px] text-muted-foreground mt-0.5">
+                                Agar tumhara post (jaise collab wala reel) list mein nahi aata, to uska Instagram link yahan paste karo.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                                <input
+                                    type="text"
+                                    placeholder="https://www.instagram.com/p/..."
+                                    value={pasteUrl}
+                                    onChange={(e) => setPasteUrl(e.target.value)}
+                                    className="flex-1 h-9 bg-muted/50 border border-border rounded-lg px-3 text-[13px] outline-none focus:border-foreground/30 transition-colors"
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={pasteLoading || !pasteUrl.trim()}
+                                    className="inline-flex items-center justify-center h-9 px-4 text-[12px] font-medium border border-border hover:border-foreground/25 rounded-lg transition-colors disabled:opacity-60"
+                                >
+                                    {pasteLoading ? "Loading…" : "Load post"}
+                                </button>
+                            </div>
+                            {pasteError && (
+                                <p className="text-[12px] text-destructive mt-2">{pasteError}</p>
+                            )}
+                        </form>
                     )}
                 </div>
             </div>

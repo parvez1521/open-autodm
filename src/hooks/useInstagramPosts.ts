@@ -77,3 +77,30 @@ export function useInstagramPosts(accountId: string | null | undefined) {
     refresh: () => setRefreshNonce((n) => n + 1),
   };
 }
+
+/**
+ * Resolve one post from a pasted Instagram link
+ * (POST /instagram/posts/:accountId/resolve). Same workspace-scope
+ * discipline as useInstagramPosts: the scope is snapshotted from the
+ * provider state of a single render and carried through the call.
+ *
+ * Why (2026-11-15): `/{ig-user-id}/media` only ever returns posts
+ * where the connected account is the collaboration OWNER, so a collab
+ * reel owned by the other account never appears in the picker grid —
+ * pasting its link is the only way to select it.
+ */
+export function useResolveInstagramPost() {
+  const requestScope = useWorkspaceRequestScope();
+  return async (accountId: string, url: string): Promise<InstagramPost> => {
+    const result = await sendWorkspaceRequest<{ post: InstagramPost }>(
+      requestScope,
+      `/instagram/posts/${accountId}/resolve`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      },
+    );
+    return result.post;
+  };
+}

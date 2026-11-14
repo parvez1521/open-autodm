@@ -135,6 +135,10 @@ const CLASSIFIED: Record<string, Classified> = {
     kind: 'user-session+owner-check',
     tokens: ["eq('user_id', user.id)", '${user.id}:${accountId}'],
   },
+  'app/api/instagram/posts/[accountId]/resolve/route.ts': {
+    kind: 'user-session+owner-check',
+    tokens: ["eq('user_id', user.id)"],
+  },
   'app/api/instagram/refresh/[accountId]/route.ts': {
     kind: 'user-session+owner-check',
     tokens: ["eq('user_id', user.id)"],
@@ -441,9 +445,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 46 importing files, 91 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site; workspace-mode connect default 2026-11-11: instagram/connect route gains one service-client call to resolve the single membership of the caller for the default-workspace binding (file already classified) — +1 call site)', () => {
+  it('counts reconcile with the audit: 47 importing files, 93 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site; workspace-mode connect default 2026-11-11: instagram/connect route gains one service-client call to resolve the single membership of the caller for the default-workspace binding (file already classified) — +1 call site; post-picker paste-link 2026-11-15: instagram/posts resolve route classified user-session+owner-check (caller-scoped account read, same guard as the list route; legacy + workspace branches) — +1 file, +2 call sites)', () => {
     const importers = serviceImporters();
-    expect(importers.length).toBe(46);
+    expect(importers.length).toBe(47);
     let calls = 0;
     for (const f of importers) {
       for (const line of sourceOf(f).split('\n')) {
@@ -454,7 +458,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(91);
+    expect(calls).toBe(93);
   });
 
   it('every classified file still carries its audited guard tokens', () => {
@@ -474,7 +478,7 @@ describe('P17/B source scan: service-role importer classification', () => {
       expect(spec.exceptionReason, `${file} needs a reviewed-exception reason`).toBeTruthy();
       expect(spec.exceptionReason!.length).toBeGreaterThan(40);
     }
-    // 24 user-scoped files carry their guard inline; the rest are
+    // 25 user-scoped files carry their guard inline; the rest are
     // exceptions. (P19 removed the accept route from the user-scoped
     // set: it carries no service client any more. P30/AA-6 removed
     // the three remaining workspaces-tree files the same way.
@@ -482,8 +486,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     // billing routes: checkout, trial, status. Plan-choice routing
     // 2026-11-10 added two more: the dashboard server wrapper and
     // the billing/plan-choice route. Task F 2026-11-10 added one
-    // more: lib/billing/planChoiceServer.)
-    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(25);
+    // more: lib/billing/planChoiceServer. Post-picker paste-link
+    // 2026-11-15 added one more: the instagram/posts resolve route.)
+    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(26);
   });
 
   it('FINDING B-F1 pin: no product file imports scopedDb helpers (guards are heterogeneous, not scopedDb)', () => {
