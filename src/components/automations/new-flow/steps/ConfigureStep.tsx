@@ -67,6 +67,13 @@ const TYPE_COPY: Record<string, {
         keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
         anyModeHint: null,
     },
+    "reel-dm": {
+        triggerTitle: "When someone shares this reel in a DM",
+        keywordModeSpecific: "Specific keywords",
+        keywordModeAny: "Any share",
+        keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
+        anyModeHint: "Triggers on every share of this reel — no keyword needed. Keywords only add an extra filter on the share's text, and most reels are shared with no text at all.",
+    },
 };
 
 /* ─── Toggle ─── */
@@ -474,6 +481,9 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
     const flowType = data.type ?? "comment-dm";
     const isComment = flowType === "comment-dm";
     const isStory = flowType === "story-reply";
+    const isReelDm = flowType === "reel-dm";
+    // Post-targeted flows (comment-dm, reel-dm) show the selected post.
+    const hasPostTarget = isComment || isReelDm;
     const copy = TYPE_COPY[flowType] ?? TYPE_COPY["comment-dm"]!;
 
     const isAnyMode = data.keywordsAnyMode ?? data.keywords.length === 0;
@@ -554,8 +564,8 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                     />
                 </section>
 
-                {/* Post context - comment automations only */}
-                {isComment && (
+                {/* Post context - post-targeted automations only */}
+                {hasPostTarget && (
                     <>
                         {data.postThumbnailUrl ? (
                             <div className="flex items-center gap-2.5 p-2.5 bg-muted/40 rounded-lg">
@@ -580,7 +590,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                             <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-lg">
                                 <Lightning className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="text-[12px] font-medium text-muted-foreground">
-                                    {data.postId && data.postId !== "all" ? "Specific post selected" : "Triggers on all posts"}
+                                    {data.postId && data.postId !== "all" ? "Specific post selected" : isReelDm ? "Triggers on any shared reel" : "Triggers on all posts"}
                                 </span>
                             </div>
                         )}

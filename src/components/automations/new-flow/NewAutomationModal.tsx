@@ -74,12 +74,14 @@ const DB_TYPE_TO_FLOW: Record<string, string> = {
     comment_dm: "comment-dm",
     dm_reply: "dm-reply",
     story_reply: "story-reply",
+    reel_dm: "reel-dm",
 };
 
 const DEFAULT_NAMES: Record<string, string> = {
     "comment-dm": "Comment funnel",
     "dm-reply": "DM keyword reply",
     "story-reply": "Story reply funnel",
+    "reel-dm": "Shared Reel funnel",
 };
 
 const DEFAULT_OPENING_MESSAGE =
@@ -213,7 +215,8 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
 
     const handleTypeSelect = (type: string) => {
         const name = flowData.name === "New automation" ? (DEFAULT_NAMES[type] ?? flowData.name) : flowData.name;
-        if (type === "comment-dm") {
+        if (type === "comment-dm" || type === "reel-dm") {
+            // Post-targeted triggers - pick the reel/post first.
             updateData({ type, name });
             setStep(1);
         } else {
@@ -224,7 +227,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     };
 
     const handleBack = () => setStep(s => {
-        if (s === 2 && flowData.type !== "comment-dm") return 0;
+        if (s === 2 && flowData.type !== "comment-dm" && flowData.type !== "reel-dm") return 0;
         return Math.max(s - 1, 0);
     });
 
@@ -237,20 +240,26 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     };
 
     const buildPayload = (isActive: boolean | null) => {
-        const typeMap: Record<string, "comment_dm" | "dm_reply" | "story_reply"> = {
+        const typeMap: Record<string, "comment_dm" | "dm_reply" | "story_reply" | "reel_dm"> = {
             "comment-dm": "comment_dm",
             "dm-reply": "dm_reply",
             "story-reply": "story_reply",
+            "reel-dm": "reel_dm",
         };
         const dbType = typeMap[flowData.type ?? ""] ?? "comment_dm";
         const isComment = dbType === "comment_dm";
+        const isReelDm = dbType === "reel_dm";
+        // Post-targeted triggers keep the picked post; every other type
+        // has no post target. Nulling postId for reel_dm would silently
+        // turn a per-reel funnel into an any-reel one.
+        const hasPostTarget = isComment || isReelDm;
         return {
             name: flowData.name,
             type: dbType,
             isActive: isActive ?? true,
-            postId: !isComment || flowData.postId === "all" ? null : flowData.postId,
-            postThumbnailUrl: isComment ? flowData.postThumbnailUrl ?? null : null,
-            postCaption: isComment ? flowData.postCaption ?? null : null,
+            postId: !hasPostTarget || flowData.postId === "all" ? null : flowData.postId,
+            postThumbnailUrl: hasPostTarget ? flowData.postThumbnailUrl ?? null : null,
+            postCaption: hasPostTarget ? flowData.postCaption ?? null : null,
             // Hardened matcher: "any" mode must be EXPLICIT — stored as the
             // '*ANY*' token. A null/empty keyword list now never triggers.
             keywords: flowData.keywordsAnyMode ? ["*ANY*"] : (flowData.keywords.length > 0 ? flowData.keywords : null),
@@ -461,6 +470,13 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             selectedPost={flowData.postId}
                                             flowName={flowData.name}
                                             instagramAccountId={firstAccountId}
+                                            // One automation per reel (owner decision,
+                                            // 2026-11-15): a reel_dm funnel always
+                                            // targets a specific reel, so there is no
+                                            // "Trigger on all posts" for it, and the
+                                            // picker opens on the Reels filter.
+                                            allowAllPosts={flowData.type !== "reel-dm"}
+                                            initialFilter={flowData.type === "reel-dm" ? "reels" : "all"}
                                         />
                                     )}
                                     {step === 2 && (
@@ -473,8 +489,9 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             // receives selectedPost={flowData.postId}, so the
                                             // current post comes back pre-selected, and
                                             // updateData merges — all other fields are preserved.
-                                            // Only comment-dm flows render the box, and step 1
-                                            // exists for those in both create and edit mode.
+                                            // Only post-targeted flows (comment-dm, reel-dm)
+                                            // render the box, and step 1 exists for those in
+                                            // both create and edit mode.
                                             onChangePost={() => setStep(1)}
                                         />
                                     )}

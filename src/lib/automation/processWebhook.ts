@@ -19,6 +19,7 @@ import { recordContactInteraction } from '@/lib/automation/contacts';
 import { recordAndEvaluateCommentTraffic } from '@/lib/trafficGuard/tracker';
 import { isOptOutIntent, recordRecipientOptOut, isRecipientSuppressed } from '@/lib/automation/optOut';
 import { scheduleFollowUpMessage } from '@/lib/automation/followUps';
+import { extractInstagramShortcode, decodeInstagramShortcode } from '@/lib/instagram/postUrl';
 import type {
   MetaWebhookBody,
   MetaCommentChangeValue,
@@ -27,6 +28,29 @@ import type {
 } from '@/lib/types';
 
 const logger = createLogger('webhook');
+
+/**
+ * Resolve the shared Reel's numeric media ID from a message attachment
+ * payload. Meta's ig_reel payload is documented to carry a video id,
+ * but the field name is not stable — live traffic has shown
+ * `reel_video_id` instead of `id`, and some deliveries carry only the
+ * permalink. Resolving from all three sources (id → reel_video_id →
+ * shortcode decoded from url) is what makes the reel_dm match below
+ * fire at all: with `payload.id` alone, a `reel_video_id`-only delivery
+ * resolves to null and no automation ever matches — the feature would
+ * silently do nothing. The shortcode decode is the same offline
+ * fallback the paste-link resolve route uses (postUrl.ts).
+ */
+function resolveSharedReelId(payload: { id?: string; reel_video_id?: string; url?: string } | undefined): string | null {
+  if (!payload) return null;
+  if (payload.id) return payload.id;
+  if (payload.reel_video_id) return payload.reel_video_id;
+  if (payload.url) {
+    const shortcode = extractInstagramShortcode(payload.url);
+    if (shortcode) return decodeInstagramShortcode(shortcode);
+  }
+  return null;
+}
 
 /** Max event age accepted for processing: 24h window + 1h queue buffer. */
 const MAX_EVENT_AGE_MS = 25 * 60 * 60 * 1000;
@@ -513,7 +537,7 @@ async function processDmEvent(
   });
 
   if (reelAttachment && message) {
-    const reelId = reelAttachment.payload?.id ?? null;
+    const reelId = resolveSharedReelId(reelAttachment.payload);
     const reelUrl = reelAttachment.payload?.url ?? null;
     const reelTitle = reelAttachment.payload?.title ?? message.text ?? null;
 
@@ -521,6 +545,8 @@ async function processDmEvent(
       `Incoming shared Reel received from ${messaging.sender.id} (reelId=${reelId ?? 'unknown'})`, {
         senderId: messaging.sender.id,
         reelId,
+        reelVideoId: reelAttachment.payload?.reel_video_id ?? null,
+        reelUrl,
         reelTitle: reelTitle?.slice(0, 50),
         attachmentType: reelAttachment.type,
       });

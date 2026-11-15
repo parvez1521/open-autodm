@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ChatCircle, PaperPlaneTilt, Image, At } from "@/components/phosphor";
+import { ChatCircle, PaperPlaneTilt, Image, At, PlayCircle } from "@/components/phosphor";
 import { AUTOMATION_TYPES } from "../constants";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,8 @@ const ICONS = {
     "message": ChatCircle,
     "send": PaperPlaneTilt,
     "image": Image,
-    "at-sign": At
+    "at-sign": At,
+    "play": PlayCircle
 };
 
 export function SelectTypeStep({ onSelect, selectedType }: SelectTypeStepProps) {

@@ -10,6 +10,16 @@ export const AUTOMATION_TYPES = [
         iconColor: "text-[#F97316]"
     },
     {
+        id: "reel-dm",
+        name: "Shared Reel → DM",
+        description: "Auto-DM people who share a specific reel with you in DMs.",
+        iconType: "play",
+        available: true,
+        bg: "from-rose-500/20 to-pink-500/10",
+        border: "group-hover:border-rose-500/50",
+        iconColor: "text-rose-500"
+    },
+    {
         id: "dm-reply",
         name: "DM Auto Reply",
         description: "Instantly reply to specific keywords in your DMs.",

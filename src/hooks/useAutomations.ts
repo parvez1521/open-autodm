@@ -21,7 +21,7 @@ import {
 export interface AutomationFromDB {
   id: string;
   name: string;
-  type: 'comment_dm' | 'dm_reply' | 'story_reply';
+  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm';
   is_active: boolean;
   post_id: string | null;
   post_thumbnail_url: string | null;
@@ -69,7 +69,7 @@ export interface DMResponse {
 export interface CreateAutomationPayload {
   instagramAccountId: string;
   name: string;
-  type: 'comment_dm' | 'dm_reply' | 'story_reply';
+  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm';
   isActive?: boolean;
   postId?: string | null;
   postThumbnailUrl?: string | null;

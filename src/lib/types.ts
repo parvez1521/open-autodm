@@ -333,7 +333,7 @@ export interface MetaWebhookMessaging {
     is_echo?: boolean;
     attachments?: Array<{
       type: string;
-      payload?: { id?: string; url?: string; title?: string };
+      payload?: { id?: string; reel_video_id?: string; url?: string; title?: string };
     }>;
     quick_reply?: { payload: string };
     /** Present when the message is a reply to one of the account's stories. */

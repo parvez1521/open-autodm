@@ -11,6 +11,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ c
     comment_dm: { label: "Comment → DM", icon: ChatCircle, className: "bg-[#F97316]/10 text-[#F97316]" },
     dm_reply: { label: "DM Reply", icon: PaperPlaneTilt, className: "bg-blue-500/10 text-blue-500" },
     story_reply: { label: "Story Reply", icon: ImageIcon, className: "bg-emerald-500/10 text-emerald-500" },
+    reel_dm: { label: "Shared Reel → DM", icon: PaperPlaneTilt, className: "bg-rose-500/10 text-rose-500" },
 };
 
 function triggerDescription(automation: AutomationFromDB): string {
@@ -133,21 +134,23 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                             {/* Left - thumb + info */}
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className="shrink-0">
-                                    {automation.type !== "comment_dm" ? (
+                                    {(automation.type === "comment_dm" || automation.type === "reel_dm") ? (
+                                        hasPost && thumbUrl ? (
+                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted">
+                                                <img src={thumbUrl} alt="Post" className="w-full h-full object-cover" />
+                                            </div>
+                                        ) : hasPost ? (
+                                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                                <InstagramLogo className="w-4 h-4 text-muted-foreground/60" />
+                                            </div>
+                                        ) : (
+                                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                                <Stack className="w-4 h-4 text-muted-foreground/60" />
+                                            </div>
+                                        )
+                                    ) : (
                                         <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", typeConfig.className)}>
                                             <TypeIcon className="w-4 h-4" />
-                                        </div>
-                                    ) : hasPost && thumbUrl ? (
-                                        <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted">
-                                            <img src={thumbUrl} alt="Post" className="w-full h-full object-cover" />
-                                        </div>
-                                    ) : hasPost ? (
-                                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                            <InstagramLogo className="w-4 h-4 text-muted-foreground/60" />
-                                        </div>
-                                    ) : (
-                                        <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                            <Stack className="w-4 h-4 text-muted-foreground/60" />
                                         </div>
                                     )}
                                 </div>
@@ -171,9 +174,9 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                             <CursorClick className="w-3 h-3 opacity-60 shrink-0" />
                                             {triggerDescription(automation)}
                                         </span>
-                                        {automation.type === "comment_dm" && (
+                                        {(automation.type === "comment_dm" || automation.type === "reel_dm") && (
                                             <span className="truncate hidden sm:inline">
-                                                {hasPost ? (automation.post_caption ? automation.post_caption.slice(0, 44) : "Specific post") : "All posts"}
+                                                {hasPost ? (automation.post_caption ? automation.post_caption.slice(0, 44) : "Specific post") : automation.type === "reel_dm" ? "Any shared reel" : "All posts"}
                                             </span>
                                         )}
                                         <span className="items-center gap-1 hidden md:flex shrink-0">

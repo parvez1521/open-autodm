@@ -10,11 +10,16 @@ interface SelectPostStepProps {
     selectedPost: string | null;
     flowName: string;
     instagramAccountId?: string | null;
+    /** Hide "Trigger on all posts" — reel_dm funnels always target one
+        specific reel (one automation per reel), so "all" is not offered. */
+    allowAllPosts?: boolean;
+    /** Which filter the picker opens on (reel_dm opens on Reels). */
+    initialFilter?: "all" | "reels" | "posts";
 }
 
-export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAccountId }: SelectPostStepProps) {
+export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAccountId, allowAllPosts = true, initialFilter = "all" }: SelectPostStepProps) {
     const [searchQuery, setSearchQuery] = useState("");
-    const [filter, setFilter] = useState<"all" | "reels" | "posts">("all");
+    const [filter, setFilter] = useState<"all" | "reels" | "posts">(initialFilter);
     const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching, refresh } = useInstagramPosts(instagramAccountId);
     const resolvePost = useResolveInstagramPost();
     const [pasteUrl, setPasteUrl] = useState("");
@@ -77,13 +82,15 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                 </button>
                             ))}
                         </div>
-                        <button
-                            onClick={() => onSelect("all", flowName, null, "")}
-                            className="inline-flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium border border-border hover:border-foreground/25 rounded-lg transition-colors"
-                        >
-                            <Stack className="w-3.5 h-3.5 opacity-60" />
-                            Trigger on all posts
-                        </button>
+                        {allowAllPosts && (
+                            <button
+                                onClick={() => onSelect("all", flowName, null, "")}
+                                className="inline-flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium border border-border hover:border-foreground/25 rounded-lg transition-colors"
+                            >
+                                <Stack className="w-3.5 h-3.5 opacity-60" />
+                                Trigger on all posts
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={refresh}
