@@ -99,6 +99,14 @@ function seedAll(): void {
     { id: INCIDENT_A, workspace_id: WS_A, instagram_account_id: ACCT_A, paused_at: '2026-11-05T10:00:00Z', resumed_at: null },
     { id: INCIDENT_B, workspace_id: WS_B, instagram_account_id: ACCT_B, paused_at: '2026-11-05T10:00:00Z', resumed_at: null },
   ]);
+  // Preserve-on-disconnect (2026-11-15): an active automation on the
+  // disconnected account, a manually-paused one on the same account
+  // (must keep its own state), and an active one on the other account.
+  fake.replaceRows('automations', [
+    { id: 'auto-a-1', user_id: OWNER_A.id, workspace_id: WS_A, instagram_account_id: ACCT_A, name: 'Active A', type: 'comment_dm', is_active: true, paused_by_disconnect: false },
+    { id: 'auto-a-2', user_id: OWNER_A.id, workspace_id: WS_A, instagram_account_id: ACCT_A, name: 'Manual pause A', type: 'dm_reply', is_active: false, paused_by_disconnect: false },
+    { id: 'auto-b-1', user_id: 'user-owner-b', workspace_id: WS_B, instagram_account_id: ACCT_B, name: 'Active B', type: 'comment_dm', is_active: true, paused_by_disconnect: false },
+  ]);
   fake.replaceRows('traffic_guard_notifications', [
     { id: NOTIF_A, workspace_id: WS_A, user_id: MEMBER_A.id, instagram_account_id: ACCT_A, is_read: false },
     { id: NOTIF_B, workspace_id: WS_B, user_id: 'user-owner-b', instagram_account_id: ACCT_B, is_read: false },
@@ -131,11 +139,26 @@ const postJson = (url: string, body: unknown) =>
   new Request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
 describe('disconnect (accountAdmin)', () => {
-  it('owner disconnects an in-workspace account', async () => {
+  it('owner disconnects an in-workspace account (soft-disconnect: row kept, automations paused — preserve-on-disconnect, 2026-11-15)', async () => {
     mockAuth.mockResolvedValue(OWNER_A);
     const res = await disconnectDELETE(wsReq(`https://app.opendm.in/api/instagram/disconnect/${ACCT_A}?workspace=${WS_A}`, { method: 'DELETE' }), acctCtx(ACCT_A));
     expect(res.status).toBe(200);
-    expect(fake.rows('instagram_accounts').some((r) => r['id'] === ACCT_A)).toBe(false);
+    // The account row is KEPT, only soft-disconnected.
+    const account = fake.rows('instagram_accounts').find((r) => r['id'] === ACCT_A)!;
+    expect(account['is_active']).toBe(false);
+    expect(typeof account['disconnected_at']).toBe('string');
+    // Its ACTIVE automation is auto-paused with the disconnect flag…
+    const activeA = fake.rows('automations').find((r) => r['id'] === 'auto-a-1')!;
+    expect(activeA['is_active']).toBe(false);
+    expect(activeA['paused_by_disconnect']).toBe(true);
+    // …the manually-paused one keeps its own state (flag stays false)…
+    const manualA = fake.rows('automations').find((r) => r['id'] === 'auto-a-2')!;
+    expect(manualA['is_active']).toBe(false);
+    expect(manualA['paused_by_disconnect']).toBe(false);
+    // …and the other workspace's automation is untouched.
+    const activeB = fake.rows('automations').find((r) => r['id'] === 'auto-b-1')!;
+    expect(activeB['is_active']).toBe(true);
+    expect(activeB['paused_by_disconnect']).toBe(false);
   });
 
   it('member is denied 403 (accountAdmin) with zero mutation; foreign account ⇒ 404 for the owner', async () => {
@@ -154,7 +177,12 @@ describe('disconnect (accountAdmin)', () => {
     mockAuth.mockResolvedValue(OWNER_A);
     const res = await disconnectDELETE(wsReq(`https://app.opendm.in/api/instagram/disconnect/${ACCT_A}`, { method: 'DELETE' }), acctCtx(ACCT_A));
     expect(res.status).toBe(200);
-    expect(fake.rows('instagram_accounts').some((r) => r['id'] === ACCT_A)).toBe(false);
+    const account = fake.rows('instagram_accounts').find((r) => r['id'] === ACCT_A)!;
+    expect(account['is_active']).toBe(false);
+    expect(typeof account['disconnected_at']).toBe('string');
+    const activeA = fake.rows('automations').find((r) => r['id'] === 'auto-a-1')!;
+    expect(activeA['is_active']).toBe(false);
+    expect(activeA['paused_by_disconnect']).toBe(true);
   });
 
   it('bare call still enforces accountAdmin: a member with one membership is denied 403, zero mutation', async () => {

@@ -23,6 +23,8 @@ export interface AutomationFromDB {
   name: string;
   type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm';
   is_active: boolean;
+  /** True when the automation was auto-paused by an Instagram disconnect (preserve-on-disconnect, 2026-11-15) — it resumes automatically when the same account reconnects. */
+  paused_by_disconnect?: boolean;
   post_id: string | null;
   post_thumbnail_url: string | null;
   post_caption: string | null;

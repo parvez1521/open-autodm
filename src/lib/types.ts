@@ -132,6 +132,8 @@ export interface AutomationRow {
   is_traffic_guard_paused?: boolean;
   traffic_guard_paused_at?: string | null;
   traffic_guard_incident_id?: string | null;
+  /** Preserve-on-disconnect (2026-11-15): true when the automation was auto-paused by an Instagram disconnect. */
+  paused_by_disconnect?: boolean;
   total_dms_sent: number;
   created_at: string;
   updated_at: string;

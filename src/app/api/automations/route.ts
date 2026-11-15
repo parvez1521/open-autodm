@@ -106,7 +106,7 @@ export async function GET(request: Request): Promise<Response> {
       let query = db
         .from('automations')
         .select(`
-          id, name, type, is_active, post_id, post_thumbnail_url, post_caption, keywords,
+          id, name, type, is_active, paused_by_disconnect, post_id, post_thumbnail_url, post_caption, keywords,
           comment_reply_options, public_reply_enabled, public_reply_options,
           follow_up_enabled, follow_up_delay_minutes, follow_up_message,
           dm_opening_message_enabled,

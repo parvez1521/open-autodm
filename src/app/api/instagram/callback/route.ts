@@ -36,6 +36,7 @@ import { encrypt } from '@/lib/crypto';
 import { getAppUrl, getEnv } from '@/lib/env';
 import { createLogger } from '@/lib/logger';
 import { debugLog } from '@/lib/debugLog';
+import { reactivateAutomationsAfterReconnect } from '@/lib/automation/disconnectPreservation';
 import { resolveWorkspaceContext, requireWorkspaceRole } from '@/lib/tenancy/context';
 import {
   evaluateEntitlementGate,
@@ -246,6 +247,10 @@ export async function GET(request: Request): Promise<Response> {
       access_token_encrypted: encryptedToken,
       token_expires_at: expiresAt.toISOString(),
       is_active: true,
+      // Preserve-on-disconnect (2026-11-15): a reconnect clears the
+      // soft-disconnect marker (the reactivation below restores the
+      // automations the disconnect paused).
+      disconnected_at: null,
       paused_until: null,
       pause_reason: null,
       // Phase D1: workspace binding (…000026) is written ONLY for a
@@ -306,6 +311,32 @@ export async function GET(request: Request): Promise<Response> {
           .eq('instagram_user_id', profile.user_id)
           .maybeSingle();
         connectedAccountId = (insertedAccount?.id as string | undefined) ?? null;
+      }
+    }
+
+    // Preserve-on-disconnect (2026-11-15): if this IG account was
+    // disconnected earlier, its automations were auto-paused, not
+    // deleted. Reconnecting the SAME account (matched by
+    // instagram_user_id, ownership already verified above) reactivates
+    // exactly those automations. A brand-new account has none, so the
+    // update matches zero rows. A failure here must NOT fail the
+    // connect — the account IS connected; the paused automations stay
+    // visible in the list with their "account disconnected" badge and
+    // can be resumed manually.
+    if (connectedAccountId) {
+      try {
+        const reactivated = await reactivateAutomationsAfterReconnect(db, connectedAccountId);
+        if (reactivated.length > 0) {
+          logger.info(
+            { userId, username: profile.username, reactivatedAutomations: reactivated.length },
+            'Automations reactivated after Instagram reconnect',
+          );
+        }
+      } catch (reactivateErr) {
+        logger.error(
+          { err: reactivateErr, userId, username: profile.username },
+          'Failed to reactivate automations after Instagram reconnect',
+        );
       }
     }
 

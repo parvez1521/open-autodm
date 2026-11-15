@@ -126,6 +126,14 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
   const { flow_graph: suppliedGraph, ...flatUpdates } = parsed.data;
   const update: Record<string, unknown> = { ...flatUpdates };
 
+  // Preserve-on-disconnect (2026-11-15): manually resuming an automation
+  // that was auto-paused by a disconnect clears the disconnect flag, so
+  // a later reconnect leaves it alone (it is already active by the
+  // user's own choice). Pausing never sets the flag — only disconnect does.
+  if (parsed.data.is_active === true) {
+    update.paused_by_disconnect = false;
+  }
+
   if (suppliedGraph !== undefined) {
     if (suppliedGraph === null) {
       update.flow_graph = null;
@@ -286,6 +294,14 @@ async function p18UpdateAutomation(
   // canonical graph from the merged flat fields).
   const { flow_graph: suppliedGraph, ...flatUpdates } = parsed.data;
   const update: Record<string, unknown> = { ...flatUpdates };
+
+  // Preserve-on-disconnect (2026-11-15): manually resuming an automation
+  // that was auto-paused by a disconnect clears the disconnect flag, so
+  // a later reconnect leaves it alone (it is already active by the
+  // user's own choice). Pausing never sets the flag — only disconnect does.
+  if (parsed.data.is_active === true) {
+    update.paused_by_disconnect = false;
+  }
 
   if (suppliedGraph !== undefined) {
     if (suppliedGraph === null) {

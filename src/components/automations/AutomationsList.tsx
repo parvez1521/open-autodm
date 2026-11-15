@@ -165,7 +165,9 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                         </span>
                                         {!isActive && (
                                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 bg-muted text-muted-foreground">
-                                                Paused
+                                                {automation.paused_by_disconnect
+                                                    ? "Paused — account disconnected"
+                                                    : "Paused"}
                                             </span>
                                         )}
                                     </div>

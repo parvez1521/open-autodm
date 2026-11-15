@@ -418,7 +418,7 @@ describe('§C request bodies cannot smuggle role/ownership fields', () => {
 describe('§D IDOR on instagram [accountId] routes (B principal vs A account)', () => {
   beforeEach(() => seedTwoTenants());
 
-  it('DELETE /api/instagram/disconnect/[accountId]: B → 404, A\u2019s account row intact; owner control → 200 and row deleted', async () => {
+  it('DELETE /api/instagram/disconnect/[accountId]: B → 404, A\u2019s account row intact; owner control → 200 and the account is SOFT-disconnected (row kept, automations paused — preserve-on-disconnect, 2026-11-15)', async () => {
     mockAuth.mockResolvedValue({ id: MEMBER_B, email: 'b@example.com' });
     const denied = await disconnectDELETE(
       new Request('https://app.opendm.in/api/instagram/disconnect/acct-A', { method: 'DELETE' }),
@@ -433,7 +433,18 @@ describe('§D IDOR on instagram [accountId] routes (B principal vs A account)', 
       { params: Promise.resolve({ accountId: 'acct-A' }) }
     );
     expect(ok.status).toBe(200);
-    expect(fake.rows('instagram_accounts').some((r) => r['id'] === 'acct-A')).toBe(false);
+    // The row is KEPT (never deleted) — only soft-disconnected.
+    const account = fake.rows('instagram_accounts').find((r) => r['id'] === 'acct-A')!;
+    expect(account['is_active']).toBe(false);
+    expect(typeof account['disconnected_at']).toBe('string');
+    // Its automation survives, auto-paused with the disconnect flag…
+    const autoA = fake.rows('automations').find((r) => r['id'] === 'auto-A')!;
+    expect(autoA['is_active']).toBe(false);
+    expect(autoA['paused_by_disconnect']).toBe(true);
+    // …while the other tenant's automation is untouched.
+    const autoB = fake.rows('automations').find((r) => r['id'] === 'auto-B')!;
+    expect(autoB['is_active']).toBe(true);
+    expect(autoB['paused_by_disconnect']).toBeFalsy();
   });
 
   it('POST /api/instagram/refresh/[accountId]: B → 404, token-refresh never invoked, A\u2019s stored token byte-identical', async () => {
