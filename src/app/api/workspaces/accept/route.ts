@@ -18,6 +18,7 @@
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createUserRpcClient } from '@/lib/supabase/userClient';
 import { createServiceClient } from '@/lib/supabase/service';
+import { isOwnerFree } from '@/lib/owner';
 import {
   evaluateEntitlementGate,
   planLimitResponse,
@@ -60,6 +61,9 @@ export async function POST(request: Request): Promise<Response> {
   const gateDb = () => createServiceClient();
   const gate = await evaluateEntitlementGate(gateDb(), {
     dimension: 'teamSeats',
+    // Owner comp (owner decision 2026-11-15): the owner's account
+    // is forever free — never gated on plan limits.
+    ownerFree: isOwnerFree(user),
     resolveContext: async () => {
       const db = gateDb();
       const { data } = await db

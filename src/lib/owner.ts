@@ -24,6 +24,29 @@
 
 import type { AuthenticatedUser } from '@/lib/auth';
 
+/**
+ * Forever-free owner comp — owner decision 2026-11-15 ("mere account
+ * me koi bhi paid na lena pade, sab free access rahe"): the owner's
+ * own account is comped for life. It bypasses EVERY plan limit
+ * (Instagram accounts, team seats, workspaces, monthly volumes) and
+ * never needs a paid plan or a payment.
+ *
+ * The comp is keyed on the owner's account email below AND on the
+ * env-configured instance owner (isInstanceOwner) — either one
+ * suffices. The hardcoded email is deliberate: the comp must NOT
+ * silently stop working because a deployment forgot to set
+ * OWNER_EMAIL/OWNER_USER_ID. It applies to this one account only;
+ * no other user or workspace is ever comped by this check.
+ */
+export const OWNER_FREE_EMAILS: readonly string[] = ['parvezsiddiqui018@gmail.com'];
+
+/** True when `user` is the owner whose account is forever free. */
+export function isOwnerFree(user: Pick<AuthenticatedUser, 'id' | 'email'>): boolean {
+  if (isInstanceOwner(user)) return true;
+  const email = user.email?.trim().toLowerCase();
+  return !!email && OWNER_FREE_EMAILS.includes(email);
+}
+
 /** True when an owner identity is configured in the environment. */
 export function isOwnerConfigured(): boolean {
   return Boolean(process.env['OWNER_USER_ID']?.trim() || process.env['OWNER_EMAIL']?.trim());

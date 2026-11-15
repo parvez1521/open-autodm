@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
+import { getAuthenticatedUser, unauthorized, type AuthenticatedUser } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createLogger } from '@/lib/logger';
 import { DMResponseSchema, MAX_DM_RESPONSES, MAX_DM_OPENING_VARIATIONS } from '@/lib/api/schemas';
@@ -20,6 +20,7 @@ import {
   countWorkspaceActiveAutomations,
 } from '@/lib/entitlements/guard';
 import { billingWorkspaceSelector, resolveBillingWorkspace } from '@/lib/billing/access';
+import { isOwnerFree } from '@/lib/owner';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -98,6 +99,9 @@ export async function PUT(request: Request, context: RouteContext): Promise<Resp
   if (parsed.data.is_active === true && existing.is_active !== true) {
     const gate = await evaluateEntitlementGate(db, {
       dimension: 'activeAutomations',
+      // Owner comp (owner decision 2026-11-15): the owner's account
+      // is forever free — never gated on plan limits.
+      ownerFree: isOwnerFree(user),
       resolveContext: async () => {
         const ws = await resolveBillingWorkspace(db, user.id, billingWorkspaceSelector(request));
         return {
@@ -221,7 +225,9 @@ function p18CapabilityFailure(err: unknown): Response {
 
 async function p18UpdateAutomation(
   request: Request,
-  user: { id: string },
+  // Full authenticated user (not just the id): the entitlement gate
+  // needs the email for the owner-free comp (isOwnerFree).
+  user: AuthenticatedUser,
   context: RouteContext,
 ): Promise<Response> {
   const { id } = await context.params;
@@ -264,6 +270,9 @@ async function p18UpdateAutomation(
   if (parsed.data.is_active === true && existing['is_active'] !== true) {
     const gate = await evaluateEntitlementGate(db, {
       dimension: 'activeAutomations',
+      // Owner comp (owner decision 2026-11-15): the owner's account
+      // is forever free — never gated on plan limits.
+      ownerFree: isOwnerFree(user),
       resolveContext: async () => ({
         workspaceId: resolved.ctx.workspaceId,
         usage: { activeAutomations: await countWorkspaceActiveAutomations(db, resolved.ctx.workspaceId) },

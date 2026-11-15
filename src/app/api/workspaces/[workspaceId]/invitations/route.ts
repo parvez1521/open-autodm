@@ -28,6 +28,7 @@ import {
   resolveRouteWorkspaceContext,
   requireCapability,
 } from '@/lib/tenancy/routeContext';
+import { isOwnerFree } from '@/lib/owner';
 import {
   workspaceDisabledResponse,
   resolutionFailure,
@@ -84,6 +85,9 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   // pass-through, zero behaviour change (lib/entitlements/guard.ts).
   const gate = await evaluateEntitlementGate(db, {
     dimension: 'teamSeats',
+    // Owner comp (owner decision 2026-11-15): the owner's account
+    // is forever free — never gated on plan limits.
+    ownerFree: isOwnerFree(user),
     resolveContext: async () => ({
       workspaceId: resolved.ctx.workspaceId,
       usage: { teamSeatsUsed: await countWorkspaceMembers(db, resolved.ctx.workspaceId) },

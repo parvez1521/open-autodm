@@ -43,6 +43,7 @@ import {
   countWorkspaceInstagramAccounts,
 } from '@/lib/entitlements/guard';
 import { resolveBillingWorkspace } from '@/lib/billing/access';
+import { isOwnerFree } from '@/lib/owner';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -183,8 +184,22 @@ export async function GET(request: Request): Promise<Response> {
     // workspace's bound accounts; legacy connects count the user's
     // accounts against their billing workspace's plan.
     if (!existingAccount) {
+      // Owner comp (owner decision 2026-11-15): the owner's account
+      // is forever free — it bypasses the Instagram-account limit.
+      // The state JWT carries only the user id, so the email is
+      // resolved through the Auth Admin API (same as the plan-choice
+      // route). A failed lookup fails closed (ownerFree false → the
+      // normal gate runs); it never grants the comp.
+      let ownerFree = false;
+      try {
+        const { data: authUser } = await db.auth.admin.getUserById(userId);
+        ownerFree = isOwnerFree({ id: userId, email: authUser?.user?.email });
+      } catch {
+        ownerFree = false;
+      }
       const gate = await evaluateEntitlementGate(db, {
         dimension: 'instagramAccounts',
+        ownerFree,
         resolveContext: async () => {
           if (workspaceId) {
             return {

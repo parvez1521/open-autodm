@@ -47,7 +47,10 @@
  * render MONTHLY only — the monthly/annual toggle is gone — in the
  * visitor's ONE geo currency (lib/billing/geo: India → INR, else
  * USD), which is also the currency checkout is opened in. Free
- * shows Creator Studio (limited); paid plans show it in full.
+ * shows Creator Studio (limited); paid plans show it in full. The
+ * one exception is the owner's forever-free account (owner decision
+ * 2026-11-15): it shows every limit as Unlimited and Creator Studio
+ * in full, with no payment needed.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -92,7 +95,11 @@ interface StatusPayload {
     planId: string;
     planName: string;
     resolution: string;
-    limits: { instagramAccounts: number; activeAutomations: number | null; dmsPerMonth: number | null; teamSeats: number };
+    // Owner comp (owner decision 2026-11-15): true only for the
+    // owner's forever-free account; its capped limits arrive as null
+    // (unlimited) from /api/billing/status.
+    ownerFree: boolean;
+    limits: { instagramAccounts: number | null; activeAutomations: number | null; dmsPerMonth: number | null; teamSeats: number | null };
   };
   recentOrders: { id: string; planId: string; status: string; amountMinor: number; currency: string; createdAt: string }[];
 }
@@ -504,14 +511,16 @@ export default function BillingPanel() {
             ? `Your ${PLANS.find((p) => p.id === sub.planId)?.name ?? "paid"} subscription ended on ${formatDate(sub?.currentPeriodEnd ?? null)}, so the workspace is on Free limits. Subscribe below to renew — access upgrades itself as soon as a payment is confirmed.`
             : status.trial.lapsed
               ? "Your free trial has ended, so the workspace is on Free limits. Subscribe below to restore the paid plan — nothing was charged."
-              : "This workspace is on Free limits. Start a free trial or subscribe below — access upgrades itself as soon as a trial starts or a payment is confirmed.")}
+              : status.entitlement.ownerFree
+                ? "Owner access — every limit is lifted for this account, no payment needed."
+                : "This workspace is on Free limits. Start a free trial or subscribe below — access upgrades itself as soon as a trial starts or a payment is confirmed.")}
         </p>
         <p className="mt-3 text-[13px] text-muted-foreground">
-          Included now: {status.entitlement.limits.instagramAccounts} Instagram account(s) ·{" "}
+          Included now: {status.entitlement.limits.instagramAccounts === null ? "Unlimited Instagram accounts" : `${status.entitlement.limits.instagramAccounts} Instagram account(s)`} ·{" "}
           {status.entitlement.limits.activeAutomations === null ? "Unlimited automations" : `${status.entitlement.limits.activeAutomations} active automations`} ·{" "}
           {status.entitlement.limits.dmsPerMonth === null ? "Unlimited" : status.entitlement.limits.dmsPerMonth.toLocaleString("en-IN")} DMs / month ·{" "}
-          {status.entitlement.limits.teamSeats} team seat(s) ·{" "}
-          {status.entitlement.planId === "free" ? "Creator Studio (limited)" : "Creator Studio included"}
+          {status.entitlement.limits.teamSeats === null ? "Unlimited team seats" : `${status.entitlement.limits.teamSeats} team seat(s)`} ·{" "}
+          {status.entitlement.planId === "free" && !status.entitlement.ownerFree ? "Creator Studio (limited)" : "Creator Studio included"}
         </p>
         {!status.entitlementsEnforced && (
           <p className="mt-2 text-[12px] text-muted-foreground">

@@ -10,6 +10,12 @@
  *   evaluateEntitlementGate(db, { dimension, resolveContext })
  *
  * Behaviour contract:
+ *  - OWNER-FREE (owner decision 2026-11-15): when the caller passes
+ *    `ownerFree: true` (isOwnerFree, lib/owner.ts — the owner's
+ *    account, forever free), the gate passes immediately: no
+ *    subscription read, no usage count, no refusal — for EVERY
+ *    dimension. The check is the caller's job; the gate trusts the
+ *    flag the same way it trusts resolveContext's counts.
  *  - ENTITLEMENTS_ENFORCED off (the default): the gate is a pure
  *    pass-through. resolveContext is NEVER invoked and no database
  *    read happens, so routes behave byte-for-byte as they did before
@@ -85,8 +91,22 @@ export async function evaluateEntitlementGate(
     requested?: number;
     env?: Record<string, string | undefined>;
     now?: Date;
+    /**
+     * Owner-free comp (owner decision 2026-11-15): true only when
+     * the caller verified the acting user with isOwnerFree
+     * (lib/owner.ts). Passes every dimension with no database work.
+     */
+    ownerFree?: boolean;
   },
 ): Promise<EntitlementGate> {
+  // Owner comp first: the owner's account never hits a plan limit,
+  // and resolving context (subscription + usage reads) would be
+  // wasted work — and a failing read must never block the owner.
+  if (args.ownerFree) {
+    logger.info({ dimension: args.dimension }, 'Owner-free pass — plan limit bypassed for owner');
+    return PASS;
+  }
+
   const flags = readSaasFlags(args.env ?? process.env);
   if (!flags.entitlementsEnforced) return PASS;
 
@@ -125,6 +145,9 @@ export async function evaluateEntitlementGate(
     requested: args.requested ?? 1,
     flags,
     now,
+    // Belt-and-braces with the early return above: the service itself
+    // also allows when the owner is comped.
+    ownerFree: args.ownerFree,
   });
   if (check.effectiveAllowed) return { blocked: false, check, message: null };
 

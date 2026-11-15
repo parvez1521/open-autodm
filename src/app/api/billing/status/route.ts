@@ -44,6 +44,7 @@ import { readBillingFlags, readSaasFlags } from "@/lib/billing/flags";
 import { resolveActiveBillingProvider } from "@/lib/billing/activeProvider";
 import { PLANS } from "@/lib/billing/catalogue";
 import { resolveEntitlement } from "@/lib/entitlements/service";
+import { isOwnerFree } from "@/lib/owner";
 import {
   billingWorkspaceSelector,
   resolveBillingWorkspace,
@@ -103,6 +104,11 @@ export async function GET(request: Request): Promise<Response> {
     const periodLapsed = isPeriodLapsed(trialEffective, now);
     const effective = applyPeriodLapse(trialEffective, now);
 
+    // Owner comp (owner decision 2026-11-15): the owner's account
+    // is forever free — the service reports resolution 'owner-free'
+    // and the response below reports every capped limit as
+    // unlimited (null) for it.
+    const ownerFree = isOwnerFree(user);
     const entitlement = resolveEntitlement(
       trialEffective
         ? {
@@ -115,6 +121,7 @@ export async function GET(request: Request): Promise<Response> {
           }
         : null,
       now,
+      { ownerFree },
     );
     // Persona-QA fix 2 (2026-11-09): recent orders are THIS
     // workspace's orders, full stop. listBillingOrders already
@@ -169,7 +176,22 @@ export async function GET(request: Request): Promise<Response> {
         planId: entitlement.plan.id,
         planName: entitlement.plan.name,
         resolution: entitlement.resolution,
-        limits: entitlement.plan.limits,
+        // Owner comp: the owner's reported limits are unlimited
+        // (null) on every capped dimension; everyone else sees the
+        // resolved plan's catalogue limits unchanged.
+        ownerFree,
+        limits: ownerFree
+          ? {
+              ...entitlement.plan.limits,
+              workspaces: null,
+              instagramAccounts: null,
+              teamSeats: null,
+              contactsPerMonth: null,
+              aiDraftingGenerationsPerMonth: null,
+              scriptWriterGenerationsPerMonth: null,
+              followUpsPerMonth: null,
+            }
+          : entitlement.plan.limits,
         dataRetentionDays: entitlement.dataRetentionDays,
         supportLevel: entitlement.supportLevel,
       },

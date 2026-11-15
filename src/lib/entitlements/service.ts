@@ -24,6 +24,11 @@
  *    `null` in the catalogue on EVERY plan (Free included), and a
  *    null limit always allows — DM volume never blocks a workspace.
  *    Every other dimension stays a plain numeric cap.
+ *  - Owner comp (owner decision 2026-11-15): when the caller passes
+ *    `ownerFree: true`, every dimension is unlimited (limit null,
+ *    always allowed) and resolution is 'owner-free'. The check is
+ *    `isOwnerFree` (lib/owner.ts) — the owner's account email, plus
+ *    the env-configured instance owner. No other user is ever comped.
  *  - Every limit is read from catalogue.ts at call time, so changing a
  *    number in the catalogue changes enforcement with no code change.
  *  - Enforcement: `checkEntitlement` ALWAYS computes the decision
@@ -89,7 +94,7 @@ export interface ResolvedEntitlement {
   /** True when the subscription state actually grants this plan (active/trialing, or Free). */
   entitled: boolean;
   /** Why the plan resolved as it did — for logs/support, never secret. */
-  resolution: 'active-subscription' | 'trialing-subscription' | 'free-default-no-subscription' | 'free-default-inactive-subscription' | 'free-default-unknown-plan' | 'free-default-period-ended';
+  resolution: 'active-subscription' | 'trialing-subscription' | 'free-default-no-subscription' | 'free-default-inactive-subscription' | 'free-default-unknown-plan' | 'free-default-period-ended' | 'owner-free';
   dataRetentionDays: number;
   supportLevel: SupportLevel;
 }
@@ -124,11 +129,23 @@ function isKnownPlanId(id: string | null | undefined): id is PlanId {
  * Resolve a workspace's effective plan. Pure and synchronous: pass the
  * subscription row (or null) and get the plan + qualitative tiers.
  * `now` is injectable for tests; production callers omit it.
+ *
+ * `ownerFree` (owner decision 2026-11-15 — the owner's account is
+ * forever free): the plan still resolves honestly to whatever the
+ * subscription says (Free here, since the owner never pays), but the
+ * resolution is 'owner-free' so callers can tell the comp apart from
+ * an ordinary Free workspace. The UNLIMITED part lives in
+ * checkEntitlement (limit null when ownerFree), not here — this
+ * function only names the plan.
  */
 export function resolveEntitlement(
   sub: WorkspaceSubscription | null | undefined,
   now: Date = new Date(),
+  opts: { ownerFree?: boolean } = {},
 ): ResolvedEntitlement {
+  if (opts.ownerFree) {
+    return { plan: FREE_PLAN, entitled: true, resolution: 'owner-free', dataRetentionDays: FREE_PLAN.dataRetentionDays, supportLevel: FREE_PLAN.supportLevel };
+  }
   if (!sub || sub.planId == null || sub.status == null) {
     return { plan: FREE_PLAN, entitled: true, resolution: 'free-default-no-subscription', dataRetentionDays: FREE_PLAN.dataRetentionDays, supportLevel: FREE_PLAN.supportLevel };
   }
@@ -192,16 +209,20 @@ function usedFor(usage: UsageSnapshot, dimension: EntitlementDimension): number 
  * used + requested <= limit. At exactly the limit with requested >= 1 the
  * reason is 'at-limit'; beyond it, 'over-limit'. A null limit (DMs) is
  * always allowed, whatever the usage.
+ *
+ * `ownerFree` (owner decision 2026-11-15): the owner's account is
+ * forever free — every dimension is unlimited for it (limit null,
+ * always allowed), whatever the subscription row says.
  */
 export function checkEntitlement(
   sub: WorkspaceSubscription | null | undefined,
   dimension: EntitlementDimension,
   usage: UsageSnapshot,
-  opts: { requested?: number; flags?: SaasFlags; env?: Record<string, string | undefined>; now?: Date } = {},
+  opts: { requested?: number; flags?: SaasFlags; env?: Record<string, string | undefined>; now?: Date; ownerFree?: boolean } = {},
 ): EntitlementCheckResult {
   const flags = opts.flags ?? readSaasFlags(opts.env ?? (typeof process !== 'undefined' ? process.env : {}));
-  const resolved = resolveEntitlement(sub, opts.now);
-  const limit = limitFor(resolved.plan, dimension);
+  const resolved = resolveEntitlement(sub, opts.now, { ownerFree: opts.ownerFree });
+  const limit = opts.ownerFree ? null : limitFor(resolved.plan, dimension);
   const used = usedFor(usage, dimension);
   const requested = opts.requested ?? 1;
   // Unlimited dimensions (dmsPerMonth — null on every plan since
@@ -227,14 +248,14 @@ export function checkEntitlement(
 export function evaluateAllEntitlements(
   sub: WorkspaceSubscription | null | undefined,
   usage: UsageSnapshot,
-  opts: { flags?: SaasFlags; env?: Record<string, string | undefined>; now?: Date } = {},
+  opts: { flags?: SaasFlags; env?: Record<string, string | undefined>; now?: Date; ownerFree?: boolean } = {},
 ): { resolved: ResolvedEntitlement; checks: EntitlementCheckResult[] } {
   const dimensions: EntitlementDimension[] = [
     'instagramAccounts', 'activeAutomations', 'dmsPerMonth', 'aiDrafting',
     'scriptWriter', 'teamSeats', 'followUpsPerMonth', 'contactsPerMonth', 'workspaces',
   ];
   return {
-    resolved: resolveEntitlement(sub, opts.now),
+    resolved: resolveEntitlement(sub, opts.now, { ownerFree: opts.ownerFree }),
     checks: dimensions.map((d) => checkEntitlement(sub, d, usage, opts)),
   };
 }

@@ -23,6 +23,7 @@ import {
   listOwnedWorkspaceIds,
 } from '@/lib/entitlements/guard';
 import { listUserWorkspaces } from '@/lib/tenancy/routeContext';
+import { isOwnerFree } from '@/lib/owner';
 import {
   workspaceDisabledResponse,
   readJsonBody,
@@ -127,6 +128,9 @@ export async function POST(request: Request): Promise<Response> {
   // first-workspace auto-provisioning through: 0 owned + 1 ≤ 1).
   const gate = await evaluateEntitlementGate(db, {
     dimension: 'workspaces',
+    // Owner comp (owner decision 2026-11-15): the owner's account
+    // is forever free — never gated on plan limits.
+    ownerFree: isOwnerFree(user),
     resolveContext: async () => {
       const owned = await listOwnedWorkspaceIds(db, user.id);
       return {
