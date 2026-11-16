@@ -163,7 +163,7 @@ const DIMENSIONS: { label: string; value: (plan: Plan) => string }[] = [
   { label: "Team seats", value: (p) => orCustom(p, String(p.limits.teamSeats)) },
   { label: "Active automations", value: (p) => orCustom(p, p.limits.activeAutomations === null ? "Unlimited automations" : String(p.limits.activeAutomations)) },
   { label: "DMs / month", value: (p) => orCustom(p, p.limits.dmsPerMonth === null ? "Unlimited" : p.limits.dmsPerMonth.toLocaleString("en-IN")) },
-  { label: "Audience contacts / month", value: (p) => orCustom(p, p.limits.contactsPerMonth.toLocaleString("en-IN")) },
+  { label: "Audience contacts / month", value: (p) => orCustom(p, p.limits.contactsPerMonth === null ? "Unlimited" : p.limits.contactsPerMonth.toLocaleString("en-IN")) },
   { label: "AI drafting generations / month", value: (p) => orCustom(p, p.limits.aiDraftingGenerationsPerMonth.toLocaleString("en-IN")) },
   { label: "Script Writer generations / month", value: (p) => orCustom(p, p.limits.scriptWriterGenerationsPerMonth.toLocaleString("en-IN")) },
   { label: "Follow-up messages / month", value: (p) => orCustom(p, p.limits.followUpsPerMonth.toLocaleString("en-IN")) },

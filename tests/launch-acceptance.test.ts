@@ -212,14 +212,16 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     const resolved = resolveEntitlement(wsSub('ws-exp', 'starter', 'expired'));
     expect(resolved.plan.id).toBe('free');
     expect(resolved.resolution).toBe('free-default-inactive-subscription');
-    // The downgrade proof rides on contactsPerMonth (Free cap 250):
+    // The downgrade proof rides on followUpsPerMonth (Free cap 100):
     // usage that fit the trial plan no longer fits Free. It rode on
     // DMs until the owner's 2026-11-09 decision made DMs unlimited
-    // on every plan — a DM check now stays allowed even on Free.
-    const contacts = checkEntitlement(wsSub('ws-exp', 'starter', 'expired'), 'contactsPerMonth', { contactsThisMonth: 1000 }, { flags: ENFORCED });
-    expect(contacts.limit).toBe(getPlan('free').limits.contactsPerMonth); // 250
-    expect(contacts.allowed).toBe(false); // usage that fit the trial plan no longer fits
-    expect(contacts.effectiveAllowed).toBe(false);
+    // on every plan — a DM check now stays allowed even on Free —
+    // and on contacts until the owner's 2026-11-17 decision made
+    // contacts unlimited the same way.
+    const followUps = checkEntitlement(wsSub('ws-exp', 'starter', 'expired'), 'followUpsPerMonth', { followUpsThisMonth: 300 }, { flags: ENFORCED });
+    expect(followUps.limit).toBe(getPlan('free').limits.followUpsPerMonth); // 100
+    expect(followUps.allowed).toBe(false); // usage that fit the trial plan no longer fits
+    expect(followUps.effectiveAllowed).toBe(false);
     const dm = checkEntitlement(wsSub('ws-exp', 'starter', 'expired'), 'dmsPerMonth', { dmsThisMonth: 1000 }, { flags: ENFORCED });
     expect(dm.limit).toBeNull();
     expect(dm.allowed).toBe(true);
@@ -345,12 +347,13 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     const { checks } = evaluateAllEntitlements(wsSub('ws-pd', 'agency', 'past_due'), {}, { flags: ENFORCED });
     expect(checks).toHaveLength(9);
     for (const c of checks) expect(c.planId).toBe('free');
-    // Free-fallback proof rides on contactsPerMonth (Free 250, not
-    // Agency's 50000) — DMs can no longer prove it: unlimited on
-    // every plan since the owner's 2026-11-09 decision.
-    const contacts = checkEntitlement(wsSub('ws-pd', 'agency', 'past_due'), 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(contacts.limit).toBe(getPlan('free').limits.contactsPerMonth); // 250, NOT Agency's 50000
-    expect(contacts.allowed).toBe(false);
+    // Free-fallback proof rides on followUpsPerMonth (Free 100, not
+    // Agency's 10000) — DMs can no longer prove it: unlimited on
+    // every plan since the owner's 2026-11-09 decision (and contacts
+    // since 2026-11-17).
+    const followUps = checkEntitlement(wsSub('ws-pd', 'agency', 'past_due'), 'followUpsPerMonth', { followUpsThisMonth: 5000 }, { flags: ENFORCED });
+    expect(followUps.limit).toBe(getPlan('free').limits.followUpsPerMonth); // 100, NOT Agency's 10000
+    expect(followUps.allowed).toBe(false);
     const dm = checkEntitlement(wsSub('ws-pd', 'agency', 'past_due'), 'dmsPerMonth', { dmsThisMonth: 5000 }, { flags: ENFORCED });
     expect(dm.limit).toBeNull();
     expect(dm.allowed).toBe(true);
@@ -358,8 +361,8 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     // allowances on its capped dimensions and the plan itself is a
     // real, limited default — never zeroed-out compliance functions.
     // (DMs are the deliberate exception: unlimited by owner decision.)
-    expect(getPlan('free').limits.contactsPerMonth).toBeGreaterThan(0);
-    expect(Number.isFinite(contacts.limit)).toBe(true);
+    expect(getPlan('free').limits.followUpsPerMonth).toBeGreaterThan(0);
+    expect(Number.isFinite(followUps.limit)).toBe(true);
   });
 
   // ── Scenario 10 ─────────────────────────────────────────────────────
@@ -388,12 +391,13 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
   it('S11: upgrade plan (limits increase immediately per lifecycle rules)', () => {
     const store = createSyntheticAdminStore();
     const svc = new AdminService({ store });
-    // ws-alpha: starter, active. 5000 contacts is over the Starter
-    // cap (2000). (This scenario rode on DMs until the owner's
-    // 2026-11-09 decision made DMs unlimited on every plan.)
+    // ws-alpha: starter, active. 1000 follow-ups is over the Starter
+    // cap (500). (This scenario rode on DMs until the owner's
+    // 2026-11-09 decision made DMs unlimited on every plan, then on
+    // contacts until the 2026-11-17 decision did the same for them.)
     const subBefore = wsSub('ws-alpha', 'starter', 'active');
-    const before = checkEntitlement(subBefore, 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(before.limit).toBe(getPlan('starter').limits.contactsPerMonth); // 2000
+    const before = checkEntitlement(subBefore, 'followUpsPerMonth', { followUpsThisMonth: 1000 }, { flags: ENFORCED });
+    expect(before.limit).toBe(getPlan('starter').limits.followUpsPerMonth); // 500
     expect(before.allowed).toBe(false);
 
     // Upgrade via the audited admin override (reason required).
@@ -403,8 +407,8 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     expect(svc.getAuditLog(platformAdmin).map((e) => e.action)).toContain('subscription.plan_change');
 
     // Immediate effect: the SAME usage now fits, with no period wait.
-    const after = checkEntitlement(wsSub('ws-alpha', dto.planId, 'active'), 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(after.limit).toBe(getPlan('creator-pro').limits.contactsPerMonth); // 10000
+    const after = checkEntitlement(wsSub('ws-alpha', dto.planId, 'active'), 'followUpsPerMonth', { followUpsThisMonth: 1000 }, { flags: ENFORCED });
+    expect(after.limit).toBe(getPlan('creator-pro').limits.followUpsPerMonth); // 2500
     expect(after.allowed).toBe(true);
     expect(after.planId).toBe('creator-pro');
   });
@@ -426,13 +430,13 @@ describe('Phase 15 — launch acceptance (18 scenarios, mock only)', () => {
     const svc = new AdminService({ store });
     // Give ws-alpha the higher plan first (fixture starts at starter).
     svc.changePlan(platformAdmin, { workspaceId: 'ws-alpha', toPlanId: 'creator-pro', reason: 'Acceptance S12 setup — move to Creator Pro (mock)' });
-    const high = checkEntitlement(wsSub('ws-alpha', 'creator-pro', 'active'), 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
+    const high = checkEntitlement(wsSub('ws-alpha', 'creator-pro', 'active'), 'followUpsPerMonth', { followUpsThisMonth: 1000 }, { flags: ENFORCED });
     expect(high.allowed).toBe(true); // higher limits hold until the downgrade is applied
 
     const dto = svc.changePlan(platformAdmin, { workspaceId: 'ws-alpha', toPlanId: 'starter', reason: 'Acceptance S12 — customer downgraded (mock)' });
     expect(dto.status).toBe('active'); // downgrade is not a cancellation
-    const low = checkEntitlement(wsSub('ws-alpha', dto.planId, 'active'), 'contactsPerMonth', { contactsThisMonth: 5000 }, { flags: ENFORCED });
-    expect(low.limit).toBe(getPlan('starter').limits.contactsPerMonth); // decreased immediately on application
+    const low = checkEntitlement(wsSub('ws-alpha', dto.planId, 'active'), 'followUpsPerMonth', { followUpsThisMonth: 1000 }, { flags: ENFORCED });
+    expect(low.limit).toBe(getPlan('starter').limits.followUpsPerMonth); // decreased immediately on application
     expect(low.allowed).toBe(false);
     expect(low.planId).toBe('starter');
   });

@@ -60,12 +60,13 @@ export interface PlanPrice {
  * business need is expressed as a larger number by the owner, never
  * as -1 / Infinity, so entitlement checks stay simple comparisons.
  *
- * TWO exceptions: `dmsPerMonth` (owner decision, 2026-11-09) and
- * `activeAutomations` (owner decision, 2026-11-10) are
- * `number | null`, and every plan carries `null` for both — auto
- * DMs and active automations are unlimited on all plans, so there
- * is no cap left to express as a number. The entitlement service
- * treats a null limit as always-allowed.
+ * THREE exceptions: `dmsPerMonth` (owner decision, 2026-11-09),
+ * `activeAutomations` (owner decision, 2026-11-10) and
+ * `contactsPerMonth` (owner decision, 2026-11-17) are
+ * `number | null`, and every plan carries `null` for all three —
+ * auto DMs, active automations and audience contacts are unlimited
+ * on all plans, so there is no cap left to express as a number.
+ * The entitlement service treats a null limit as always-allowed.
  */
 export interface PlanLimits {
   workspaces: number;
@@ -83,8 +84,13 @@ export interface PlanLimits {
    * removed on every plan, Free included).
    */
   dmsPerMonth: number | null;
-  /** Distinct audience contacts stored/interacted with per month. */
-  contactsPerMonth: number;
+  /**
+   * Distinct audience contacts stored/interacted with per month.
+   * `null` = unlimited (owner decision, 2026-11-17: contact limits
+   * removed on every plan, Free included — was 250 / 2,000 /
+   * 10,000 / 50,000 / 200,000).
+   */
+  contactsPerMonth: number | null;
   /** AI drafting generations per month (drafting only — see Phase 7 scope). */
   aiDraftingGenerationsPerMonth: number;
   /** Viral Script Writer generations per month. */
@@ -149,7 +155,9 @@ export const PLANS: readonly Plan[] = [
       // Owner decision, 2026-11-09: auto DMs UNLIMITED on every
       // plan (was 1,000/month here under the 2026-11-08 rule).
       dmsPerMonth: null,
-      contactsPerMonth: 250,
+      // Owner decision, 2026-11-17: audience contacts UNLIMITED on
+      // every plan (was 250/month here under the 2026-11-08 rule).
+      contactsPerMonth: null,
       aiDraftingGenerationsPerMonth: 20,
       scriptWriterGenerationsPerMonth: 10,
       followUpsPerMonth: 100,
@@ -178,7 +186,7 @@ export const PLANS: readonly Plan[] = [
       teamSeats: 1,
       activeAutomations: null,
       dmsPerMonth: null,
-      contactsPerMonth: 2000,
+      contactsPerMonth: null,
       aiDraftingGenerationsPerMonth: 100,
       scriptWriterGenerationsPerMonth: 50,
       followUpsPerMonth: 500,
@@ -186,7 +194,7 @@ export const PLANS: readonly Plan[] = [
     dataRetentionDays: 90,
     supportLevel: 'email',
     capabilityNotes: [
-      'Everything in Free, with higher contact allowances',
+      'Everything in Free, with higher allowances',
       'Public comment replies and follow-up messages',
       'Creator Studio included',
     ],
@@ -207,7 +215,7 @@ export const PLANS: readonly Plan[] = [
       teamSeats: 3,
       activeAutomations: null,
       dmsPerMonth: null,
-      contactsPerMonth: 10000,
+      contactsPerMonth: null,
       aiDraftingGenerationsPerMonth: 500,
       scriptWriterGenerationsPerMonth: 300,
       followUpsPerMonth: 2500,
@@ -236,7 +244,7 @@ export const PLANS: readonly Plan[] = [
       teamSeats: 5,
       activeAutomations: null,
       dmsPerMonth: null,
-      contactsPerMonth: 50000,
+      contactsPerMonth: null,
       aiDraftingGenerationsPerMonth: 2000,
       scriptWriterGenerationsPerMonth: 1000,
       followUpsPerMonth: 10000,
@@ -268,7 +276,7 @@ export const PLANS: readonly Plan[] = [
       teamSeats: 25,
       activeAutomations: null,
       dmsPerMonth: null,
-      contactsPerMonth: 200000,
+      contactsPerMonth: null,
       aiDraftingGenerationsPerMonth: 5000,
       scriptWriterGenerationsPerMonth: 2500,
       followUpsPerMonth: 25000,

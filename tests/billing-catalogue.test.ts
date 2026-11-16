@@ -163,14 +163,26 @@ describe('billing catalogue (owner-approved 2026-11-08)', () => {
     }
   });
 
-  it('keeps every capped limit a non-negative finite number (DMs + automations excepted: null = unlimited, owner 2026-11-09 / 2026-11-10)', () => {
+  // Owner decision, 2026-11-17 (supersedes the 250 / 2,000 / 10,000
+  // / 50,000 / 200,000 per-plan contact caps): audience contacts are
+  // UNLIMITED on every plan — contactsPerMonth is null across the
+  // catalogue, exactly like dmsPerMonth (owner, 2026-11-09) and
+  // activeAutomations (owner, 2026-11-10). The engine never enforced
+  // the cap at capture time; now there is no cap on paper either.
+  it('gives every plan unlimited audience contacts (owner, 2026-11-17)', () => {
+    for (const plan of PLANS) {
+      expect(plan.limits.contactsPerMonth, `${plan.id} contacts must be unlimited`).toBeNull();
+    }
+  });
+
+  it('keeps every capped limit a non-negative finite number (DMs + automations + contacts excepted: null = unlimited, owner 2026-11-09 / 2026-11-10 / 2026-11-17)', () => {
     for (const plan of PLANS) {
       for (const [key, value] of Object.entries(plan.limits)) {
-        if (key === 'dmsPerMonth' || key === 'activeAutomations') {
-          // Owner decisions, 2026-11-09 (DMs) and 2026-11-10
-          // (automations): both dimensions are unlimited on every
-          // plan, encoded as null — the catalogue's two non-numeric
-          // limits.
+        if (key === 'dmsPerMonth' || key === 'activeAutomations' || key === 'contactsPerMonth') {
+          // Owner decisions, 2026-11-09 (DMs), 2026-11-10
+          // (automations) and 2026-11-17 (contacts): all three
+          // dimensions are unlimited on every plan, encoded as null
+          // — the catalogue's three non-numeric limits.
           expect(value, `${plan.id}.limits.${key}`).toBeNull();
           continue;
         }

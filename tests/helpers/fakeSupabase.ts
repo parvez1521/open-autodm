@@ -103,6 +103,7 @@ class FakeBuilder implements PromiseLike<QueryResult> {
   private countOption: string | null = null;
   private orderSpec: { column: string; ascending: boolean } | null = null;
   private limitN: number | null = null;
+  private rangeSpec: { from: number; to: number } | null = null;
   private wantsReturning = false;
   private conflictColumns: string[] | null = null;
 
@@ -181,6 +182,13 @@ class FakeBuilder implements PromiseLike<QueryResult> {
     this.limitN = n;
     return this;
   }
+  // PostgREST .range(from, to): inclusive on both ends, applied
+  // after ordering — the contacts-export route pages with it so a
+  // large export never silently truncates at the default cap.
+  range(from: number, to: number): this {
+    this.rangeSpec = { from, to };
+    return this;
+  }
 
   private matchingRows(): FakeRow[] {
     return this.fake.rows(this.table).filter((row) => matches(row, this.filters));
@@ -212,6 +220,7 @@ class FakeBuilder implements PromiseLike<QueryResult> {
           });
         }
         if (this.limitN !== null) rows = rows.slice(0, this.limitN);
+        if (this.rangeSpec) rows = rows.slice(this.rangeSpec.from, this.rangeSpec.to + 1);
         return ok(rows);
       }
       case 'insert': {

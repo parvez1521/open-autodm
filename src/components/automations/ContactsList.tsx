@@ -3,9 +3,15 @@
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { EASE_OUT } from "@/lib/motion/presets";
-import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise, Warning } from "@/components/phosphor";
+import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise, Warning, DownloadSimple } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
+import {
+  workspaceRequestScopeFromSelection,
+  assertWorkspaceRequestScope,
+} from "@/lib/tenancy/clientRequest";
+import { getSharedSession } from "@/lib/api/client";
 
 /**
  * Contacts - every unique audience member captured through an automation:
@@ -52,6 +58,62 @@ function formatDate(iso: string): string {
 export function ContactsList() {
     const { data: contacts, isLoading, error: contactsError, refetch, isFetching } = useContacts();
     const [search, setSearch] = useState("");
+    const [exporting, setExporting] = useState(false);
+    const [exportError, setExportError] = useState<string | null>(null);
+    const { workspaceRuntimeEnabled, selectedWorkspaceId } = useWorkspace();
+
+    // CSV export (owner decision, 2026-11-17): downloads every
+    // captured contact as a dated CSV — backup/list only, no
+    // bulk-DM or outreach action (Meta forbids cold-DMing exported
+    // contacts). Same auth + workspace discipline as the list read:
+    // the Bearer token rides from the shared session, the workspace
+    // selector rides the x-workspace-id header when workspace mode
+    // is on, and a missing selection fails before any request.
+    async function handleExport() {
+        setExportError(null);
+        const scope = workspaceRequestScopeFromSelection({
+            workspaceRuntimeEnabled,
+            selectedWorkspaceId,
+        });
+        try {
+            assertWorkspaceRequestScope(scope);
+        } catch (err) {
+            setExportError(err instanceof Error ? err.message : "Workspace is required to export.");
+            return;
+        }
+        setExporting(true);
+        try {
+            const session = await getSharedSession();
+            const headers = new Headers();
+            if (session?.access_token) headers.set("Authorization", `Bearer ${session.access_token}`);
+            if (scope.kind === "workspace") headers.set("x-workspace-id", scope.workspaceId);
+            const res = await fetch("/api/contacts/export", { headers });
+            if (!res.ok) {
+                let message = `Export failed (${res.status})`;
+                try {
+                    const body = (await res.json()) as { error?: unknown };
+                    if (typeof body?.error === "string" && body.error) message = body.error;
+                } catch {
+                    // Keep the status-based message.
+                }
+                throw new Error(message);
+            }
+            const blob = await res.blob();
+            const match = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "");
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = match?.[1] ?? "contacts.csv";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            setExportError(err instanceof Error ? err.message : "Export failed.");
+        } finally {
+            setExporting(false);
+        }
+    }
 
     const filtered = useMemo(() => {
         if (!contacts) return [];
@@ -132,6 +194,14 @@ export function ContactsList() {
                         {`${filtered.length} contact${filtered.length !== 1 ? "s" : ""}`}
                     </span>
                     <button
+                        onClick={() => void handleExport()}
+                        disabled={exporting}
+                        className="flex items-center justify-center space-x-2 px-4 py-2 border border-border/50 rounded-xl bg-background hover:bg-muted/50 transition-colors text-sm font-medium disabled:opacity-60"
+                    >
+                        <DownloadSimple className="w-4 h-4" />
+                        <span>{exporting ? "Exporting…" : "Export CSV"}</span>
+                    </button>
+                    <button
                         onClick={() => void refetch()}
                         className="flex items-center justify-center space-x-2 px-4 py-2 border border-border/50 rounded-xl bg-background hover:bg-muted/50 transition-colors text-sm font-medium"
                     >
@@ -140,6 +210,11 @@ export function ContactsList() {
                     </button>
                 </div>
             </div>
+            {exportError && (
+                <p role="alert" className="text-[13px] text-destructive">
+                    {exportError} Your contacts were not changed.
+                </p>
+            )}
 
             {/* Table */}
             <div className="w-full overflow-x-auto bg-card border border-border rounded-xl">
