@@ -52,6 +52,8 @@ const RequestSchema = z.object({
   postCaption: z.string().max(1000).optional(),
   creatorUsername: z.string().max(100).optional(),
   automationName: z.string().max(200).optional(),
+  /** AI reply language (2026-11-17): 'en' or 'hinglish'. Defaults to English. */
+  language: z.enum(['en', 'hinglish']).optional().default('en'),
   count: z.number().int().min(1).max(10).optional().default(5),
   mode: z.enum(['custom', 'auto']).optional().default('auto'),
 });
@@ -207,7 +209,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: 'Validation failed: action or supported type required' }, { status: 400 });
   }
 
-  const { prompt, postCaption, creatorUsername, automationName, count } = parsed.data;
+  const { prompt, postCaption, creatorUsername, automationName, language, count } = parsed.data;
 
   // Phase 10.4 §8: optional owner-wide daily ceiling (see
   // parseDraftingDailyLimit). Runs after auth + owner gate + validation, so
@@ -242,6 +244,7 @@ export async function POST(request: Request): Promise<Response> {
         postCaption,
         creatorUsername,
         automationName,
+        language,
       });
 
       await logAiUsage(user.id, 'opening_variations', result.model, result.status);
@@ -255,7 +258,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (action === 'public_replies') {
-      const result = await generatePublicReplies(prompt, count);
+      const result = await generatePublicReplies(prompt, count, undefined, language);
 
       await logAiUsage(user.id, 'public_reply_draft', result.model, result.status);
 
@@ -284,6 +287,7 @@ export async function POST(request: Request): Promise<Response> {
         postCaption,
         creatorUsername,
         automationName,
+        language,
       });
 
       // F-2: logged under the truthful drafting feature name, not
@@ -302,6 +306,7 @@ export async function POST(request: Request): Promise<Response> {
       const result = await generateFollowUpDraft(prompt, {
         automationName,
         creatorUsername,
+        language,
       });
 
       await logAiUsage(user.id, 'follow_up_draft', result.model, result.status);

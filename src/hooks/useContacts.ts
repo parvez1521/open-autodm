@@ -15,7 +15,7 @@ export interface ContactFromDB {
   follows_business: boolean | null;
   first_interaction_at: string;
   last_interaction_at: string;
-  last_trigger_type: 'comment' | 'dm' | 'story_reply' | 'button' | null;
+  last_trigger_type: 'comment' | 'dm' | 'story_reply' | 'story_mention' | 'button' | null;
   total_triggers: number;
   automations: { id: string; name: string } | null;
 }

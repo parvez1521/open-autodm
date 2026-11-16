@@ -43,7 +43,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
             const post = await resolvePost(instagramAccountId, url);
             onSelect(post.id, flowName, post.thumbnail_url ?? post.media_url ?? null, post.caption ?? "");
         } catch (err) {
-            setPasteError(err instanceof Error ? err.message : "Is post ko load nahi kar paye — link check karo.");
+            setPasteError(err instanceof Error ? err.message : "Could not load this post — check the link.");
         } finally {
             setPasteLoading(false);
         }
@@ -232,14 +232,14 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                         so its link resolves it directly instead. */}
                     {instagramAccountId && (
                         <form onSubmit={handlePasteSubmit} className="mt-6 border border-border rounded-xl p-4">
-                            <p className="text-[13px] font-medium">Post list mein nahi dikh raha?</p>
+                            <p className="text-[13px] font-medium">Post not in the list?</p>
                             <p className="text-[12px] text-muted-foreground mt-0.5">
-                                Agar tumhara post (jaise collab wala reel) list mein nahi aata, to uska Instagram link yahan paste karo.
+                                If your post (for example a collab reel) does not appear in the list, paste its Instagram link — or its numeric media ID — here.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-2 mt-3">
                                 <input
                                     type="text"
-                                    placeholder="https://www.instagram.com/p/..."
+                                    placeholder="https://www.instagram.com/p/... or media ID"
                                     value={pasteUrl}
                                     onChange={(e) => setPasteUrl(e.target.value)}
                                     className="flex-1 h-9 bg-muted/50 border border-border rounded-lg px-3 text-[13px] outline-none focus:border-foreground/30 transition-colors"

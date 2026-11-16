@@ -29,7 +29,9 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { createLogger } from '@/lib/logger';
 import { debugLog, type DebugLevel, type DebugStatus } from '@/lib/debugLog';
 import { decrypt } from '@/lib/crypto';
-import { getEnv } from '@/lib/env';
+import { getEnv, getAppUrl } from '@/lib/env';
+import { trackLink, rewriteResponseLinks } from '@/lib/automation/linkTracking';
+import { recordLeadAsk } from '@/lib/automation/leadCapture';
 import type { AutoDmJobPayload, AutomationRow, InstagramAccountRow, DMResponse } from '@/lib/types';
 import {
   sendInstagramDm,
@@ -125,8 +127,22 @@ async function deliverResponsesBestEffort(
   accessToken: string,
   userId: string | null = null
 ): Promise<number> {
+  const db = createServiceClient();
+  // Link click tracking (2026-11-17): rewrite every destination to a
+  // short /r/[code] URL before sending. Fail-open: if the app URL is not
+  // configured the original links are sent unchanged.
+  const baseUrl = trackingBaseUrl();
+  let trackedResponses = responses;
+  if (baseUrl) {
+    trackedResponses = await rewriteResponseLinks(db, {
+      automationId: payload.automationId,
+      instagramAccountId: payload.instagramAccountId,
+      responses,
+      appUrl: baseUrl,
+    });
+  }
   let sent = 0;
-  for (const [idx, response] of responses.entries()) {
+  for (const [idx, response] of trackedResponses.entries()) {
     if (!response.content?.trim() && response.type !== 'card') continue;
     try {
       if (sent > 0) await interMessageJitter();
@@ -139,6 +155,19 @@ async function deliverResponsesBestEffort(
         accessToken
       );
       sent += 1;
+      // Lead form (2026-11-17): the ask was just sent — record a pending
+      // capture so the audience member's next reply can be stored as a
+      // lead. The ask text itself was already delivered above as a plain
+      // message; only the capture bookkeeping happens here.
+      if (response.type === 'lead_form') {
+        await recordLeadAsk(db, {
+          automationId: payload.automationId,
+          instagramAccountId: payload.instagramAccountId,
+          audienceIgUserId: payload.triggerUserId,
+          fields: (response.leadFields ?? ['email']) as ('email' | 'phone')[],
+          responseId: response.id,
+        });
+      }
       debugLog('worker', 'info', 'responses_send', 'ok', `Response ${idx + 1}/${responses.length} sent (1-step flow)`, {
         responseIndex: idx + 1,
         type: response.type,
@@ -155,6 +184,19 @@ async function deliverResponsesBestEffort(
 }
 
 const logger = createLogger('worker');
+
+/**
+ * App base URL for link-click tracking (2026-11-17). Returns null when no
+ * app URL is configured — the caller then skips tracking and sends the
+ * original destination URL (fail-open: tracking never blocks a DM).
+ */
+function trackingBaseUrl(): string | null {
+  try {
+    return getAppUrl();
+  } catch {
+    return null;
+  }
+}
 
 /** Meta's DM window: only message users who engaged within the last 24h. */
 const MAX_EVENT_AGE_MS = 24 * 60 * 60 * 1000;
@@ -945,6 +987,18 @@ export async function processAutoDmJob(payload: AutoDmJobPayload, attempt: numbe
     : automation.dm_opening_message;
   const messageText = renderTemplate(openingText.trim(), payload.triggerUsername);
   const openingLink = automation.dm_opening_message_button_link?.trim();
+  // Link click tracking (2026-11-17): rewrite the opening link button to
+  // a short /r/[code] URL. Fail-open: the original link on any failure.
+  let trackedOpeningLink = openingLink;
+  const trackingUrl = trackingBaseUrl();
+  if (openingLink && trackingUrl) {
+    trackedOpeningLink = await trackLink(db, {
+      automationId: payload.automationId,
+      instagramAccountId: payload.instagramAccountId,
+      destinationUrl: openingLink,
+      appUrl: trackingUrl,
+    });
+  }
 
   // Comment triggers go out as PRIVATE REPLIES (recipient: comment_id) -
   // Meta's purpose-built comment-to-DM channel: separate 750/h allowance,
@@ -970,7 +1024,7 @@ export async function processAutoDmJob(payload: AutoDmJobPayload, attempt: numbe
         title: automation.dm_opening_message_button_title!.trim(),
         payload: quickReplyPayload,
       });
-    } else if (openingLink) {
+    } else if (trackedOpeningLink) {
       // 1-step flow with a link: try a tappable web_url button template first;
       // if Meta rejects it for this recipient, fall back to an inline link.
       const buttonTitle = automation.dm_opening_message_button_title?.trim() || 'Open link';
@@ -980,7 +1034,7 @@ export async function processAutoDmJob(payload: AutoDmJobPayload, attempt: numbe
           recipient,
           messageText,
           buttonTitle,
-          openingLink,
+          trackedOpeningLink,
           accessToken
         );
       } catch (buttonErr) {
@@ -989,7 +1043,7 @@ export async function processAutoDmJob(payload: AutoDmJobPayload, attempt: numbe
         messageId = await sendInstagramDm(
           payload.igAccountIgsid,
           recipient,
-          `${messageText}\n\n${buttonTitle}: ${openingLink}`,
+          `${messageText}\n\n${buttonTitle}: ${trackedOpeningLink}`,
           accessToken
         );
       }
@@ -1465,9 +1519,23 @@ export async function processFollowUpDmJob(payload: AutoDmJobPayload): Promise<v
     responseCount: automation.dm_responses.length,
   });
 
+  // Link click tracking (2026-11-17): rewrite every destination to a
+  // short /r/[code] URL before sending. Fail-open: original links when no
+  // app URL is configured.
+  let responsesToSend = automation.dm_responses;
+  const followUpBaseUrl = trackingBaseUrl();
+  if (followUpBaseUrl) {
+    responsesToSend = await rewriteResponseLinks(db, {
+      automationId: payload.automationId,
+      instagramAccountId: payload.instagramAccountId,
+      responses: automation.dm_responses,
+      appUrl: followUpBaseUrl,
+    });
+  }
+
   let lastMessageText = '';
   let deliveredCount = 0;
-  for (const [idx, response] of automation.dm_responses.entries()) {
+  for (const [idx, response] of responsesToSend.entries()) {
     if (!response.content?.trim() && response.type !== 'card') continue;
     if (deliveredCount > 0) await interMessageJitter();
 
@@ -1511,6 +1579,17 @@ export async function processFollowUpDmJob(payload: AutoDmJobPayload): Promise<v
       }
     }
     deliveredCount += 1;
+    // Lead form (2026-11-17): the ask was just sent — record a pending
+    // capture so the audience member's next reply can be stored as a lead.
+    if (response.type === 'lead_form') {
+      await recordLeadAsk(db, {
+        automationId: payload.automationId,
+        instagramAccountId: payload.instagramAccountId,
+        audienceIgUserId: payload.triggerUserId,
+        fields: (response.leadFields ?? ['email']) as ('email' | 'phone')[],
+        responseId: response.id,
+      });
+    }
     logEvent( 'info', 'responses_send', 'ok', `Response ${idx + 1}/${automation.dm_responses.length} sent`, {
       responseIndex: idx + 1,
       type: response.type,

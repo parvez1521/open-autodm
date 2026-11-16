@@ -25,6 +25,23 @@
  */
 
 import { createLogger } from '@/lib/logger';
+import type { AiReplyLanguage } from '@/lib/types';
+
+/**
+ * Language instruction appended to the AI system prompt (2026-11-17).
+ * 'hinglish' = Hindi written in Roman (Latin) script, mixed with common
+ * English words — the way Indian tech creators speak on camera. Never
+ * Devanagari: the audience reads Roman script. 'en' (or unset) keeps the
+ * default English behaviour.
+ */
+export function languageInstruction(language?: AiReplyLanguage): string {
+  if (language !== 'hinglish') return '';
+  return (
+    ' Write in Hinglish: Hindi written in Roman (Latin) script, mixed with common English words ' +
+    '(tool, free, link, video, AI) exactly the way Indian tech creators speak on camera. ' +
+    'Never use Devanagari script.'
+  );
+}
 
 const logger = createLogger('workers-ai');
 
@@ -368,24 +385,62 @@ export const DEFAULT_FOLLOW_UP_DRAFTS = [
 ];
 
 /**
+ * Hinglish template fallbacks (2026-11-17) — used when the automation's
+ * AI reply language is 'hinglish' and no provider answers. Same
+ * shuffle-per-request contract as the English pools. Roman script only,
+ * never Devanagari.
+ */
+export const DEFAULT_OPENING_VARIATIONS_HINGLISH = [
+  "Hey {username}! Thanks yaar, link bhej diya hai — DM check karo 👇",
+  "Arre {username}, tumhara link ready hai! Inbox mein bhej diya ✨",
+  "Hey {username}! Sab kuch tumhare DM mein bhej diya hai, dekh lo 🚀",
+  "Thanks {username}! Details tumhare inbox mein aa gaye hain 📬",
+  "Hey {username}! Link tumhare DM mein hai — ek baar check kar lo 🙌",
+  "Shukriya {username}! Jo manga tha wo sab DM mein bhej diya ✨",
+];
+
+export const DEFAULT_PUBLIC_REPLIES_HINGLISH = [
+  "DM bhej diya! Inbox check karo 📥",
+  "Link DM mein bhej diya hai ✨",
+  "DM check karo, link bhej diya! 🚀",
+  "Bhej diya! DM mein dekh lo 📬",
+  "DM kar diya hai, inbox check karo 🙌",
+];
+
+export const DEFAULT_RESPONSE_DRAFTS_HINGLISH = [
+  "Ye lo! Link aur saari details yahin hain — kuch samajh na aaye to bata dena 🙌",
+  "Bhej diya! Sab kuch is message mein hai, enjoy karo ✨",
+  "Ye raha tumhara link — saari details yahin hain, koi doubt ho to pooch lo 🚀",
+];
+
+export const DEFAULT_FOLLOW_UP_DRAFTS_HINGLISH = [
+  "Hey {username}, link check kar liya? Kuch doubt ho to batao!",
+  "Hey {username}, bas check kar raha tha — details mil gaye na? ✨",
+  "Hey {username}, link kaam kar gaya? Kuch help chahiye to bata dena 🙌",
+];
+
+/**
  * Generate 5 opening DM variations using Workers AI (then Groq when
  * configured) with automatic fallback to a freshly shuffled template set.
  */
 export async function generateOpeningVariations(
   promptContext: string,
   count = 5,
-  context?: { postCaption?: string; creatorUsername?: string; automationName?: string },
+  context?: { postCaption?: string; creatorUsername?: string; automationName?: string; language?: AiReplyLanguage },
   injectedAi?: WorkersAiBinding | null
 ): Promise<AiGenerationResult<string[]>> {
   const sanitizedPrompt = sanitizePromptInput(promptContext || context?.automationName || '', 600);
   const sanitizedCaption = context?.postCaption ? sanitizePromptInput(context.postCaption, 300) : '';
+  const openingPool =
+    context?.language === 'hinglish' ? DEFAULT_OPENING_VARIATIONS_HINGLISH : DEFAULT_OPENING_VARIATIONS;
 
   const systemMessage =
     "You are an assistant creating high-converting, friendly Instagram DM opening messages for a creator. " +
     "Generate distinct variations that feel human, authentic, and inviting. " +
     "Use {username} as the placeholder for the recipient's name where appropriate. " +
     "Do NOT fabricate URLs, discount percentages, or specific pricing unless provided. " +
-    "Output EXACTLY one variation per line, numbered 1 to 5. No conversational preamble.";
+    "Output EXACTLY one variation per line, numbered 1 to 5. No conversational preamble." +
+    languageInstruction(context?.language);
 
   const userContent =
     `Creator goal/topic: ${sanitizedPrompt || 'Sharing a valuable resource, guide, or link'}\n` +
@@ -411,7 +466,7 @@ export async function generateOpeningVariations(
     const cleaned = lines.map(cleanAiOutput);
     if (cleaned.length >= 2) {
       // Pad up to requested count with defaults if needed
-      padWithFallback(cleaned, DEFAULT_OPENING_VARIATIONS, count);
+      padWithFallback(cleaned, openingPool, count);
       return {
         data: cleaned.slice(0, count),
         status: 'success',
@@ -422,7 +477,7 @@ export async function generateOpeningVariations(
   }
 
   return {
-    data: sampleFallback(DEFAULT_OPENING_VARIATIONS, count),
+    data: sampleFallback(openingPool, count),
     status: 'fallback',
     model: DEFAULT_AI_MODEL,
   };
@@ -435,14 +490,18 @@ export async function generateOpeningVariations(
 export async function generatePublicReplies(
   promptContext?: string,
   count = 5,
-  injectedAi?: WorkersAiBinding | null
+  injectedAi?: WorkersAiBinding | null,
+  language?: AiReplyLanguage
 ): Promise<AiGenerationResult<string[]>> {
   const sanitizedPrompt = sanitizePromptInput(promptContext ?? '', 400);
+  const repliesPool =
+    language === 'hinglish' ? DEFAULT_PUBLIC_REPLIES_HINGLISH : DEFAULT_PUBLIC_REPLIES;
 
   const systemMessage =
     "You are an assistant generating short, natural public Instagram comment replies for a creator. " +
     "Replies inform the commenter that a DM has been sent. Keep each reply under 50 characters, friendly, with 1-2 emojis. " +
-    "Output EXACTLY one reply per line. No numbers, no bullet points, no extra text.";
+    "Output EXACTLY one reply per line. No numbers, no bullet points, no extra text." +
+    languageInstruction(language);
 
   const userContent =
     `Context/vibe: ${sanitizedPrompt || 'Notifying commenter that their requested link is in their DMs'}\n` +
@@ -466,7 +525,7 @@ export async function generatePublicReplies(
 
     const cleaned = lines.map(cleanAiOutput);
     if (cleaned.length >= 2) {
-      padWithFallback(cleaned, DEFAULT_PUBLIC_REPLIES, count);
+      padWithFallback(cleaned, repliesPool, count);
       return {
         data: cleaned.slice(0, count),
         status: 'success',
@@ -477,7 +536,7 @@ export async function generatePublicReplies(
   }
 
   return {
-    data: sampleFallback(DEFAULT_PUBLIC_REPLIES, count),
+    data: sampleFallback(repliesPool, count),
     status: 'fallback',
     model: DEFAULT_AI_MODEL,
   };
@@ -489,18 +548,21 @@ export async function generatePublicReplies(
  */
 export async function generateResponseDraft(
   promptContext?: string,
-  context?: { postCaption?: string; creatorUsername?: string; automationName?: string },
+  context?: { postCaption?: string; creatorUsername?: string; automationName?: string; language?: AiReplyLanguage },
   injectedAi?: WorkersAiBinding | null
 ): Promise<AiGenerationResult<string>> {
   const sanitizedPrompt = sanitizePromptInput(promptContext ?? '', 600);
   const sanitizedCaption = context?.postCaption ? sanitizePromptInput(context.postCaption, 300) : '';
   const sanitizedName = context?.automationName ? sanitizePromptInput(context.automationName, 200) : '';
+  const responsePool =
+    context?.language === 'hinglish' ? DEFAULT_RESPONSE_DRAFTS_HINGLISH : DEFAULT_RESPONSE_DRAFTS;
 
   const systemMessage =
     "You are an assistant crafting a helpful, warm, and concise Instagram DM response for a creator. " +
     "Keep it under 300 characters, authentic, human, and clear. " +
     "Do NOT fabricate specific prices, secret coupon codes, or false claims. " +
-    "Output ONLY the response message text. No quotes, no preamble.";
+    "Output ONLY the response message text. No quotes, no preamble." +
+    languageInstruction(context?.language);
 
   const userContent =
     `Creator message goal: ${sanitizedPrompt || sanitizedName || 'Delivering the requested resource, link, or helpful info'}\n` +
@@ -530,7 +592,7 @@ export async function generateResponseDraft(
   }
 
   return {
-    data: pickRandomFallback(DEFAULT_RESPONSE_DRAFTS),
+    data: pickRandomFallback(responsePool),
     status: 'fallback',
     model: DEFAULT_AI_MODEL,
   };
@@ -542,20 +604,23 @@ export async function generateResponseDraft(
  */
 export async function generateFollowUpDraft(
   promptContext: string,
-  context?: { automationName?: string; creatorUsername?: string },
+  context?: { automationName?: string; creatorUsername?: string; language?: AiReplyLanguage },
   injectedAi?: WorkersAiBinding | null
 ): Promise<AiGenerationResult<string>> {
   const sanitizedPrompt = sanitizePromptInput(promptContext || context?.automationName || '', 600);
   // F-5: the creator handle is sanitised like every other interpolation
   // (release-prep interpolated it raw).
   const sanitizedCreator = context?.creatorUsername ? sanitizePromptInput(context.creatorUsername, 100) : '';
+  const followUpPool =
+    context?.language === 'hinglish' ? DEFAULT_FOLLOW_UP_DRAFTS_HINGLISH : DEFAULT_FOLLOW_UP_DRAFTS;
 
   const systemMessage =
     "You are an expert Instagram creator writing a friendly, polite follow-up DM check-in message. " +
     "The recipient already received an initial link or info after opting in. " +
     "Ask politely if they got a chance to check it out or if they have any questions. " +
     "Include {username} where natural. Keep it concise (under 250 characters), warm, and non-pushy. " +
-    "Do NOT fabricate facts or external links. Output only the follow-up message.";
+    "Do NOT fabricate facts or external links. Output only the follow-up message." +
+    languageInstruction(context?.language);
 
   const userContent =
     `Goal/context: ${sanitizedPrompt || 'Polite check-in on the previously shared link/guide'}\n` +
@@ -585,7 +650,7 @@ export async function generateFollowUpDraft(
   }
 
   return {
-    data: pickRandomFallback(DEFAULT_FOLLOW_UP_DRAFTS),
+    data: pickRandomFallback(followUpPool),
     status: 'fallback',
     model: DEFAULT_AI_MODEL,
   };

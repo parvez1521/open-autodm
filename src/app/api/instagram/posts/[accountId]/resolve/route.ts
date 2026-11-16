@@ -16,6 +16,14 @@
  * Auth / account lookup / token decryption follow the list route
  * (posts/[accountId]/route.ts) in both the legacy and the workspace-
  * mode (P18) branches.
+ *
+ * Media-ID input (2026-11-17): a pasted PURE NUMERIC media ID is
+ * accepted as-is. The Graph API `/{media-id}` fetch is still tried
+ * first, but when the token cannot read the post (the collab case:
+ * the other collaborator owns it) the route returns a minimal
+ * synthetic post carrying that ID instead of failing — creating an
+ * automation by media ID is the established workaround, and the
+ * engine only ever matches on the ID.
  */
 
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
@@ -26,7 +34,9 @@ import { createLogger } from '@/lib/logger';
 import { META_API_VERSION } from '@/lib/instagram/api';
 import {
   decodeInstagramShortcode,
+  encodeInstagramShortcode,
   extractInstagramShortcode,
+  isMediaIdInput,
   normalizeInstagramPostUrl,
 } from '@/lib/instagram/postUrl';
 import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
@@ -41,9 +51,9 @@ const META_GRAPH_BASE = `https://graph.instagram.com/${META_API_VERSION}`;
 const META_FACEBOOK_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
 const INVALID_URL_ERROR =
-  'Is link ko samajh nahi paye — Instagram post ka link paste karo (instagram.com/p/... ya /reel/...).';
+  'Could not understand this link — paste an Instagram post link (instagram.com/p/... or /reel/...) or a numeric media ID.';
 const UNRESOLVABLE_ERROR =
-  'Is post ko load nahi kar paye — link check karo, post public hona chahiye.';
+  "Could not load this post — check the link and make sure the post is public.";
 
 interface MetaMediaItem {
   id: string;
@@ -102,8 +112,14 @@ const MEDIA_FIELDS =
  * media ID. Fallback: the shortcode IS the media ID in base-64
  * (alphabet A-Za-z0-9-_); decoding it avoids oEmbed entirely when
  * Meta rejects the oEmbed call for this token.
+ *
+ * A pure-numeric input is a media ID, not a URL: it goes straight to
+ * the media-ID path below.
  */
 async function resolvePostByUrl(accessToken: string, rawUrl: string): Promise<ResolveResult> {
+  if (isMediaIdInput(rawUrl)) {
+    return resolvePostByMediaId(accessToken, rawUrl.trim());
+  }
   const shortcode = extractInstagramShortcode(rawUrl);
   if (!shortcode) {
     return { ok: false, status: 400, error: INVALID_URL_ERROR };
@@ -153,6 +169,51 @@ async function resolvePostByUrl(accessToken: string, rawUrl: string): Promise<Re
   }
 
   return { ok: true, post: mapMetaMediaItem(media) };
+}
+
+/**
+ * Media-ID path (2026-11-17): the picker accepts a pasted numeric
+ * media ID so collab posts the token cannot read can still be used.
+ * The Graph API fetch is tried first — when it succeeds the real
+ * post (thumbnail, caption) is returned. When it fails (the collab
+ * case), a minimal synthetic post carrying the ID is returned instead
+ * of an error: the automation engine only ever matches on the ID, so
+ * the automation works; only the list thumbnail/caption is missing
+ * (same cosmetic gap as the Clone reel_dm automation created by DB
+ * insert on 2026-11-16).
+ */
+async function resolvePostByMediaId(accessToken: string, mediaId: string): Promise<ResolveResult> {
+  let media: MetaMediaItem | null = null;
+  try {
+    const res = await fetch(
+      `${META_GRAPH_BASE}/${mediaId}?fields=${MEDIA_FIELDS}&access_token=${accessToken}`,
+    );
+    if (res.ok) {
+      media = (await res.json()) as MetaMediaItem;
+    } else {
+      logger.warn({ status: res.status }, 'Meta media-by-id fetch failed for pasted media ID - returning ID-only post');
+    }
+  } catch (err) {
+    logger.warn({ err }, 'Network error fetching pasted media ID - returning ID-only post');
+  }
+
+  if (media) return { ok: true, post: mapMetaMediaItem(media) };
+
+  const shortcode = encodeInstagramShortcode(mediaId);
+  return {
+    ok: true,
+    post: {
+      id: mediaId,
+      type: 'reel',
+      thumbnail_url: null,
+      media_url: null,
+      permalink: shortcode ? `https://www.instagram.com/p/${shortcode}/` : '',
+      timestamp: new Date().toISOString(),
+      caption: '',
+      like_count: 0,
+      comments_count: 0,
+    },
+  };
 }
 
 type RouteContext = { params: Promise<{ accountId: string }> };

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { EASE_OUT } from "@/lib/motion/presets";
-import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Stack, InstagramLogo, Warning, Trash, X, CursorClick } from "@/components/phosphor";
+import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Stack, InstagramLogo, Warning, Trash, X, CursorClick, At, Link as LinkIcon } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 
@@ -12,6 +12,7 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ c
     dm_reply: { label: "DM Reply", icon: PaperPlaneTilt, className: "bg-blue-500/10 text-blue-500" },
     story_reply: { label: "Story Reply", icon: ImageIcon, className: "bg-emerald-500/10 text-emerald-500" },
     reel_dm: { label: "Shared Reel → DM", icon: PaperPlaneTilt, className: "bg-rose-500/10 text-rose-500" },
+    story_mention: { label: "Story Mention → DM", icon: At, className: "bg-amber-500/10 text-amber-500" },
 };
 
 function triggerDescription(automation: AutomationFromDB): string {
@@ -194,6 +195,16 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                 <div className="hidden sm:flex flex-col items-end">
                                     <span className="text-[15px] font-heading font-semibold tabular-nums leading-tight">{automation.total_dms_sent.toLocaleString()}</span>
                                     <span className="text-[10px] text-muted-foreground uppercase tracking-wider">DMs</span>
+                                </div>
+                                {/* Link clicks (2026-11-17): tracked /r/[code] opens
+                                    across this automation's links; 0 when the
+                                    migration is not applied yet. */}
+                                <div className="hidden sm:flex flex-col items-end" title="Link clicks — how many people opened a link this automation sent">
+                                    <span className="text-[15px] font-heading font-semibold tabular-nums leading-tight flex items-center gap-1">
+                                        <LinkIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                                        {(automation.total_link_clicks ?? 0).toLocaleString()}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Clicks</span>
                                 </div>
 
                                 <div className="flex items-center gap-1">

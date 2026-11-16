@@ -16,12 +16,29 @@
 
 const SHORTCODE_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
+/** A pasted pure-numeric Instagram media ID (8+ digits; real IDs are ~19 digits). */
+export const MEDIA_ID_PATTERN = /^\d{8,}$/;
+
+/**
+ * True when the pasted text is a numeric media ID rather than a URL
+ * (2026-11-17): the picker accepts media IDs so collab posts the token
+ * cannot read can still be used — creating by media ID is the
+ * established workaround.
+ */
+export function isMediaIdInput(input: string): boolean {
+  return MEDIA_ID_PATTERN.test(input.trim());
+}
+
 /**
  * Extract the shortcode from an Instagram post URL. Accepts
  * instagram.com/p/{code}, /reel/{code}, /reels/{code} and /tv/{code}
  * (any instagram.com subdomain), with or without a trailing slash
- * or query params. Returns null for anything else — non-Instagram
- * hosts, profile/explore URLs, empty codes.
+ * or query params. Also accepts /stories/{username}/{code}: a story
+ * permalink carries the story's media shortcode as its last segment
+ * (needed by the story_mention webhook fallback, which decodes the
+ * story ID from the permalink when Meta sends no id). Returns null
+ * for anything else — non-Instagram hosts, profile/explore URLs,
+ * empty codes.
  */
 export function extractInstagramShortcode(input: string): string | null {
   const trimmed = input.trim();
@@ -37,6 +54,13 @@ export function extractInstagramShortcode(input: string): string | null {
   const segments = url.pathname.split('/').filter(Boolean);
   if (segments.length < 2) return null;
   const kind = segments[0];
+  // /stories/{username}/{code} — the shortcode is the last segment.
+  if (kind === 'stories') {
+    if (segments.length < 3) return null;
+    const code = segments[2]!;
+    if (!/^[A-Za-z0-9_-]+$/.test(code)) return null;
+    return code;
+  }
   const code = segments[1];
   if (kind === undefined || code === undefined) return null;
   if (kind !== 'p' && kind !== 'reel' && kind !== 'reels' && kind !== 'tv') return null;

@@ -32,7 +32,12 @@ export const DMResponseSchema = z.object({
   cardTitle: z.string().optional(),
   cardSubtitle: z.string().optional(),
   cardButtons: z.array(z.object({ id: z.string(), title: z.string(), link: z.string() })).optional(),
+  /** Lead-form responses: which contact fields the ask collects (1-2 of email/phone). */
+  leadFields: z.array(z.enum(['email', 'phone'])).min(1).max(2).optional(),
 });
+
+/** Language for AI-generated drafts/replies (2026-11-17): English or Hinglish (Hindi in Roman script). */
+export const AiReplyLanguageSchema = z.enum(['en', 'hinglish']);
 
 export type TokenStatus = 'ok' | 'expiring' | 'expired';
 

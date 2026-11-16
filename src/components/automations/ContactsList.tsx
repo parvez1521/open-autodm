@@ -3,21 +3,27 @@
 import { useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { EASE_OUT } from "@/lib/motion/presets";
-import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise, Warning } from "@/components/phosphor";
+import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise, Warning, At, Envelope } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
+import { useLeads, type LeadFromDB } from "@/hooks/useLeads";
 
 /**
  * Contacts - every unique audience member captured through an automation:
  * they commented a trigger keyword, DM'd one, story-replied one, or tapped a
  * flow button. Enriched with username + follow status from Instagram's
  * profile API as the engine interacts with them.
+ *
+ * Leads tab (2026-11-17): email/phone values audience members submitted
+ * in reply to a lead-form ask. Read-only — these are values people
+ * voluntarily typed in a DM; nothing here is ever sent anywhere.
  */
 
 const TRIGGER_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; className: string }> = {
     comment: { label: "Comment", icon: ChatCircle, className: "bg-[#F97316]/10 text-[#F97316] border-[#F97316]/20" },
     dm: { label: "DM Keyword", icon: PaperPlaneTilt, className: "bg-blue-500/10 text-blue-500 border-blue-500/20" },
     story_reply: { label: "Story Reply", icon: ImageIcon, className: "bg-green-500/10 text-green-500 border-green-500/20" },
+    story_mention: { label: "Story Mention", icon: At, className: "bg-amber-500/10 text-amber-500 border-amber-500/20" },
     button: { label: "Button Tap", icon: CursorClick, className: "bg-primary/10 text-primary border-primary/20" },
 };
 
@@ -52,6 +58,10 @@ function formatDate(iso: string): string {
 export function ContactsList() {
     const { data: contacts, isLoading, error: contactsError, refetch, isFetching } = useContacts();
     const [search, setSearch] = useState("");
+    // Leads tab (2026-11-17): the leads query only fires when the tab is
+    // open, so the contacts page costs nothing extra by default.
+    const [tab, setTab] = useState<"contacts" | "leads">("contacts");
+    const { data: leads, isLoading: leadsLoading, error: leadsError, refetch: refetchLeads, isFetching: leadsFetching } = useLeads(undefined, tab === "leads");
 
     const filtered = useMemo(() => {
         if (!contacts) return [];
@@ -98,23 +108,41 @@ export function ContactsList() {
         );
     }
 
-    if (!contacts || contacts.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
-                <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
-                    <Users className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="text-xl font-heading font-bold mb-2 text-foreground">No Contacts Yet</h3>
-                <p className="text-muted-foreground max-w-sm">
-                    Every person who triggers one of your automations - a comment, DM keyword, story reply,
-                    or button tap - appears here automatically, with their follow status.
-                </p>
-            </div>
-        );
-    }
-
     return (
         <div className="flex flex-col space-y-4 w-full animate-in fade-in duration-500">
+            {/* Tabs: Contacts / Leads (2026-11-17) */}
+            <div className="inline-flex items-center bg-muted rounded-lg p-0.5 self-start">
+                {(["contacts", "leads"] as const).map((t) => (
+                    <button
+                        key={t}
+                        onClick={() => setTab(t)}
+                        className={cn(
+                            "h-7 px-3 rounded-[7px] text-[12px] font-medium capitalize transition-colors",
+                            tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                        )}
+                    >
+                        {t === "contacts"
+                            ? `Contacts${contacts?.length ? ` (${contacts.length})` : ""}`
+                            : `Leads${leads?.length ? ` (${leads.length})` : ""}`}
+                    </button>
+                ))}
+            </div>
+
+            {tab === "leads" ? (
+                <LeadsPanel leads={leads} isLoading={leadsLoading} error={leadsError} onRetry={() => void refetchLeads()} isFetching={leadsFetching} />
+            ) : !contacts || contacts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
+                    <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+                        <Users className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-heading font-bold mb-2 text-foreground">No Contacts Yet</h3>
+                    <p className="text-muted-foreground max-w-sm">
+                        Every person who triggers one of your automations - a comment, DM keyword, story reply,
+                        or button tap - appears here automatically, with their follow status.
+                    </p>
+                </div>
+            ) : (
+                <>
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-card p-3 rounded-xl border border-border">
                 <div className="relative w-full sm:max-w-xs">
@@ -201,6 +229,114 @@ export function ContactsList() {
                                 </motion.tr>
                             );
                         })}
+                    </tbody>
+                </table>
+            </div>
+                </>
+            )}
+        </div>
+    );
+}
+
+/* ─── Leads panel (2026-11-17) ───
+ * Email/phone values audience members submitted in reply to a lead-form
+ * ask. Read-only: values people voluntarily typed in a DM, shown so the
+ * owner can follow up (manually — there is no bulk DM here). */
+function LeadsPanel({ leads, isLoading, error, onRetry, isFetching }: {
+    leads: LeadFromDB[] | undefined;
+    isLoading: boolean;
+    error: Error | null;
+    onRetry: () => void;
+    isFetching: boolean;
+}) {
+    if (isLoading) {
+        return (
+            <div className="flex flex-col space-y-4">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-14 rounded-xl bg-muted/30 border border-border/40 animate-pulse" />
+                ))}
+            </div>
+        );
+    }
+
+    if (error && !leads) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 text-center border border-destructive/30 rounded-xl" role="alert">
+                <div className="w-11 h-11 rounded-xl bg-destructive/10 flex items-center justify-center mb-4">
+                    <Warning className="w-5 h-5 text-destructive" />
+                </div>
+                <h3 className="text-[15px] font-heading font-semibold mb-1 text-foreground">Couldn&apos;t load your leads</h3>
+                <p className="text-[13px] text-muted-foreground max-w-sm">
+                    {error.message} This is a loading problem, not an empty list — your captured leads were not changed.
+                </p>
+                <button
+                    onClick={onRetry}
+                    className="mt-4 inline-flex h-9 items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-background transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                    Try again
+                </button>
+            </div>
+        );
+    }
+
+    if (!leads || leads.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
+                <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+                    <Envelope className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-heading font-bold mb-2 text-foreground">No Leads Yet</h3>
+                <p className="text-muted-foreground max-w-sm">
+                    Add a Lead form response to an automation and ask for an email or phone number — when someone
+                    replies with one, it appears here with the automation that collected it.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col space-y-4 w-full">
+            <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground">
+                    {`${leads.length} lead${leads.length !== 1 ? "s" : ""}`}
+                </span>
+                <button
+                    onClick={onRetry}
+                    className="flex items-center justify-center space-x-2 px-4 py-2 border border-border/50 rounded-xl bg-background hover:bg-muted/50 transition-colors text-sm font-medium"
+                >
+                    <ArrowsClockwise className={cn("w-4 h-4", isFetching && "animate-spin")} />
+                    <span>Refresh</span>
+                </button>
+            </div>
+            <div className="w-full overflow-x-auto bg-card border border-border rounded-xl">
+                <table className="w-full text-left text-sm whitespace-nowrap">
+                    <thead className="bg-muted/30 text-muted-foreground uppercase tracking-widest text-[10px] font-bold border-b border-border/50">
+                        <tr>
+                            <th className="px-5 py-3">Value</th>
+                            <th className="px-5 py-3">Field</th>
+                            <th className="px-5 py-3">Person</th>
+                            <th className="px-5 py-3">Automation</th>
+                            <th className="px-5 py-3">Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30">
+                        {leads.map((lead) => (
+                            <tr key={lead.id} className="hover:bg-muted/30 transition-colors">
+                                <td className="px-5 py-3 font-medium text-foreground">{lead.value}</td>
+                                <td className="px-5 py-3">
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-muted/40 text-muted-foreground border-border/50">
+                                        {lead.field}
+                                    </span>
+                                </td>
+                                <td className="px-5 py-3 text-foreground/80">
+                                    {lead.username ? `@${lead.username}` : `IG user …${lead.audienceIgUserId.slice(-8)}`}
+                                </td>
+                                <td className="px-5 py-3 font-medium text-foreground/80 max-w-[220px] truncate">
+                                    {lead.automationName}
+                                </td>
+                                <td className="px-5 py-3 text-muted-foreground">{formatDate(lead.submittedAt)}</td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
             </div>

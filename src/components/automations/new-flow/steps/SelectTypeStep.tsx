@@ -1,10 +1,13 @@
 import { motion } from "motion/react";
-import { ChatCircle, PaperPlaneTilt, Image, At, PlayCircle } from "@/components/phosphor";
+import { ChatCircle, PaperPlaneTilt, Image, At, PlayCircle, Stack } from "@/components/phosphor";
 import { AUTOMATION_TYPES } from "../constants";
+import { AUTOMATION_TEMPLATES, type AutomationTemplateId } from "@/lib/automation/templates";
 import { cn } from "@/lib/utils";
 
 interface SelectTypeStepProps {
     onSelect: (typeId: string) => void;
+    /** One-click starter: prefills the builder with the template's defaults (never auto-creates). */
+    onTemplateSelect?: (templateId: AutomationTemplateId) => void;
     selectedType: string | null;
 }
 
@@ -16,7 +19,7 @@ const ICONS = {
     "play": PlayCircle
 };
 
-export function SelectTypeStep({ onSelect, selectedType }: SelectTypeStepProps) {
+export function SelectTypeStep({ onSelect, onTemplateSelect, selectedType }: SelectTypeStepProps) {
     return (
         <div className="flex flex-col items-center justify-center w-full h-full p-6 overflow-y-auto">
             <div className="max-w-2xl w-full mx-auto space-y-8 pb-8">
@@ -77,6 +80,46 @@ export function SelectTypeStep({ onSelect, selectedType }: SelectTypeStepProps) 
                         );
                     })}
                 </div>
+
+                {/* Templates (2026-11-17): one-click starters that prefill
+                    the builder — name, type, trigger, opening message and
+                    link response. Nothing is created until the owner saves. */}
+                {onTemplateSelect && (
+                    <div className="space-y-3">
+                        <div className="text-center space-y-1">
+                            <h3 className="text-[13px] font-semibold text-foreground">Or start from a template</h3>
+                            <p className="text-[12px] text-muted-foreground">
+                                Prefilled and ready to edit — pick a post (or none) and save.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                            {AUTOMATION_TEMPLATES.map((template, idx) => (
+                                <motion.button
+                                    key={template.id}
+                                    onClick={() => onTemplateSelect(template.id)}
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    className="relative group text-left p-4 rounded-xl border cursor-pointer bg-card border-border hover:border-foreground/25 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                            <Stack className="w-4 h-4 text-foreground" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-[13.5px] font-semibold text-foreground mb-0.5">
+                                                {template.name}
+                                            </h3>
+                                            <p className="text-[12px] text-muted-foreground leading-relaxed">
+                                                {template.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </motion.button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

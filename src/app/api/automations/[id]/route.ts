@@ -49,6 +49,8 @@ const UpdateAutomationSchema = z.object({
   follow_up_enabled: z.boolean().optional(),
   follow_up_delay_minutes: z.number().int().refine((v) => [10, 20, 60, 120].includes(v), 'follow_up_delay_minutes must be one of 10, 20, 60, 120').optional(),
   follow_up_message: z.string().optional(),
+  /** AI reply language (2026-11-17): 'en' or 'hinglish'. */
+  ai_reply_language: z.enum(['en', 'hinglish']).optional(),
   // Flow graph (Phase 5, row 19): when omitted, the stored graph is either
   // preserved verbatim (complex graphs) or regenerated from the edited flat
   // fields (simple canonical graphs) — see the PUT handler. When supplied,

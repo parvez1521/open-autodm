@@ -23,6 +23,7 @@ import {
 } from '@/lib/entitlements/guard';
 import { billingWorkspaceSelector, resolveBillingWorkspace } from '@/lib/billing/access';
 import { isOwnerFree } from '@/lib/owner';
+import { getLinkClickCounts } from '@/lib/automation/linkTracking';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,8 +33,10 @@ const logger = createLogger('api:automations');
 const CreateAutomationSchema = z.object({
   instagramAccountId: z.string().uuid('instagramAccountId must be a UUID'),
   name: z.string().min(1, 'name is required').max(200),
-  type: z.enum(['comment_dm', 'dm_reply', 'story_reply', 'reel_dm']),
+  type: z.enum(['comment_dm', 'dm_reply', 'story_reply', 'reel_dm', 'story_mention']),
   isActive: z.boolean().default(true),
+  /** AI reply language (2026-11-17): 'en' or 'hinglish'. Defaults to English. */
+  aiReplyLanguage: z.enum(['en', 'hinglish']).default('en'),
   postId: z.string().nullable().optional(),
   postThumbnailUrl: z.string().nullable().optional(),
   postCaption: z.string().nullable().optional(),
@@ -113,7 +116,7 @@ export async function GET(request: Request): Promise<Response> {
           dm_opening_message, dm_opening_message_variations, dm_opening_message_button_title, dm_opening_message_button_link,
           ask_to_follow_enabled, ask_to_follow_message,
           ask_to_follow_visit_profile_button, ask_to_follow_confirm_button,
-          dm_responses, trigger_config, flow_graph, total_dms_sent, created_at, updated_at,
+          dm_responses, trigger_config, flow_graph, total_dms_sent, ai_reply_language, created_at, updated_at,
           instagram_account_id,
           instagram_accounts ( id, username, profile_picture_url )
         `)
@@ -134,7 +137,17 @@ export async function GET(request: Request): Promise<Response> {
     { userId: user.id, authMs, queryMs: Date.now() - queryStartedAt },
     'Listed automations',
   );
-  return Response.json({ automations: data ?? [] });
+  // Link click totals (2026-11-17): merged per automation, best-effort —
+  // a missing tracked_links table (migration not applied yet) reports 0.
+  const clickCounts = await getLinkClickCounts(
+    db,
+    (data ?? []).map((row) => (row as { id: string }).id),
+  );
+  const automations = (data ?? []).map((row) => ({
+    ...(row as Record<string, unknown>),
+    total_link_clicks: clickCounts.get((row as { id: string }).id) ?? 0,
+  }));
+  return Response.json({ automations });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -240,6 +253,7 @@ export async function POST(request: Request): Promise<Response> {
       trigger_config: data.triggerConfig ?? {},
       flow_graph: flowGraph,
       is_active: data.isActive,
+      ai_reply_language: data.aiReplyLanguage,
       total_dms_sent: 0,
     })
     .select('id, name, type, is_active, total_dms_sent, created_at')
@@ -325,7 +339,16 @@ async function p18ListAutomations(
       { userId: user.id, authMs, resolveMs, queryMs },
       'Listed automations (workspace mode)',
     );
-    return Response.json({ automations });
+    // Link click totals (2026-11-17) — see the legacy handler.
+    const clickCounts = await getLinkClickCounts(
+      db,
+      automations.map((row) => String(row['id'] ?? '')),
+    );
+    const withClicks = automations.map((row) => ({
+      ...row,
+      total_link_clicks: clickCounts.get(String(row['id'] ?? '')) ?? 0,
+    }));
+    return Response.json({ automations: withClicks });
   } catch (err) {
     logger.error(
       { err, userId: user.id, authMs, resolveMs, queryMs: Date.now() - queryStartedAt },
@@ -449,6 +472,7 @@ async function p18CreateAutomation(
       trigger_config: data.triggerConfig ?? {},
       flow_graph: flowGraph,
       is_active: data.isActive,
+      ai_reply_language: data.aiReplyLanguage,
       total_dms_sent: 0,
     });
     logger.info({ userId: user.id, automationId: created['id'], workspaceId: ctx.workspaceId }, 'Automation created (workspace mode)');

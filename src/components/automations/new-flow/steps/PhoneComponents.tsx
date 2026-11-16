@@ -145,9 +145,11 @@ export function DMConversationPhone({
     phase: "initial" | "clicked" | "followed";
     onPhaseChange: (p: "initial" | "clicked" | "followed") => void;
     creatorProfilePicUrl?: string | null;
-    trigger?: { kind: "dm" | "story"; text: string } | null;
+    trigger?: { kind: "dm" | "story" | "mention"; text: string } | null;
 }) {
-    const textResponses = responses.filter(r => r.type === "text");
+    // Lead-form responses are sent as plain text (the ask), so they
+    // render like text responses in the preview (2026-11-17).
+    const textResponses = responses.filter(r => r.type === "text" || r.type === "lead_form");
     const hasQuickReply = !!openingBtnTitle?.trim();
     // Without an opening button there is no tap step - responses show immediately.
     const showResponses = hasQuickReply ? (phase !== "initial" && (!askToFollowEnabled || phase === "followed")) : true;
@@ -165,7 +167,7 @@ export function DMConversationPhone({
                 <ChatCircle className="w-3.5 h-3.5 text-white/25 shrink-0" />
             </div>
 
-            {trigger?.kind !== "dm" && trigger?.kind !== "story" && openingEnabled && (
+            {trigger?.kind !== "dm" && trigger?.kind !== "story" && trigger?.kind !== "mention" && openingEnabled && (
                 <div className="px-3 py-1.5 text-center">
                     <p className="text-[8.5px] text-white/20">messaged about your post · See post</p>
                 </div>
@@ -182,12 +184,20 @@ export function DMConversationPhone({
                                 <span className="text-[8.5px] text-white/30">Replied to your story</span>
                             </div>
                         )}
-                        <div className="flex items-end gap-1.5">
-                            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-pink-500 to-orange-400 shrink-0" />
-                            <div className="bg-[#1e1e22] rounded-2xl rounded-bl-sm px-3 py-2 max-w-[80%]">
-                                <p className="text-[12px] font-medium">{trigger.text || "DIET"}</p>
+                        {trigger.kind === "mention" && (
+                            <div className="flex items-center gap-1.5 pl-7">
+                                <div className="w-6 h-10 rounded-md bg-zinc-800 opacity-70" />
+                                <span className="text-[8.5px] text-white/30">Mentioned you in their story</span>
                             </div>
-                        </div>
+                        )}
+                        {trigger.text && (
+                            <div className="flex items-end gap-1.5">
+                                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-pink-500 to-orange-400 shrink-0" />
+                                <div className="bg-[#1e1e22] rounded-2xl rounded-bl-sm px-3 py-2 max-w-[80%]">
+                                    <p className="text-[12px] font-medium">{trigger.text || "DIET"}</p>
+                                </div>
+                            </div>
+                        )}
                     </motion.div>
                 )}
 

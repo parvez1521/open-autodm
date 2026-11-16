@@ -25,7 +25,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const logger = createLogger('contacts');
 
-export type ContactTriggerType = 'comment' | 'dm' | 'story_reply' | 'button';
+export type ContactTriggerType = 'comment' | 'dm' | 'story_reply' | 'story_mention' | 'button';
 
 /** Records (or increments) a contact interaction. Fire-and-forget. */
 export function recordContactInteraction(params: {

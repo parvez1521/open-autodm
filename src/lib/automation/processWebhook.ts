@@ -20,6 +20,7 @@ import { recordAndEvaluateCommentTraffic } from '@/lib/trafficGuard/tracker';
 import { isOptOutIntent, recordRecipientOptOut, isRecipientSuppressed } from '@/lib/automation/optOut';
 import { scheduleFollowUpMessage } from '@/lib/automation/followUps';
 import { extractInstagramShortcode, decodeInstagramShortcode } from '@/lib/instagram/postUrl';
+import { captureLeadReply } from '@/lib/automation/leadCapture';
 import type {
   MetaWebhookBody,
   MetaCommentChangeValue,
@@ -516,6 +517,145 @@ async function processDmEvent(
           });
         }
         return jobId ? 1 : 0;
+      }
+    }
+  }
+
+  // ── Lead-form answer (2026-11-17) ─────────────────────────────────────
+  // A free-text reply to a lead-form ask ("What's your email?") is an
+  // answer, not a new trigger: when it validates as the requested field
+  // it is stored as a lead submission and the message is consumed here,
+  // so it never also fires a keyword automation. Runs after session-tap
+  // routing (a button tap is never a lead answer) and before the
+  // shared-Reel / keyword paths. A non-matching reply falls through.
+  if (message?.text) {
+    const captured = await captureLeadReply(db, {
+      instagramAccountId,
+      audienceIgUserId: messaging.sender.id,
+      text: message.text,
+    });
+    if (captured) {
+      logEvent('info', 'lead_captured', 'ok',
+        `Lead captured from ${messaging.sender.id} (${captured.field}) via automation ${captured.automationId}`, {
+          senderId: messaging.sender.id,
+          field: captured.field,
+          automationId: captured.automationId,
+        });
+      recordContactInteraction({
+        instagramAccountId,
+        audienceIgUserId: messaging.sender.id,
+        triggerType: 'dm',
+        automationId: captured.automationId,
+      });
+      return 1;
+    }
+  }
+
+  // ── Story Mention trigger (2026-11-17) ─────────────────────────────────
+  // When someone mentions the account in their own story, Meta delivers a
+  // messaging event with an attachment of type "story_mention" (payload
+  // carries the story media id, or a permalink to decode it from). It
+  // arrives under the already-subscribed "messages" field — no new
+  // permission or subscription is needed. Routes ONLY to story_mention
+  // automations, like story replies route only to story_reply: one event
+  // never fires both types. Keywords are an optional extra filter on the
+  // mention's text/title; most mentions carry no text, so the default
+  // (null keywords) fires on any mention.
+  const mentionAttachment = message?.attachments?.find((att) => att.type === 'story_mention');
+  if (mentionAttachment && message) {
+    const mentionPayload = mentionAttachment.payload ?? {};
+    const storyId =
+      mentionPayload.id ??
+      mentionPayload.media_id ??
+      (mentionPayload.url
+        ? decodeInstagramShortcode(extractInstagramShortcode(mentionPayload.url) ?? '') ?? null
+        : null);
+    const mentionTitle = mentionPayload.title ?? message.text ?? null;
+
+    logEvent('info', 'story_mention_event', 'processing',
+      `Story mention received from ${messaging.sender.id} (storyId=${storyId ?? 'unknown'})`, {
+        senderId: messaging.sender.id,
+        storyId,
+        mentionTitle: mentionTitle?.slice(0, 50),
+      });
+
+    const { data: mentionAutomations, error: mentionError } = await db
+      .from('automations')
+      .select('id, keywords, trigger_config, flow_graph, follow_up_enabled, follow_up_delay_minutes, follow_up_message')
+      .eq('instagram_account_id', instagramAccountId)
+      .eq('type', 'story_mention')
+      .eq('is_active', true);
+
+    if (mentionError) {
+      logEvent('error', 'mention_automations_fetch', 'error',
+        `DB error fetching story_mention automations: ${mentionError.message}`, {});
+    } else if (mentionAutomations && mentionAutomations.length > 0) {
+      let enqueuedMention = 0;
+      let capturedMentionAutomationId: string | null = null;
+      for (const auto of mentionAutomations) {
+        const excluded = (auto.trigger_config as { excluded_keywords?: unknown } | null)?.excluded_keywords;
+        const matchText = message.text || mentionTitle || '';
+        if (Array.isArray(excluded) && excluded.length > 0 && keywordMatches(matchText, excluded as string[])) {
+          logEvent('info', 'keyword_exclude', 'skipped',
+            `Story-mention automation ${auto.id}: mention matches excluded keyword`, {
+              automationId: auto.id,
+            });
+          continue;
+        }
+
+        const isAnyMention = isExplicitWildcardAutomation(auto);
+        if (!isAnyMention && !keywordMatches(matchText, auto.keywords as string[] | null)) {
+          logEvent('info', 'keyword_match', 'skipped',
+            `Story-mention automation ${auto.id}: no keyword match`, {
+              automationId: auto.id,
+            });
+          continue;
+        }
+
+        const payload: AutoDmJobPayload = {
+          automationId: auto.id as string,
+          instagramAccountId,
+          igAccountIgsid,
+          ...(workspaceId ? { workspaceId } : {}),
+          triggerType: 'story_mention',
+          triggerUserId: messaging.sender.id,
+          triggerUsername: null,
+          triggerEventId: message.mid,
+          triggerTimestamp,
+          postId: storyId,
+          commentText: null,
+          messageText: message.text ?? null,
+        };
+        const jobId = await enqueueJob('auto_dm', payload, `event_${auto.id}_${message.mid}`);
+        if (jobId) {
+          enqueuedMention += 1;
+          capturedMentionAutomationId = capturedMentionAutomationId ?? (auto.id as string);
+          logEvent('info', 'job_enqueued', 'ok',
+            `Story-mention AutoDM job enqueued - ${jobId}`, { jobId, storyId });
+
+          if (auto.follow_up_enabled && auto.follow_up_message?.trim()) {
+            await scheduleFollowUpMessage(db, {
+              automationId: auto.id as string,
+              instagramAccountId,
+              igAccountIgsid,
+              recipientId: messaging.sender.id,
+              qualifiedEventId: message.mid,
+              qualifiedTimestamp: triggerTimestamp,
+              delayMinutes: auto.follow_up_delay_minutes || 60,
+              message: auto.follow_up_message,
+            });
+          }
+        }
+      }
+
+      if (enqueuedMention > 0) {
+        recordContactInteraction({
+          instagramAccountId,
+          audienceIgUserId: messaging.sender.id,
+          triggerType: 'story_mention',
+          automationId: capturedMentionAutomationId,
+        });
+        return enqueuedMention;
       }
     }
   }

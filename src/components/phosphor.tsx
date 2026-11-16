@@ -81,6 +81,7 @@ export {
   Key,
   Lightbulb,
   Lightning,
+  Link,
   LinkBreak,
   List,
   Lock,

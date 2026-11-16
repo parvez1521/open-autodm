@@ -168,7 +168,7 @@ describe('POST /api/instagram/posts/[accountId]/resolve', () => {
     const res = await POST(postRequest('https://www.youtube.com/watch?v=abc'), context);
     const body = (await res.json()) as { error: string };
     expect(res.status).toBe(400);
-    expect(body.error).toMatch(/Instagram post ka link/);
+    expect(body.error).toMatch(/Instagram post link/);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -192,7 +192,7 @@ describe('POST /api/instagram/posts/[accountId]/resolve', () => {
     const res = await POST(postRequest(POST_URL), context);
     const body = (await res.json()) as { error: string };
     expect(res.status).toBe(502);
-    expect(body.error).toMatch(/load nahi kar paye/);
+    expect(body.error).toMatch(/Could not load this post/);
   });
 
   it('returns 404 when the Instagram account is not found', async () => {

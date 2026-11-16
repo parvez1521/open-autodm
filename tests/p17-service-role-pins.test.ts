@@ -123,6 +123,13 @@ const CLASSIFIED: Record<string, Classified> = {
     kind: 'user-session+owner-check',
     tokens: ["eq('user_id', user.id)"],
   },
+  // Six-feature batch (2026-11-17): lead submissions are scoped to the
+  // caller's own automations (legacy user_id boundary; workspace-mode
+  // boundary via the tenant repository's automation list).
+  'app/api/leads/route.ts': {
+    kind: 'user-session+owner-check',
+    tokens: ["eq('user_id', user.id)", 'resolveRouteWorkspaceContext'],
+  },
   'app/api/instagram/accounts/route.ts': {
     kind: 'user-session+owner-check',
     tokens: ["eq('user_id', user.id)"],
@@ -261,6 +268,17 @@ const CLASSIFIED: Record<string, Classified> = {
     kind: 'code-as-credential',
     tokens: ['findDeletionRequestByCode'],
     exceptionReason: 'Server-rendered twin of the status API above; same code-as-credential contract.',
+  },
+  // Six-feature batch (2026-11-17): the link-click redirect is public
+  // by design — the random 7-char short code IS the credential (same
+  // contract as the data-deletion status route above). A lookup by
+  // code returns the destination URL only; an unknown code 404s and
+  // nothing about any account is ever read or exposed.
+  'app/r/[code]/route.ts': {
+    kind: 'code-as-credential',
+    tokens: ['recordLinkClick', 'NextResponse.redirect'],
+    exceptionReason:
+      'Link-click redirect (2026-11-17): the unguessable 7-char base62 code is the only credential; the route records the click and redirects to the stored destination, or 404s for an unknown code. No account data is read or exposed.',
   },
   'app/api/setup/route.ts': {
     kind: 'platform-singleton',
@@ -445,9 +463,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 47 importing files, 93 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site; workspace-mode connect default 2026-11-11: instagram/connect route gains one service-client call to resolve the single membership of the caller for the default-workspace binding (file already classified) — +1 call site; post-picker paste-link 2026-11-15: instagram/posts resolve route classified user-session+owner-check (caller-scoped account read, same guard as the list route; legacy + workspace branches) — +1 file, +2 call sites)', () => {
+  it('counts reconcile with the audit: 49 importing files, 97 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site; workspace-mode connect default 2026-11-11: instagram/connect route gains one service-client call to resolve the single membership of the caller for the default-workspace binding (file already classified) — +1 call site; post-picker paste-link 2026-11-15: instagram/posts resolve route classified user-session+owner-check (caller-scoped account read, same guard as the list route; legacy + workspace branches) — +1 file, +2 call sites; six-feature batch 2026-11-17: leads route classified user-session+owner-check (caller-scoped automations boundary; legacy + workspace branches) — +1 file, +2 call sites; link-click redirect route classified code-as-credential (unguessable short code is the credential; redirect-only, exposes no data) — +1 file, +1 call site; link-click tracking in the DM engine adds one service-client call in deliverResponsesBestEffort (file already classified) — +1 call site)', () => {
     const importers = serviceImporters();
-    expect(importers.length).toBe(47);
+    expect(importers.length).toBe(49);
     let calls = 0;
     for (const f of importers) {
       for (const line of sourceOf(f).split('\n')) {
@@ -458,7 +476,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(93);
+    expect(calls).toBe(97);
   });
 
   it('every classified file still carries its audited guard tokens', () => {
@@ -487,8 +505,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     // 2026-11-10 added two more: the dashboard server wrapper and
     // the billing/plan-choice route. Task F 2026-11-10 added one
     // more: lib/billing/planChoiceServer. Post-picker paste-link
-    // 2026-11-15 added one more: the instagram/posts resolve route.)
-    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(26);
+    // 2026-11-15 added one more: the instagram/posts resolve route.
+    // Six-feature batch 2026-11-17 added one more: the leads route.)
+    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(27);
   });
 
   it('FINDING B-F1 pin: no product file imports scopedDb helpers (guards are heterogeneous, not scopedDb)', () => {

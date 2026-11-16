@@ -44,9 +44,9 @@ export const AUTOMATION_TYPES = [
         name: "Story Mention",
         description: "Reward followers who mention you in their own stories.",
         iconType: "at-sign",
-        available: false,
-        bg: "from-muted/20 to-muted/10",
-        border: "border-border/50",
-        iconColor: "text-muted-foreground"
+        available: true,
+        bg: "from-amber-500/20 to-yellow-500/10",
+        border: "group-hover:border-amber-500/50",
+        iconColor: "text-amber-500"
     }
 ];

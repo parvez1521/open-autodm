@@ -74,6 +74,13 @@ const TYPE_COPY: Record<string, {
         keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
         anyModeHint: "Triggers on every share of this reel — no keyword needed. Keywords only add an extra filter on the share's text, and most reels are shared with no text at all.",
     },
+    "story-mention": {
+        triggerTitle: "When someone mentions you in their story",
+        keywordModeSpecific: "Specific keywords",
+        keywordModeAny: "Any mention",
+        keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
+        anyModeHint: "Triggers on every mention — no keyword needed. Keywords only add an extra filter on the mention's text, and most mentions carry no text at all.",
+    },
 };
 
 /* ─── Toggle ─── */
@@ -118,13 +125,15 @@ function SectionHeader({ title, action }: { title: string; action?: React.ReactN
  * local state and is never persisted. */
 type AiDraftAction = "opening_variations" | "public_replies" | "response_draft" | "follow_up_draft";
 
-function AiDraftControl({ action, label, placeholder, defaultPrompt, automationName, postCaption, disabled, onResult }: {
+function AiDraftControl({ action, label, placeholder, defaultPrompt, automationName, postCaption, language, disabled, onResult }: {
     action: AiDraftAction;
     label: string;
     placeholder: string;
     defaultPrompt: string;
     automationName: string;
     postCaption?: string;
+    /** AI reply language for the generated text (2026-11-17): 'en' or 'hinglish'. */
+    language?: "en" | "hinglish";
     disabled?: boolean;
     onResult: (res: { variations?: string[]; draft?: string; status?: string }) => void;
 }) {
@@ -144,6 +153,7 @@ function AiDraftControl({ action, label, placeholder, defaultPrompt, automationN
                     prompt: prompt.trim(),
                     automationName,
                     ...(postCaption ? { postCaption } : {}),
+                    ...(language ? { language } : {}),
                     count: 5,
                 }),
             });
@@ -389,6 +399,63 @@ function TextEditor({ res, onUpdate }: { res: DMResponse; onUpdate: (p: Partial<
     );
 }
 
+/* ─── Lead form editor ───
+ * A lead_form response sends its ask text as a plain DM, then stores the
+ * audience member's next reply as a lead (email and/or phone) when it
+ * looks like the requested value. Captured values appear on the Leads
+ * tab of the Contacts page. At least one field must stay selected. */
+function LeadFormEditor({ res, onUpdate }: { res: DMResponse; onUpdate: (p: Partial<DMResponse>) => void }) {
+    const fields = res.leadFields ?? ["email"];
+    const toggleField = (field: "email" | "phone") => {
+        const next = fields.includes(field)
+            ? fields.filter(f => f !== field)
+            : [...fields, field];
+        // Never allow zero fields — an ask with nothing to collect is meaningless.
+        if (next.length === 0) return;
+        onUpdate({ leadFields: next });
+    };
+
+    return (
+        <div className="space-y-2.5">
+            <div className="relative">
+                <textarea
+                    value={res.content}
+                    onChange={e => onUpdate({ content: e.target.value })}
+                    maxLength={1000}
+                    rows={3}
+                    placeholder="e.g. What's your email? I'll send the guide there."
+                    className={textareaCls}
+                />
+                <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground tabular-nums">{res.content.length}/1000</span>
+            </div>
+            <div>
+                <label className="micro-label block mb-1.5">Collect</label>
+                <div className="flex gap-1.5">
+                    {(["email", "phone"] as const).map(field => (
+                        <button
+                            key={field}
+                            type="button"
+                            onClick={() => toggleField(field)}
+                            aria-pressed={fields.includes(field)}
+                            className={cn(
+                                "inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border transition-colors capitalize",
+                                fields.includes(field)
+                                    ? "border-foreground/40 bg-muted text-foreground"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {field === "email" ? "Email" : "Phone"}
+                        </button>
+                    ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                    Their next reply is saved as a lead when it looks like {fields.join(" or ")}. Answers appear on the Leads tab of the Contacts page.
+                </p>
+            </div>
+        </div>
+    );
+}
+
 /* ─── Response block ─── */
 function ResponseBlock({ res, idx, onUpdate, onDelete }: {
     res: DMResponse;
@@ -397,7 +464,7 @@ function ResponseBlock({ res, idx, onUpdate, onDelete }: {
     onDelete: () => void;
 }) {
     const [open, setOpen] = useState(true);
-    const typeLabel = res.type === "card" ? "Card message" : "Text message";
+    const typeLabel = res.type === "card" ? "Card message" : res.type === "lead_form" ? "Lead form" : "Text message";
 
     return (
         <div className="border border-border rounded-lg overflow-hidden">
@@ -427,7 +494,9 @@ function ResponseBlock({ res, idx, onUpdate, onDelete }: {
                         <div className="p-3">
                             {res.type === "card"
                                 ? <CardEditor res={res} onUpdate={onUpdate} />
-                                : <TextEditor res={res} onUpdate={onUpdate} />
+                                : res.type === "lead_form"
+                                    ? <LeadFormEditor res={res} onUpdate={onUpdate} />
+                                    : <TextEditor res={res} onUpdate={onUpdate} />
                             }
                         </div>
                     </motion.div>
@@ -481,6 +550,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
     const flowType = data.type ?? "comment-dm";
     const isComment = flowType === "comment-dm";
     const isStory = flowType === "story-reply";
+    const isStoryMention = flowType === "story-mention";
     const isReelDm = flowType === "reel-dm";
     // Post-targeted flows (comment-dm, reel-dm) show the selected post.
     const hasPostTarget = isComment || isReelDm;
@@ -488,9 +558,11 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
 
     const isAnyMode = data.keywordsAnyMode ?? data.keywords.length === 0;
     const previewKeywords = isAnyMode ? ["😍", "🔥✨", "❤️🙌"] : data.keywords.slice(0, 3);
-    const previewTriggerText = isAnyMode ? (isStory ? "Love this! 🔥" : "Hey! 👋") : (data.keywords[0] ?? "DIET");
+    // Mentions usually carry no text, so the preview shows the mention
+    // label with no trigger bubble (the phone renders the label alone).
+    const previewTriggerText = isAnyMode ? (isStory ? "Love this! 🔥" : isStoryMention ? "" : "Hey! 👋") : (data.keywords[0] ?? "DIET");
 
-    const addResponse = (type: "text" | "card") => {
+    const addResponse = (type: "text" | "card" | "lead_form") => {
         onUpdate({
             dmResponses: [
                 ...data.dmResponses,
@@ -499,6 +571,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                     type,
                     content: "",
                     ...(type === "card" ? { cardTitle: "", cardSubtitle: "", cardButtons: [] } : {}),
+                    ...(type === "lead_form" ? { leadFields: ["email"] as ("email" | "phone")[] } : {}),
                 },
             ],
         });
@@ -609,6 +682,34 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                     />
                 </section>
 
+                {/* AI reply language (2026-11-17) — the language AI-drafted
+                    replies are generated in. The labels here stay in
+                    English; only the generated reply text changes. */}
+                <section className="space-y-2">
+                    <SectionHeader title="AI reply language" />
+                    <p className="text-[12px] text-muted-foreground">
+                        Language for AI-drafted replies in this automation. Hinglish is Hindi in Roman script, for an audience that speaks it.
+                    </p>
+                    <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
+                        {(["en", "hinglish"] as const).map((lang) => (
+                            <button
+                                key={lang}
+                                type="button"
+                                onClick={() => onUpdate({ aiReplyLanguage: lang })}
+                                aria-pressed={data.aiReplyLanguage === lang}
+                                className={cn(
+                                    "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
+                                    data.aiReplyLanguage === lang
+                                        ? "bg-card text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                {lang === "en" ? "English" : "Hinglish"}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+
                 {/* Public comment replies - comment automations only */}
                 {isComment && (
                     <section className="space-y-2.5">
@@ -657,6 +758,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                             placeholder="Describe the vibe for the replies…"
                             defaultPrompt="Generate warm, natural 1-sentence Instagram comment replies confirming we sent them a DM"
                             automationName={data.name}
+                            language={data.aiReplyLanguage}
                             postCaption={data.postCaption}
                             onResult={res => {
                                 if (res.variations && res.variations.length > 0) {
@@ -772,6 +874,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                                         placeholder="Describe the opening message…"
                                                         defaultPrompt="Warm, friendly opening DM that thanks them for commenting and offers the link"
                                                         automationName={data.name}
+                            language={data.aiReplyLanguage}
                                                         postCaption={data.postCaption}
                                                         onResult={res => {
                                                             if (res.variations && res.variations.length > 0) {
@@ -912,7 +1015,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                         />
                                     ))}
 
-                                    <div className="flex gap-1.5">
+                                    <div className="flex gap-1.5 flex-wrap">
                                         <button
                                             onClick={() => canAddMoreResponses && addResponse("text")}
                                             disabled={!canAddMoreResponses}
@@ -927,6 +1030,13 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                         >
                                             <SquaresFour className="w-3.5 h-3.5" /> Card message
                                         </button>
+                                        <button
+                                            onClick={() => canAddMoreResponses && addResponse("lead_form")}
+                                            disabled={!canAddMoreResponses}
+                                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            <Chat className="w-3.5 h-3.5" /> Lead form
+                                        </button>
                                     </div>
 
                                     <AiDraftControl
@@ -935,6 +1045,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                         placeholder="Describe the response…"
                                         defaultPrompt="Helpful DM response delivering the requested resource and offering help"
                                         automationName={data.name}
+                            language={data.aiReplyLanguage}
                                         postCaption={data.postCaption}
                                         disabled={!canAddMoreResponses}
                                         onResult={res => {
@@ -1003,6 +1114,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                         placeholder="Describe the check-in…"
                                         defaultPrompt="Polite check-in asking if they got a chance to look at the link"
                                         automationName={data.name}
+                            language={data.aiReplyLanguage}
                                         onResult={res => {
                                             if (res.draft) {
                                                 onUpdate({ followUpMessage: res.draft });
@@ -1049,7 +1161,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                             phase={phonePhase}
                             onPhaseChange={setPhonePhase}
                             creatorProfilePicUrl={creatorProfilePicUrl}
-                            trigger={!isComment ? { kind: isStory ? "story" : "dm", text: previewTriggerText } : null}
+                            trigger={!isComment ? { kind: isStoryMention ? "mention" : isStory ? "story" : "dm", text: previewTriggerText } : null}
                         />
                     )}
                 </motion.div>

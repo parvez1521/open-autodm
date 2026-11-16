@@ -4,8 +4,11 @@
 
 // ── Automations ─────────────────────────────────────────────────────────────
 
-export type AutomationType = 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm';
+export type AutomationType = 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention';
 export type DMResponseType = 'text' | 'card' | 'ask_follow' | 'lead_form';
+
+/** Language for AI-generated drafts/replies on an automation. 'hinglish' is Hindi written in Roman script. */
+export type AiReplyLanguage = 'en' | 'hinglish';
 
 export interface CardButton {
   id: string;
@@ -25,6 +28,8 @@ export interface DMResponse {
   cardTitle?: string;
   cardSubtitle?: string;
   cardButtons?: CardButton[];
+  /** Lead-form responses: which contact fields the ask collects. */
+  leadFields?: ('email' | 'phone')[];
 }
 
 // ── Canonical Flow Graph (RP …000009, ported Phase 5) ─────────────────────
@@ -49,7 +54,7 @@ export interface FlowNodePosition {
 
 export interface FlowNodeData {
   label?: string;
-  triggerType?: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm';
+  triggerType?: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention';
   postId?: string | null;
   postThumbnailUrl?: string | null;
   postCaption?: string | null;
@@ -134,6 +139,8 @@ export interface AutomationRow {
   traffic_guard_incident_id?: string | null;
   /** Preserve-on-disconnect (2026-11-15): true when the automation was auto-paused by an Instagram disconnect. */
   paused_by_disconnect?: boolean;
+  /** Language for AI-generated drafts/replies (2026-11-17): 'en' or 'hinglish'. UI labels stay English either way. */
+  ai_reply_language?: AiReplyLanguage;
   total_dms_sent: number;
   created_at: string;
   updated_at: string;
@@ -239,7 +246,7 @@ export interface AutoDmJobPayload {
    */
   workspaceId?: string;
   igAccountIgsid: string; // Meta IGSID of the creator's account
-  triggerType: 'comment' | 'dm' | 'story_reply' | 'dm_reply_followup' | 'reel_dm';
+  triggerType: 'comment' | 'dm' | 'story_reply' | 'dm_reply_followup' | 'reel_dm' | 'story_mention';
   triggerUserId: string; // IGSID of the commenter / DM sender
   triggerUsername?: string | null; // for {username} personalization (comments carry it; DMs don't)
   triggerEventId: string; // comment ID or message mid
@@ -335,7 +342,7 @@ export interface MetaWebhookMessaging {
     is_echo?: boolean;
     attachments?: Array<{
       type: string;
-      payload?: { id?: string; reel_video_id?: string; url?: string; title?: string };
+      payload?: { id?: string; media_id?: string; reel_video_id?: string; url?: string; title?: string };
     }>;
     quick_reply?: { payload: string };
     /** Present when the message is a reply to one of the account's stories. */

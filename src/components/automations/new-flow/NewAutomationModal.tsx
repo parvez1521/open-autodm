@@ -8,6 +8,8 @@ import { useState, useEffect, useCallback } from "react";
 import { SelectTypeStep } from "./steps/SelectTypeStep";
 import { SelectPostStep } from "./steps/SelectPostStep";
 import { ConfigureStep } from "./steps/ConfigureStep";
+import { AUTOMATION_TEMPLATES, getAutomationTemplate, type AutomationTemplateId } from "@/lib/automation/templates";
+import type { AiReplyLanguage } from "@/lib/types";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 import { useCreateAutomation, useUpdateAutomation } from "@/hooks/useAutomations";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
@@ -42,6 +44,8 @@ export type DMResponse = {
     cardTitle?: string;
     cardSubtitle?: string;
     cardButtons?: CardButton[];
+    /** Lead-form responses: which contact fields the ask collects. */
+    leadFields?: ("email" | "phone")[];
 };
 
 export type AutomationFlowData = {
@@ -68,6 +72,8 @@ export type AutomationFlowData = {
     followUpEnabled: boolean;
     followUpDelayMinutes: number;
     followUpMessage: string;
+    /** AI reply language (2026-11-17): 'en' or 'hinglish'. */
+    aiReplyLanguage: AiReplyLanguage;
 };
 
 const DB_TYPE_TO_FLOW: Record<string, string> = {
@@ -75,6 +81,7 @@ const DB_TYPE_TO_FLOW: Record<string, string> = {
     dm_reply: "dm-reply",
     story_reply: "story-reply",
     reel_dm: "reel-dm",
+    story_mention: "story-mention",
 };
 
 const DEFAULT_NAMES: Record<string, string> = {
@@ -82,6 +89,7 @@ const DEFAULT_NAMES: Record<string, string> = {
     "dm-reply": "DM keyword reply",
     "story-reply": "Story reply funnel",
     "reel-dm": "Shared Reel funnel",
+    "story-mention": "Story mention funnel",
 };
 
 const DEFAULT_OPENING_MESSAGE =
@@ -118,6 +126,7 @@ const defaultFlowData = (): AutomationFlowData => ({
     followUpEnabled: false,
     followUpDelayMinutes: 60,
     followUpMessage: "",
+    aiReplyLanguage: "en",
 });
 
 function automationToFlowData(automation: AutomationFromDB): AutomationFlowData {
@@ -155,6 +164,7 @@ function automationToFlowData(automation: AutomationFromDB): AutomationFlowData 
         followUpEnabled: automation.follow_up_enabled ?? defaults.followUpEnabled,
         followUpDelayMinutes: automation.follow_up_delay_minutes ?? defaults.followUpDelayMinutes,
         followUpMessage: automation.follow_up_message ?? defaults.followUpMessage,
+        aiReplyLanguage: automation.ai_reply_language ?? defaults.aiReplyLanguage,
     };
 }
 
@@ -226,6 +236,49 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
         }
     };
 
+    /**
+     * Template select (2026-11-17): a template only PREFILLS the builder —
+     * name, type, trigger keyword, opening message, reveal button and the
+     * link response. Nothing is auto-created: the owner reviews and edits
+     * everything, then saves like any other automation. Post-targeted
+     * templates still go through the post picker (step 1); the rest go
+     * straight to configure (step 2).
+     */
+    const handleTemplateSelect = (templateId: AutomationTemplateId) => {
+        const template = getAutomationTemplate(templateId);
+        if (!template) return;
+        const base = defaultFlowData();
+        const fd: AutomationFlowData = {
+            ...base,
+            name: template.automationName,
+            type: template.flowType,
+            keywords: template.keyword ? [template.keyword] : [],
+            keywordsAnyMode: !template.keyword,
+            dmOpeningMessage: template.openingMessage,
+            dmOpeningMessageVariations: [template.openingMessage],
+            dmOpeningMessageButtonTitle: template.revealButton,
+            dmResponses: [
+                {
+                    id: crypto.randomUUID(),
+                    type: "text",
+                    content: template.responseText,
+                    buttonTitle: "Open link",
+                    buttonLink: template.responseLink,
+                },
+            ],
+            aiReplyLanguage: template.aiReplyLanguage,
+        };
+        setFlowData(fd);
+        setSavedSnapshot(JSON.stringify(fd));
+        if (template.flowType === "comment-dm" || template.flowType === "reel-dm") {
+            setStep(1);
+        } else {
+            // DM / story templates have no post target (postId stays null,
+            // which buildPayload maps to null for non-post-targeted types).
+            setStep(2);
+        }
+    };
+
     const handleBack = () => setStep(s => {
         if (s === 2 && flowData.type !== "comment-dm" && flowData.type !== "reel-dm") return 0;
         return Math.max(s - 1, 0);
@@ -240,11 +293,12 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     };
 
     const buildPayload = (isActive: boolean | null) => {
-        const typeMap: Record<string, "comment_dm" | "dm_reply" | "story_reply" | "reel_dm"> = {
+        const typeMap: Record<string, "comment_dm" | "dm_reply" | "story_reply" | "reel_dm" | "story_mention"> = {
             "comment-dm": "comment_dm",
             "dm-reply": "dm_reply",
             "story-reply": "story_reply",
             "reel-dm": "reel_dm",
+            "story-mention": "story_mention",
         };
         const dbType = typeMap[flowData.type ?? ""] ?? "comment_dm";
         const isComment = dbType === "comment_dm";
@@ -284,6 +338,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
             askToFollowVisitProfileButton: flowData.askToFollowVisitProfileButton,
             askToFollowConfirmButton: flowData.askToFollowConfirmButton,
             dmResponses: flowData.dmResponses,
+            aiReplyLanguage: flowData.aiReplyLanguage,
         };
     };
 
@@ -295,7 +350,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
             const { name, commentReplyOptions, dmOpeningMessageEnabled, dmOpeningMessage, dmOpeningMessageVariations, dmOpeningMessageButtonTitle,
                 askToFollowEnabled, askToFollowMessage, askToFollowVisitProfileButton,
                 askToFollowConfirmButton, dmResponses, keywords, postThumbnailUrl, postCaption,
-                publicReplyEnabled, publicReplyOptions, followUpEnabled, followUpDelayMinutes, followUpMessage } = buildPayload(null);
+                publicReplyEnabled, publicReplyOptions, followUpEnabled, followUpDelayMinutes, followUpMessage, aiReplyLanguage } = buildPayload(null);
             updateMutation.mutate({
                 id: editAutomation.id,
                 is_active: activate ? true : editAutomation.is_active,
@@ -307,6 +362,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                 follow_up_enabled: followUpEnabled,
                 follow_up_delay_minutes: followUpDelayMinutes,
                 follow_up_message: followUpMessage,
+                ai_reply_language: aiReplyLanguage,
                 dm_opening_message_enabled: dmOpeningMessageEnabled,
                 dm_opening_message: dmOpeningMessage,
                 dm_opening_message_variations: dmOpeningMessageVariations,
@@ -458,6 +514,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                     {step === 0 && (
                                         <SelectTypeStep
                                             onSelect={handleTypeSelect}
+                                            onTemplateSelect={handleTemplateSelect}
                                             selectedType={flowData.type}
                                         />
                                     )}

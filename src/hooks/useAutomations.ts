@@ -21,10 +21,12 @@ import {
 export interface AutomationFromDB {
   id: string;
   name: string;
-  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm';
+  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention';
   is_active: boolean;
   /** True when the automation was auto-paused by an Instagram disconnect (preserve-on-disconnect, 2026-11-15) — it resumes automatically when the same account reconnects. */
   paused_by_disconnect?: boolean;
+  /** AI reply language (2026-11-17): 'en' or 'hinglish'. */
+  ai_reply_language?: 'en' | 'hinglish';
   post_id: string | null;
   post_thumbnail_url: string | null;
   post_caption: string | null;
@@ -46,6 +48,8 @@ export interface AutomationFromDB {
   ask_to_follow_confirm_button: string;
   dm_responses: DMResponse[];
   total_dms_sent: number;
+  /** Total tracked link clicks across this automation's links (2026-11-17); 0 when tracking is off or the migration is not applied yet. */
+  total_link_clicks?: number;
   created_at: string;
   updated_at: string;
   instagram_account_id: string;
@@ -66,13 +70,17 @@ export interface DMResponse {
   cardTitle?: string;
   cardSubtitle?: string;
   cardButtons?: { id: string; title: string; link: string }[];
+  /** Lead-form responses: which contact fields the ask collects. */
+  leadFields?: ('email' | 'phone')[];
 }
 
 export interface CreateAutomationPayload {
   instagramAccountId: string;
   name: string;
-  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm';
+  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention';
   isActive?: boolean;
+  /** AI reply language (2026-11-17): 'en' or 'hinglish'. */
+  aiReplyLanguage?: 'en' | 'hinglish';
   postId?: string | null;
   postThumbnailUrl?: string | null;
   postCaption?: string | null;
@@ -98,6 +106,8 @@ export interface CreateAutomationPayload {
 export interface UpdateAutomationPayload {
   is_active?: boolean;
   name?: string;
+  /** AI reply language (2026-11-17): 'en' or 'hinglish'. */
+  ai_reply_language?: 'en' | 'hinglish';
   keywords?: string[] | null;
   comment_reply_options?: string[];
   dm_opening_message_enabled?: boolean;
