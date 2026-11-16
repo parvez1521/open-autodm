@@ -64,15 +64,15 @@ describe('entitlements: limit dimensions', () => {
   const free = getPlan('free');
   const cases: { dimension: Parameters<typeof checkEntitlement>[1]; usage: Record<string, number>; limit: number }[] = [
     { dimension: 'instagramAccounts', usage: { instagramAccounts: free.limits.instagramAccounts }, limit: free.limits.instagramAccounts },
-    // dmsPerMonth and activeAutomations are NOT in this loop: since
-    // the owner's 2026-11-09 (DMs) and 2026-11-10 (automations)
-    // decisions both are null (unlimited) on every plan, so there is
-    // no at-limit state to pin here — each has its own describe below.
+    // dmsPerMonth, activeAutomations and contactsPerMonth are NOT
+    // in this loop: since the owner's 2026-11-09 (DMs), 2026-11-10
+    // (automations) and 2026-11-17 (contacts) decisions all three
+    // are null (unlimited) on every plan, so there is no at-limit
+    // state to pin here — each has its own describe below.
     { dimension: 'aiDrafting', usage: { aiDraftingThisMonth: free.limits.aiDraftingGenerationsPerMonth }, limit: free.limits.aiDraftingGenerationsPerMonth },
     { dimension: 'scriptWriter', usage: { scriptWriterThisMonth: free.limits.scriptWriterGenerationsPerMonth }, limit: free.limits.scriptWriterGenerationsPerMonth },
     { dimension: 'teamSeats', usage: { teamSeatsUsed: free.limits.teamSeats }, limit: free.limits.teamSeats },
     { dimension: 'followUpsPerMonth', usage: { followUpsThisMonth: free.limits.followUpsPerMonth }, limit: free.limits.followUpsPerMonth },
-    { dimension: 'contactsPerMonth', usage: { contactsThisMonth: free.limits.contactsPerMonth }, limit: free.limits.contactsPerMonth },
     { dimension: 'workspaces', usage: { workspacesOwned: free.limits.workspaces }, limit: free.limits.workspaces },
   ];
   for (const c of cases) {
@@ -152,22 +152,46 @@ describe('entitlements: DMs are unlimited (owner decision, 2026-11-09)', () => {
   });
 });
 
+describe('entitlements: contacts are unlimited (owner decision, 2026-11-17)', () => {
+  it('no contact volume blocks a workspace — Free default, ENFORCED mode', () => {
+    const r = checkEntitlement(null, 'contactsPerMonth', { contactsThisMonth: 999_999_999 }, { flags: ENFORCED });
+    expect(r.limit).toBeNull();
+    expect(r.allowed).toBe(true);
+    expect(r.effectiveAllowed).toBe(true);
+    expect(r.reason).toBe('within-limit');
+  });
+  it('no contact volume blocks a workspace — paid plan, ENFORCED mode', () => {
+    const r = checkEntitlement(active('starter'), 'contactsPerMonth', { contactsThisMonth: 999_999_999 }, { flags: ENFORCED });
+    expect(r.limit).toBeNull();
+    expect(r.allowed).toBe(true);
+    expect(r.effectiveAllowed).toBe(true);
+  });
+  it('evaluateAll reports the contacts check as unlimited + allowed at extreme usage', () => {
+    const { checks } = evaluateAllEntitlements(null, { contactsThisMonth: 999_999_999 }, { flags: ENFORCED });
+    const contacts = checks.find((c) => c.dimension === 'contactsPerMonth');
+    expect(contacts?.limit).toBeNull();
+    expect(contacts?.allowed).toBe(true);
+    expect(contacts?.effectiveAllowed).toBe(true);
+  });
+});
+
 describe('entitlements: log-only mode', () => {
   // These two pins exercise the block path, so they use a dimension
-  // that is still capped (contactsPerMonth: Free 250). They used
-  // dmsPerMonth until the owner's 2026-11-09 decision made DMs
-  // unlimited — a DM check can no longer compute "blocked".
+  // that is still capped (instagramAccounts: Free 1). They used
+  // contactsPerMonth until the owner's 2026-11-17 decision made
+  // contacts unlimited — a contacts check can no longer compute
+  // "blocked" (and DMs went the same way on 2026-11-09).
   it('ENTITLEMENTS_ENFORCED=false still COMPUTES the decision but passes through', () => {
-    const r = checkEntitlement(null, 'contactsPerMonth', { contactsThisMonth: 999999 }, { flags: LOG_ONLY });
+    const r = checkEntitlement(null, 'instagramAccounts', { instagramAccounts: 999999 }, { flags: LOG_ONLY });
     expect(r.allowed).toBe(false); // computed honestly
     expect(r.enforced).toBe(false);
     expect(r.effectiveAllowed).toBe(true); // pass-through
-    expect(r.limit).toBe(getPlan('free').limits.contactsPerMonth);
+    expect(r.limit).toBe(getPlan('free').limits.instagramAccounts);
   });
   it('flipping the flag changes effectiveAllowed without changing the computed decision', () => {
-    const usage = { contactsThisMonth: 999999 };
-    const off = checkEntitlement(null, 'contactsPerMonth', usage, { flags: LOG_ONLY });
-    const on = checkEntitlement(null, 'contactsPerMonth', usage, { flags: ENFORCED });
+    const usage = { instagramAccounts: 999999 };
+    const off = checkEntitlement(null, 'instagramAccounts', usage, { flags: LOG_ONLY });
+    const on = checkEntitlement(null, 'instagramAccounts', usage, { flags: ENFORCED });
     expect(off.allowed).toBe(on.allowed);
     expect(off.effectiveAllowed).toBe(true);
     expect(on.effectiveAllowed).toBe(false);
