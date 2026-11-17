@@ -69,6 +69,9 @@ const TYPE_COPY: Record<string, {
     },
     "reel-dm": {
         triggerTitle: "When someone shares this reel in a DM",
+        // Keyword fields below are unused since 2026-11-17 (the editor
+        // renders no keyword UI for reel_dm) — kept only because the
+        // TYPE_COPY shape requires them for every trigger type.
         keywordModeSpecific: "Specific keywords",
         keywordModeAny: "Any share",
         keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
@@ -556,7 +559,10 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
     const hasPostTarget = isComment || isReelDm;
     const copy = TYPE_COPY[flowType] ?? TYPE_COPY["comment-dm"]!;
 
-    const isAnyMode = data.keywordsAnyMode ?? data.keywords.length === 0;
+    // Shared Reel funnels are always "any share" (2026-11-17): the share
+    // itself is the trigger, so there is no keyword mode to pick — the
+    // editor offers no keyword UI for reel_dm at all.
+    const isAnyMode = isReelDm || (data.keywordsAnyMode ?? data.keywords.length === 0);
     const previewKeywords = isAnyMode ? ["😍", "🔥✨", "❤️🙌"] : data.keywords.slice(0, 3);
     // Mentions usually carry no text, so the preview shows the mention
     // label with no trigger bubble (the phone renders the label alone).
@@ -670,16 +676,25 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                     </>
                 )}
 
-                {/* Trigger */}
+                {/* Trigger — Shared Reel funnels have no keyword option
+                    (2026-11-17, owner): the share itself is the trigger,
+                    so there is no "Specific keywords" toggle or input.
+                    Every other trigger keeps its keyword UI below. */}
                 <section className="space-y-2.5">
                     <SectionHeader title={copy.triggerTitle} />
-                    <KeywordInput
-                        keywords={data.keywords}
-                        onChange={kws => onUpdate({ keywords: kws })}
-                        anyMode={isAnyMode}
-                        onAnyModeChange={isAny => onUpdate({ keywordsAnyMode: isAny })}
-                        copy={copy}
-                    />
+                    {isReelDm ? (
+                        <p className="text-[12px] text-muted-foreground">
+                            The share itself is the trigger — every time someone shares this reel in a DM, they get the link. No keyword needed.
+                        </p>
+                    ) : (
+                        <KeywordInput
+                            keywords={data.keywords}
+                            onChange={kws => onUpdate({ keywords: kws })}
+                            anyMode={isAnyMode}
+                            onAnyModeChange={isAny => onUpdate({ keywordsAnyMode: isAny })}
+                            copy={copy}
+                        />
+                    )}
                 </section>
 
                 {/* AI reply language (2026-11-17) — the language AI-drafted

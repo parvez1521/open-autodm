@@ -316,7 +316,11 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
             postCaption: hasPostTarget ? flowData.postCaption ?? null : null,
             // Hardened matcher: "any" mode must be EXPLICIT — stored as the
             // '*ANY*' token. A null/empty keyword list now never triggers.
-            keywords: flowData.keywordsAnyMode ? ["*ANY*"] : (flowData.keywords.length > 0 ? flowData.keywords : null),
+            // Shared Reel funnels are ALWAYS any-share (2026-11-17, owner):
+            // the editor offers no keyword option for reel_dm, so saves
+            // force the wildcard token even if the draft carried keywords
+            // (template, carried keyword, or an older saved funnel).
+            keywords: isReelDm ? ["*ANY*"] : (flowData.keywordsAnyMode ? ["*ANY*"] : (flowData.keywords.length > 0 ? flowData.keywords : null)),
             // Public comment replies only exist for comment automations.
             // The engine's public_reply_enabled gate is derived from whether
             // replies are configured, preserving this builder's promise.

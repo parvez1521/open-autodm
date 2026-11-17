@@ -15,8 +15,12 @@
  *      silently match nothing);
  *  (c) an unmapped Reel (no automation for that post_id) is silently
  *      ignored — one reply per user per automation, no generic reply;
- *  (d) specific keywords on a reel_dm automation act as an extra
- *      filter on the share's text/title.
+ *  (d) keywords stored on a reel_dm automation are IGNORED — the share
+ *      itself is the trigger (owner decision 2026-11-17: the editor no
+ *      longer offers a keyword option for Shared Reel funnels, so a
+ *      keyword-filtered reel_dm funnel could silently never fire on
+ *      text-less shares). dm_reply automations matched by post_id in
+ *      the same path still filter on their keywords as before.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -201,9 +205,30 @@ describe('unmapped shares are silently ignored', () => {
   });
 });
 
-describe('keyword filter on reel_dm automations', () => {
-  it('specific keywords veto a share whose text/title does not match', async () => {
+describe('stored keywords on reel_dm automations are ignored', () => {
+  it('a share whose text/title does not match the stored keywords still fires', async () => {
     fake.seed('automations', [reelAutomation({ keywords: ['GUIDE'] })]);
+    const enqueued = await processWebhookPayload(
+      sharedReelBody({ type: 'ig_reel', payload: { id: REEL_ID, url: REEL_URL, title: 'Just a dance reel' } }),
+    );
+    expect(enqueued).toBe(1);
+    expect(queuedJobs()).toHaveLength(1);
+    expect(queuedPayloads()[0]!.triggerType).toBe('reel_dm');
+  });
+
+  it('a share with no title at all fires on a keyword-stored reel_dm automation', async () => {
+    fake.seed('automations', [reelAutomation({ keywords: ['GUIDE', 'LINK'] })]);
+    const enqueued = await processWebhookPayload(
+      sharedReelBody({ type: 'ig_reel', payload: { id: REEL_ID, url: REEL_URL } }),
+    );
+    expect(enqueued).toBe(1);
+    expect(queuedJobs()).toHaveLength(1);
+  });
+});
+
+describe('dm_reply automations matched by post_id still filter on keywords', () => {
+  it('a non-matching share does not fire a keyword dm_reply automation', async () => {
+    fake.seed('automations', [reelAutomation({ id: 'auto-dm', type: 'dm_reply', keywords: ['GUIDE'] })]);
     const enqueued = await processWebhookPayload(
       sharedReelBody({ type: 'ig_reel', payload: { id: REEL_ID, url: REEL_URL, title: 'Just a dance reel' } }),
     );
@@ -211,8 +236,8 @@ describe('keyword filter on reel_dm automations', () => {
     expect(queuedJobs()).toHaveLength(0);
   });
 
-  it('a share whose title matches the keyword fires', async () => {
-    fake.seed('automations', [reelAutomation({ keywords: ['GUIDE'] })]);
+  it('a matching share fires a keyword dm_reply automation', async () => {
+    fake.seed('automations', [reelAutomation({ id: 'auto-dm', type: 'dm_reply', keywords: ['GUIDE'] })]);
     const enqueued = await processWebhookPayload(
       sharedReelBody({ type: 'ig_reel', payload: { id: REEL_ID, url: REEL_URL, title: 'My GUIDE to reels' } }),
     );

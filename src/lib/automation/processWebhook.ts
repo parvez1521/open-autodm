@@ -732,10 +732,14 @@ async function processDmEvent(
           continue;
         }
 
-        // Keyword filter:
-        // A reel_dm automation triggers on any shared Reel by default unless specific non-wildcard keywords are configured.
+        // Keyword filter — reel_dm automations NEVER filter on keywords:
+        // the share itself is the trigger (owner decision 2026-11-17 —
+        // the editor no longer offers a keyword option for Shared Reel
+        // funnels). Keywords stored on a reel_dm row before that change
+        // are ignored, so old funnels keep firing. dm_reply automations
+        // matched here by post_id still filter on their keywords.
         const isWildcard = isExplicitWildcardAutomation(auto);
-        const hasSpecificKeywords = Boolean(auto.keywords && auto.keywords.length > 0 && !isWildcard);
+        const hasSpecificKeywords = auto.type !== 'reel_dm' && Boolean(auto.keywords && auto.keywords.length > 0 && !isWildcard);
 
         if (hasSpecificKeywords) {
           if (!keywordMatches(matchText, auto.keywords as string[] | null)) {

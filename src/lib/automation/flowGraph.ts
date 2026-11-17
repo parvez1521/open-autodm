@@ -215,8 +215,12 @@ export function automationToFlowGraph(automation: any): FlowGraph {
   };
   const rawType = automation.type || 'comment_dm';
   const type = typeMap[rawType] ?? rawType;
+  // reel_dm is always any-share (2026-11-17): the trigger node carries
+  // no keywords, so stored keywords from before that change never leak
+  // back into the flow-graph view of a Shared Reel funnel.
   const isAnyMode =
-    automation.keywordsAnyMode ??
+    type === 'reel_dm' ||
+    (automation.keywordsAnyMode ??
     (automation.trigger_config?.trigger_mode === 'any' ||
       automation.trigger_config?.keywords_any_mode === true ||
       (Array.isArray(automation.keywords) &&
@@ -224,7 +228,7 @@ export function automationToFlowGraph(automation: any): FlowGraph {
           (k: string) =>
             typeof k === 'string' &&
             (k.trim().toUpperCase() === '*ANY*' || k.trim().toUpperCase() === '__ANY__')
-        )));
+        ))));
 
   // 1. Trigger Node
   const triggerNodeId = 'node_trigger';
@@ -399,7 +403,9 @@ export function flowGraphToAutomation(graph: FlowGraph): Partial<AutomationRow> 
   const followUpNode = graph.nodes.find((n) => n.type === 'follow_up');
 
   const triggerType = triggerNode?.data.triggerType || 'comment_dm';
-  const isAnyMode = triggerNode?.data.keywordsAnyMode ?? false;
+  // reel_dm is always any-share (2026-11-17) — a graph edit of a Shared
+  // Reel funnel never writes keywords back, whatever the node carries.
+  const isAnyMode = triggerType === 'reel_dm' || (triggerNode?.data.keywordsAnyMode ?? false);
 
   const buttons: CardButton[] = dmNode?.data.buttons || [];
   const dmResponses: DMResponse[] = buttons.length > 0 || dmNode?.data.messageText
