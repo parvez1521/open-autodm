@@ -98,3 +98,91 @@ export function updateContactProfile(params: {
     }
   })();
 }
+
+// ── Facebook Page twins (2026-11-19) ────────────────────────────────────────
+// Same contract as the Instagram helpers above, keyed on facebook_pages.
+// follows_business has no Facebook equivalent (the Messenger profile API
+// returns no "follows the Page" signal), so updateFacebookContactProfile
+// only ever enriches the username.
+
+/** Records (or increments) a Facebook contact interaction. Fire-and-forget. */
+export function recordFacebookContactInteraction(params: {
+  facebookPageId: string;
+  audienceIgUserId: string;
+  username?: string | null;
+  triggerType: ContactTriggerType;
+  automationId?: string | null;
+}): void {
+  void (async (): Promise<void> => {
+    try {
+      const db = createServiceClient();
+      const { error } = await db.rpc('record_fb_contact_interaction', {
+        p_page_id: params.facebookPageId,
+        p_audience_id: params.audienceIgUserId,
+        p_username: params.username ?? null,
+        p_trigger_type: params.triggerType,
+        p_automation_id: params.automationId ?? null,
+      });
+      if (error) {
+        logger.warn({ err: error }, 'record_fb_contact_interaction failed');
+        return;
+      }
+      await stampFacebookContactWorkspace(
+        db as unknown as SupabaseClient,
+        params.facebookPageId,
+        params.audienceIgUserId
+      );
+    } catch (err) {
+      logger.warn({ err }, 'record_fb_contact_interaction threw');
+    }
+  })();
+}
+
+/** Best-effort workspace stamp for the contact row of (Page, audience). */
+async function stampFacebookContactWorkspace(
+  db: SupabaseClient,
+  facebookPageId: string,
+  audienceIgUserId: string
+): Promise<void> {
+  try {
+    const { data: page } = await db
+      .from('facebook_pages')
+      .select('workspace_id')
+      .eq('id', facebookPageId)
+      .maybeSingle();
+    const workspaceId = (page as { workspace_id?: string | null } | null)?.workspace_id;
+    if (!workspaceId) return; // unbound parent — legacy NULL, by design
+    const { error } = await db
+      .from('contacts')
+      .update({ workspace_id: workspaceId })
+      .eq('facebook_page_id', facebookPageId)
+      .eq('audience_ig_user_id', audienceIgUserId);
+    if (error) logger.warn({ err: error }, 'facebook contact workspace stamp failed');
+  } catch (err) {
+    logger.warn({ err }, 'facebook contact workspace stamp threw');
+  }
+}
+
+/** Enriches a Facebook contact's username. Fire-and-forget. */
+export function updateFacebookContactProfile(params: {
+  facebookPageId: string;
+  audienceIgUserId: string;
+  username?: string | null;
+}): void {
+  void (async (): Promise<void> => {
+    try {
+      const db = createServiceClient();
+      const { error } = await db.rpc('update_fb_contact_profile', {
+        p_page_id: params.facebookPageId,
+        p_audience_id: params.audienceIgUserId,
+        p_username: params.username ?? null,
+      });
+      if (error) {
+        logger.warn({ err: error }, 'update_fb_contact_profile failed');
+        return;
+      }
+    } catch (err) {
+      logger.warn({ err }, 'update_fb_contact_profile threw');
+    }
+  })();
+}

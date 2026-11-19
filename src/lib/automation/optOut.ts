@@ -228,3 +228,102 @@ export async function isRecipientSuppressed(
     return true;
   }
 }
+
+// ── Facebook Page twins (2026-11-19) ────────────────────────────────────────
+// The Instagram RPCs above are keyed on instagram_accounts, so Facebook
+// uses direct table queries against the facebook_page_id column added by
+// migration 20261119000001 (the same direct-query fallback path the IG
+// check already uses when its RPC is unavailable). Semantics are
+// identical: fail closed — an unverifiable recipient is suppressed.
+
+/** Resolves a Page row's workspace server-side (never from a caller claim). */
+async function resolveWorkspaceForPage(db: SupabaseClient, facebookPageId: string): Promise<string | null> {
+  try {
+    const { data } = await db
+      .from('facebook_pages')
+      .select('workspace_id')
+      .eq('id', facebookPageId)
+      .maybeSingle();
+    const ws = (data as { workspace_id?: string | null } | null)?.workspace_id;
+    return typeof ws === 'string' && ws.length > 0 ? ws : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface RecordFacebookOptOutParams {
+  facebookPageId: string;
+  recipientId: string;
+  triggerEventId?: string | null;
+  text?: string | null;
+  reason?: string;
+}
+
+/** Persists an opt-out record for a recipient under a Facebook Page. */
+export async function recordFacebookOptOut(
+  db: SupabaseClient,
+  params: RecordFacebookOptOutParams
+): Promise<boolean> {
+  const { facebookPageId, recipientId, triggerEventId, text, reason = 'keyword' } = params;
+  const workspaceId = await resolveWorkspaceForPage(db, facebookPageId);
+  try {
+    const { error } = await db.from('recipient_opt_outs').upsert(
+      {
+        facebook_page_id: facebookPageId,
+        recipient_id: recipientId,
+        trigger_event_id: triggerEventId || null,
+        opt_out_text: text || null,
+        reason,
+        ...(workspaceId ? { workspace_id: workspaceId } : {}),
+      },
+      { onConflict: 'facebook_page_id,recipient_id' }
+    );
+    if (error) {
+      logger.error({ err: error, facebookPageId, recipientId, triggerEventId, reason }, 'Failed to record Facebook recipient opt-out');
+      return false;
+    }
+    debugLog('webhook', 'warn', 'fb_recipient_opt_out_recorded', 'ok',
+      `Recipient ${recipientId} opted out from Facebook Page ${facebookPageId}`, {
+        facebookPageId,
+        recipientId,
+        triggerEventId,
+        reason,
+        ...(workspaceId ? { workspaceId } : {}),
+      });
+    return true;
+  } catch (err) {
+    logger.error({ err, facebookPageId, recipientId, triggerEventId, reason }, 'Error executing recordFacebookOptOut');
+    return false;
+  }
+}
+
+/**
+ * Facebook suppression check (opt-out table, per Page). FAIL CLOSED:
+ * empty ids or any lookup error treat the recipient as suppressed.
+ */
+export async function isFacebookSuppressed(
+  db: SupabaseClient,
+  facebookPageId: string,
+  recipientId: string
+): Promise<boolean> {
+  if (!facebookPageId || !recipientId) return true;
+  try {
+    const { data: row, error } = await db
+      .from('recipient_opt_outs')
+      .select('id')
+      .eq('facebook_page_id', facebookPageId)
+      .eq('recipient_id', recipientId)
+      .maybeSingle();
+    if (error) {
+      logger.error(
+        { err: error, facebookPageId, recipientId },
+        'Facebook suppression query failed - failing closed (treating recipient as suppressed)'
+      );
+      return true;
+    }
+    return !!row;
+  } catch (err) {
+    logger.error({ err, facebookPageId, recipientId }, 'Facebook suppression check error - failing closed');
+    return true;
+  }
+}

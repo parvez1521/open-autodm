@@ -4,7 +4,10 @@
 
 // ── Automations ─────────────────────────────────────────────────────────────
 
-export type AutomationType = 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention';
+export type AutomationType = 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention' | 'fb_comment_dm' | 'fb_dm_reply';
+
+/** Which Meta surface an automation runs on. 'instagram' is the legacy default. */
+export type AutomationChannel = 'instagram' | 'facebook';
 export type DMResponseType = 'text' | 'card' | 'ask_follow' | 'lead_form';
 
 /** Language for AI-generated drafts/replies on an automation. 'hinglish' is Hindi written in Roman script. */
@@ -102,7 +105,10 @@ export interface FlowGraph {
 export interface AutomationRow {
   id: string;
   user_id: string;
-  instagram_account_id: string;
+  /** Exactly one of instagram_account_id / facebook_page_id is set (XOR, migration …000001 2026-11-19). */
+  instagram_account_id: string | null;
+  facebook_page_id?: string | null;
+  channel?: AutomationChannel;
   name: string;
   type: AutomationType;
   is_active: boolean;
@@ -175,6 +181,29 @@ export interface TrafficGuardSettings {
   window_seconds: number;
 }
 
+/** A connected Facebook Page (migration …000001 2026-11-19). Mirrors
+ *  InstagramAccountRow: the Page access token is AES-256-GCM encrypted
+ *  and never logged. Page tokens obtained via a long-lived user token do
+ *  not expire, so token_expires_at is usually null. */
+export interface FacebookPageRow {
+  id: string;
+  user_id: string;
+  connected_by_user_id: string | null;
+  workspace_id: string | null;
+  facebook_page_id: string;
+  name: string;
+  username: string | null;
+  profile_picture_url: string | null;
+  access_token_encrypted: string;
+  token_expires_at: string | null;
+  is_active: boolean;
+  disconnected_at?: string | null;
+  paused_until: string | null;
+  pause_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TrafficIncidentRow {
   id: string;
   instagram_account_id: string;
@@ -236,7 +265,16 @@ export interface TrafficGuardStatusResponse {
 
 export interface AutoDmJobPayload {
   automationId: string;
-  instagramAccountId: string; // internal DB UUID
+  /**
+   * The account ROW id for the job's channel: the instagram_accounts row
+   * id for Instagram jobs, the facebook_pages row id for Facebook jobs.
+   * (The field name is legacy Instagram wording; the channel decides
+   * which table it points at. It is NEVER a Meta IGSID / Page ID —
+   * that is igAccountIgsid below.)
+   */
+  instagramAccountId: string;
+  /** 'facebook' for Facebook Page jobs; omitted (Instagram) for all existing jobs. */
+  channel?: AutomationChannel;
   /**
    * Phase D1 / Programme 16 — workspace context carried by the job.
    * Optional and additive: legacy payloads (and jobs for accounts with
@@ -245,7 +283,7 @@ export interface AutoDmJobPayload {
    * the account's actual binding server-side and fails closed on mismatch.
    */
   workspaceId?: string;
-  igAccountIgsid: string; // Meta IGSID of the creator's account
+  igAccountIgsid: string; // Meta id of the sender account: IGSID for Instagram, Page ID for channel='facebook'
   triggerType: 'comment' | 'dm' | 'story_reply' | 'dm_reply_followup' | 'reel_dm' | 'story_mention';
   triggerUserId: string; // IGSID of the commenter / DM sender
   triggerUsername?: string | null; // for {username} personalization (comments carry it; DMs don't)
@@ -254,6 +292,11 @@ export interface AutoDmJobPayload {
   postId: string | null;
   commentText: string | null;
   messageText: string | null;
+  /** Facebook comment jobs (2026-11-19): the "{storyId}_{commentId}"
+   *  composite comment id from the Page feed webhook. The engine
+   *  uses it for the one-private-reply-per-comment claim; Instagram
+   *  jobs carry the same id in triggerEventId instead. */
+  commentId?: string;
   // 2-step flow (opening DM → quick-reply tap → follow-up)
   isFollowUp?: boolean;
   sessionId?: string;
@@ -312,15 +355,33 @@ export interface MetaWebhookBody {
 }
 
 export interface MetaWebhookEntry {
-  id: string; // IGSID of the business account
+  id: string; // IGSID of the business account, or Page ID when object is 'page'
   time: number; // unix seconds
   changes?: MetaWebhookChange[];
   messaging?: MetaWebhookMessaging[];
 }
 
 export interface MetaWebhookChange {
-  field: 'comments' | 'mentions' | 'story_insights' | string;
-  value: MetaCommentChangeValue;
+  field: 'comments' | 'mentions' | 'story_insights' | 'feed' | string;
+  value: MetaCommentChangeValue | MetaFeedChangeValue;
+}
+
+/** Facebook Page `feed` webhook value (Graph API v23.0). IDs are
+ *  composite: post_id is "{pageId}_{storyId}", comment_id is
+ *  "{storyId}_{commentId}". parent_id is ALWAYS present: for a top-level
+ *  comment it points at the post; only a reply to another comment
+ *  carries that comment's id — so top-level filtering must compare
+ *  parent_id against post_id, never assume its absence. */
+export interface MetaFeedChangeValue {
+  item: 'comment' | 'post' | 'status' | 'photo' | 'video' | 'share' | string;
+  verb: 'add' | 'edited' | 'remove' | 'hide' | 'unhide' | string;
+  comment_id?: string;
+  post_id?: string;
+  parent_id?: string;
+  message?: string;
+  from?: { id: string; name?: string };
+  created_time?: number;
+  link?: string;
 }
 
 export interface MetaCommentChangeValue {
@@ -330,6 +391,19 @@ export interface MetaCommentChangeValue {
   text: string;
   timestamp?: number; // unix seconds - Meta may omit on IG comment webhooks
   parent_id?: string;
+}
+
+/**
+ * Narrow a webhook change value to the Instagram comment shape.
+ * The change value is a union (MetaCommentChangeValue |
+ * MetaFeedChangeValue) and `change.field === 'comments'` does not
+ * narrow it — Page feed values carry `comment_id`/`message` instead
+ * of `id`/`text`, so callers that read `.id`/`.text` must guard first.
+ */
+export function isMetaCommentChangeValue(
+  value: MetaCommentChangeValue | MetaFeedChangeValue | null | undefined,
+): value is MetaCommentChangeValue {
+  return !!value && typeof (value as MetaCommentChangeValue).text === 'string' && 'id' in value;
 }
 
 export interface MetaWebhookMessaging {
@@ -372,4 +446,26 @@ export interface IgUserProfile {
   username: string;
   name?: string;
   profile_picture_url?: string;
+}
+
+// ── Facebook Login OAuth responses (Graph API v23.0) ────────────────────────
+export interface FbShortLivedTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number; // seconds (~1-2h)
+}
+
+export interface FbLongLivedTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number; // seconds (~60 days)
+}
+
+export interface FbPageAccount {
+  id: string; // Meta Page ID
+  name: string;
+  access_token: string; // Page access token (non-expiring when the user token is long-lived)
+  category?: string;
+  username?: string;
+  picture?: { data?: { url?: string } };
 }

@@ -48,5 +48,27 @@ export const AUTOMATION_TYPES = [
         bg: "from-amber-500/20 to-yellow-500/10",
         border: "group-hover:border-amber-500/50",
         iconColor: "text-amber-500"
+    },
+    {
+        id: "fb-comment-dm",
+        name: "Comment to Messenger",
+        description: "Auto-reply in Messenger when someone comments on your Facebook Page post.",
+        iconType: "facebook",
+        available: true,
+        bg: "from-[#1877F2]/20 to-[#1877F2]/10",
+        border: "group-hover:border-[#1877F2]/50",
+        iconColor: "text-[#1877F2]",
+        channel: "facebook",
+    },
+    {
+        id: "fb-dm-reply",
+        name: "DM keyword",
+        description: "Instantly reply to specific keywords in Messenger DMs to your Page.",
+        iconType: "facebook",
+        available: true,
+        bg: "from-[#1877F2]/20 to-[#1877F2]/10",
+        border: "group-hover:border-[#1877F2]/50",
+        iconColor: "text-[#1877F2]",
+        channel: "facebook",
     }
 ];

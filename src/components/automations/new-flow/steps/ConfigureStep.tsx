@@ -84,6 +84,20 @@ const TYPE_COPY: Record<string, {
         keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
         anyModeHint: "Triggers on every mention — no keyword needed. Keywords only add an extra filter on the mention's text, and most mentions carry no text at all.",
     },
+    "fb-comment-dm": {
+        triggerTitle: "When someone comments on your Page post",
+        keywordModeSpecific: "Specific keywords",
+        keywordModeAny: "Any comment",
+        keywordPlaceholder: "Type a keyword and press Enter…",
+        anyModeHint: null,
+    },
+    "fb-dm-reply": {
+        triggerTitle: "When someone messages your Page",
+        keywordModeSpecific: "Specific keywords",
+        keywordModeAny: "Any message",
+        keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
+        anyModeHint: "Any message replies to EVERY message your Page receives - including real conversations. Use specific keywords unless you're sure.",
+    },
 };
 
 /* ─── Toggle ─── */
@@ -551,11 +565,15 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
     };
 
     const flowType = data.type ?? "comment-dm";
-    const isComment = flowType === "comment-dm";
+    const isComment = flowType === "comment-dm" || flowType === "fb-comment-dm";
     const isStory = flowType === "story-reply";
     const isStoryMention = flowType === "story-mention";
     const isReelDm = flowType === "reel-dm";
-    // Post-targeted flows (comment-dm, reel-dm) show the selected post.
+    /** Facebook triggers (2026-11-19) — no require-follow (no Page-follow
+     *  signal), no lead form and no scheduled follow-ups in v1; the API
+     *  rejects those fields with 400. */
+    const isFacebook = flowType === "fb-comment-dm" || flowType === "fb-dm-reply";
+    // Post-targeted flows (comment-dm, reel-dm, fb-comment-dm) show the selected post.
     const hasPostTarget = isComment || isReelDm;
     const copy = TYPE_COPY[flowType] ?? TYPE_COPY["comment-dm"]!;
 
@@ -931,7 +949,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                                             placeholder="Send me the link"
                                                             className={inputCls}
                                                         />
-                                                        <p className="text-[10px] text-muted-foreground">Max 20 characters (Instagram limit). Leave empty to send responses immediately.</p>
+                                                        <p className="text-[10px] text-muted-foreground">Max 20 characters{isFacebook ? "" : " (Instagram limit)"}. Leave empty to send responses immediately.</p>
                                                     </div>
                                                 </div>
                                             </motion.div>
@@ -939,7 +957,9 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                     </AnimatePresence>
                                 </div>
 
-                                {/* Require follow */}
+                                {/* Require follow — Facebook has no "follows the Page"
+                                    signal, so this section is hidden for FB triggers. */}
+                                {!isFacebook && (
                                 <div className="border border-border rounded-lg overflow-hidden">
                                     <div className="flex items-center justify-between px-3 py-2.5 bg-muted/50 border-b border-border">
                                         <div>
@@ -1003,6 +1023,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                         )}
                                     </AnimatePresence>
                                 </div>
+                                )}
 
                                 {/* Responses */}
                                 <div className="space-y-2.5">
@@ -1045,6 +1066,9 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                         >
                                             <SquaresFour className="w-3.5 h-3.5" /> Card message
                                         </button>
+                                        {/* Lead forms are not supported for
+                                            Facebook in v1 (API rejects them). */}
+                                        {!isFacebook && (
                                         <button
                                             onClick={() => canAddMoreResponses && addResponse("lead_form")}
                                             disabled={!canAddMoreResponses}
@@ -1052,6 +1076,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                         >
                                             <Chat className="w-3.5 h-3.5" /> Lead form
                                         </button>
+                                        )}
                                     </div>
 
                                     <AiDraftControl
@@ -1080,7 +1105,9 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                     </AnimatePresence>
                 </section>
 
-                {/* Follow-up message (scheduled check-in) */}
+                {/* Follow-up message (scheduled check-in) — not supported
+                    for Facebook in v1 (API rejects it). */}
+                {!isFacebook && (
                 <section className="space-y-3">
                     <SectionHeader
                         title="Follow-up message"
@@ -1141,6 +1168,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                         )}
                     </AnimatePresence>
                 </section>
+                )}
             </div>
 
             {/* ── Right - phones ── */}

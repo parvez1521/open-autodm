@@ -11,6 +11,7 @@ import { ConfigureStep } from "./steps/ConfigureStep";
 import { AUTOMATION_TEMPLATES, getAutomationTemplate, type AutomationTemplateId } from "@/lib/automation/templates";
 import type { AiReplyLanguage } from "@/lib/types";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
+import { useFacebookPages } from "@/hooks/useFacebookPages";
 import { useCreateAutomation, useUpdateAutomation } from "@/hooks/useAutomations";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 
@@ -20,6 +21,9 @@ interface NewAutomationModalProps {
     editAutomation?: AutomationFromDB | null;
     /** The account this automation belongs to (the sidebar's active account). */
     accountId?: string | null;
+    /** Facebook Page automations (2026-11-19): the facebook_pages row id
+     *  of the Page selected in the switcher. Null = no Page connected. */
+    facebookPageId?: string | null;
     /**
      * Keyword carried in from the Script Writer handoff (audit fix,
      * 2026-11-08): when creating (never when editing), the new flow
@@ -82,6 +86,8 @@ const DB_TYPE_TO_FLOW: Record<string, string> = {
     story_reply: "story-reply",
     reel_dm: "reel-dm",
     story_mention: "story-mention",
+    fb_comment_dm: "fb-comment-dm",
+    fb_dm_reply: "fb-dm-reply",
 };
 
 const DEFAULT_NAMES: Record<string, string> = {
@@ -90,6 +96,8 @@ const DEFAULT_NAMES: Record<string, string> = {
     "story-reply": "Story reply funnel",
     "reel-dm": "Shared Reel funnel",
     "story-mention": "Story mention funnel",
+    "fb-comment-dm": "Facebook comment funnel",
+    "fb-dm-reply": "Facebook DM reply",
 };
 
 const DEFAULT_OPENING_MESSAGE =
@@ -168,7 +176,7 @@ function automationToFlowData(automation: AutomationFromDB): AutomationFlowData 
     };
 }
 
-export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId, initialKeyword }: NewAutomationModalProps) {
+export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId, facebookPageId, initialKeyword }: NewAutomationModalProps) {
     const isEditMode = !!editAutomation;
 
     const [step, setStep] = useState(0);
@@ -186,6 +194,16 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     const { data: igAccounts, isLoading: accountsLoading } = useInstagramAccounts();
     const activeAccount = igAccounts?.find((a) => a.id === accountId) ?? igAccounts?.[0] ?? null;
     const firstAccountId = activeAccount?.id ?? null;
+    // Facebook Page selection (2026-11-19) — mirrors the IG selection
+    // above and is a SEPARATE selection: picking a Page never clears
+    // the Instagram account, and vice versa.
+    const { data: fbPages, isLoading: fbPagesLoading } = useFacebookPages();
+    const activeFacebookPage = fbPages?.find((p) => p.id === facebookPageId) ?? fbPages?.[0] ?? null;
+    const firstFacebookPageId = activeFacebookPage?.id ?? null;
+    // The flow currently being built is a Facebook one when its type is
+    // an fb_* type (create and edit alike — edit mode derives the type
+    // from the stored row via automationToFlowData).
+    const isFacebookFlow = flowData.type === "fb-comment-dm" || flowData.type === "fb-dm-reply";
     // Silent-save fix (2026-11-09): in create mode with NO connected
     // Instagram account, saving used to do nothing a user could see —
     // the only feedback was a truncated 12px note in the header, and
@@ -193,7 +211,8 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     // is NOT NULL in the schema, so an account-less draft is not
     // storable). The blocker is now a persistent banner at the save
     // step with both actions disabled — saving never fails silently.
-    const noAccountBlocker = !isEditMode && !accountsLoading && igAccounts !== undefined && !firstAccountId;
+    // Facebook flows check the Page instead (2026-11-19).
+    const noAccountBlocker = !isEditMode && !accountsLoading && !fbPagesLoading && igAccounts !== undefined && fbPages !== undefined && (isFacebookFlow ? !firstFacebookPageId : !firstAccountId);
     const createMutation = useCreateAutomation();
     const updateMutation = useUpdateAutomation();
 
@@ -225,7 +244,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
 
     const handleTypeSelect = (type: string) => {
         const name = flowData.name === "New automation" ? (DEFAULT_NAMES[type] ?? flowData.name) : flowData.name;
-        if (type === "comment-dm" || type === "reel-dm") {
+        if (type === "comment-dm" || type === "reel-dm" || type === "fb-comment-dm") {
             // Post-targeted triggers - pick the reel/post first.
             updateData({ type, name });
             setStep(1);
@@ -280,7 +299,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     };
 
     const handleBack = () => setStep(s => {
-        if (s === 2 && flowData.type !== "comment-dm" && flowData.type !== "reel-dm") return 0;
+        if (s === 2 && flowData.type !== "comment-dm" && flowData.type !== "reel-dm" && flowData.type !== "fb-comment-dm") return 0;
         return Math.max(s - 1, 0);
     });
 
@@ -293,16 +312,23 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     };
 
     const buildPayload = (isActive: boolean | null) => {
-        const typeMap: Record<string, "comment_dm" | "dm_reply" | "story_reply" | "reel_dm" | "story_mention"> = {
+        const typeMap: Record<string, "comment_dm" | "dm_reply" | "story_reply" | "reel_dm" | "story_mention" | "fb_comment_dm" | "fb_dm_reply"> = {
             "comment-dm": "comment_dm",
             "dm-reply": "dm_reply",
             "story-reply": "story_reply",
             "reel-dm": "reel_dm",
             "story-mention": "story_mention",
+            "fb-comment-dm": "fb_comment_dm",
+            "fb-dm-reply": "fb_dm_reply",
         };
         const dbType = typeMap[flowData.type ?? ""] ?? "comment_dm";
-        const isComment = dbType === "comment_dm";
+        const isComment = dbType === "comment_dm" || dbType === "fb_comment_dm";
         const isReelDm = dbType === "reel_dm";
+        // Facebook v1 (2026-11-19): no require-follow (no Page-follow
+        // signal), no lead form, no scheduled follow-ups — the API
+        // rejects those fields with 400, so they are forced off here
+        // even if a draft carried them (e.g. an older saved funnel).
+        const isFacebook = dbType === "fb_comment_dm" || dbType === "fb_dm_reply";
         // Post-targeted triggers keep the picked post; every other type
         // has no post target. Nulling postId for reel_dm would silently
         // turn a per-reel funnel into an any-reel one.
@@ -327,7 +353,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
             commentReplyOptions: isComment ? flowData.customReplies : [],
             publicReplyEnabled: isComment && flowData.customReplies.length > 0,
             publicReplyOptions: isComment ? flowData.customReplies : [],
-            followUpEnabled: flowData.followUpEnabled,
+            followUpEnabled: isFacebook ? false : flowData.followUpEnabled,
             followUpDelayMinutes: flowData.followUpDelayMinutes,
             followUpMessage: flowData.followUpMessage,
             dmOpeningMessageEnabled: flowData.isAutoDmEnabled && flowData.dmOpeningMessageEnabled,
@@ -337,7 +363,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
             dmOpeningMessageVariations: flowData.dmOpeningMessageVariations,
             dmOpeningMessageButtonTitle: flowData.dmOpeningMessageButtonTitle || null,
             dmOpeningMessageButtonLink: null,
-            askToFollowEnabled: flowData.askToFollowEnabled,
+            askToFollowEnabled: isFacebook ? false : flowData.askToFollowEnabled,
             askToFollowMessage: flowData.askToFollowMessage,
             askToFollowVisitProfileButton: flowData.askToFollowVisitProfileButton,
             askToFollowConfirmButton: flowData.askToFollowConfirmButton,
@@ -388,6 +414,29 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                 onError: (err) => { setPendingAction(null); setActivateError(err.message); },
             });
         } else {
+            // Facebook flows attach to the selected Page instead of an
+            // Instagram account (2026-11-19); the API requires exactly
+            // one of the two ids.
+            const isFb = flowData.type === "fb-comment-dm" || flowData.type === "fb-dm-reply";
+            if (isFb) {
+                if (!firstFacebookPageId) {
+                    setPendingAction(null);
+                    setActivateError("Connect a Facebook Page first in Settings.");
+                    return;
+                }
+                createMutation.mutate(
+                    { instagramAccountId: null, facebookPageId: firstFacebookPageId, ...buildPayload(activate) },
+                    {
+                        onSuccess: () => {
+                            setPendingAction(null);
+                            setSavedSnapshot(JSON.stringify(flowData));
+                            onClose();
+                        },
+                        onError: (err) => { setPendingAction(null); setActivateError(err.message); },
+                    }
+                );
+                return;
+            }
             if (!firstAccountId) {
                 setPendingAction(null);
                 setActivateError("Connect an Instagram account first in Settings.");
@@ -466,7 +515,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             {isSaving ? "Saving…" : "Save"}
                                         </button>
                                         <button
-                                            disabled={isPending || noAccountBlocker || (!isEditMode && !firstAccountId)}
+                                            disabled={isPending || noAccountBlocker || (!isEditMode && (isFacebookFlow ? !firstFacebookPageId : !firstAccountId))}
                                             onClick={() => handleSave(true)}
                                             className="inline-flex items-center gap-1.5 h-8 px-3 text-[13px] font-semibold bg-foreground text-background hover:opacity-90 disabled:opacity-50 rounded-lg transition-opacity"
                                         >
@@ -491,9 +540,15 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                             <div role="alert" className="shrink-0 border-b border-border bg-amber-500/10 px-4 py-2.5 flex items-center gap-2">
                                 <Warning className="w-4 h-4 text-amber-600 shrink-0" />
                                 <p className="text-[12.5px] font-medium text-foreground">
-                                    No Instagram account is connected to this workspace, so this automation cannot be saved yet.{" "}
-                                    <a href="/settings" className="underline underline-offset-2">Connect an account in Settings</a>{" "}
-                                    first — your configuration here stays open while you do.
+                                    {isFacebookFlow ? (
+                                        <>No Facebook Page is connected to this workspace, so this automation cannot be saved yet.{" "}
+                                        <a href="/settings" className="underline underline-offset-2">Connect a Page in Settings</a>{" "}
+                                        first — your configuration here stays open while you do.</>
+                                    ) : (
+                                        <>No Instagram account is connected to this workspace, so this automation cannot be saved yet.{" "}
+                                        <a href="/settings" className="underline underline-offset-2">Connect an account in Settings</a>{" "}
+                                        first — your configuration here stays open while you do.</>
+                                    )}
                                 </p>
                             </div>
                         )}
@@ -520,6 +575,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             onSelect={handleTypeSelect}
                                             onTemplateSelect={handleTemplateSelect}
                                             selectedType={flowData.type}
+                                            showFacebookTriggers={!!firstFacebookPageId}
                                         />
                                     )}
                                     {step === 1 && (
@@ -531,6 +587,8 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             selectedPost={flowData.postId}
                                             flowName={flowData.name}
                                             instagramAccountId={firstAccountId}
+                                            channel={isFacebookFlow ? "facebook" : "instagram"}
+                                            facebookPageId={firstFacebookPageId}
                                             // One automation per reel (owner decision,
                                             // 2026-11-15): a reel_dm funnel always
                                             // targets a specific reel, so there is no
@@ -544,7 +602,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                         <ConfigureStep
                                             data={flowData}
                                             onUpdate={updateData}
-                                            creatorProfilePicUrl={activeAccount?.profile_picture_url ?? null}
+                                            creatorProfilePicUrl={isFacebookFlow ? (activeFacebookPage?.profile_picture_url ?? null) : (activeAccount?.profile_picture_url ?? null)}
                                             // The Selected post box's "Change post" button returns
                                             // to step 1 "Choose a post". The picker already
                                             // receives selectedPost={flowData.postId}, so the

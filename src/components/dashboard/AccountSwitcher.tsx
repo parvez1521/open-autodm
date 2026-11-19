@@ -9,11 +9,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, CaretUpDown, Plus, CircleNotch, SignOut } from "@/components/phosphor";
+import { Check, CaretUpDown, Plus, CircleNotch, SignOut, FacebookLogo } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { createBrowserClient } from "@/lib/supabase";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useActiveFacebookPage } from "@/hooks/useActiveFacebookPage";
 import { IgAvatar } from "@/components/dashboard/IgAvatar";
 import type { InstagramAccount } from "@/hooks/useInstagramAccounts";
 
@@ -29,9 +30,16 @@ function AccountAvatar({ account, size = 7 }: { account: InstagramAccount | null
 
 export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed: boolean; userEmail?: string | null }) {
     const { account, accounts, setActiveAccount } = useActiveAccount();
+    // Facebook Pages (2026-11-19) — a SEPARATE selection from the IG
+    // account above. Picking a Page never clears the IG selection:
+    // the two consoles coexist, and the automations page shows the
+    // funnels for both selections.
+    const { page: fbPage, pages: fbPages, setActiveFacebookPage } = useActiveFacebookPage();
     const [open, setOpen] = useState(false);
     const [connecting, setConnecting] = useState(false);
     const [connectError, setConnectError] = useState<string | null>(null);
+    const [fbConnecting, setFbConnecting] = useState(false);
+    const [fbConnectError, setFbConnectError] = useState<string | null>(null);
     const [signingOut, setSigningOut] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
 
@@ -68,6 +76,18 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
         } catch (err) {
             setConnectError(err instanceof ApiError ? err.message : "Couldn't start the connection");
             setConnecting(false);
+        }
+    };
+
+    const handleConnectFacebook = async () => {
+        setFbConnecting(true);
+        setFbConnectError(null);
+        try {
+            const { url } = await apiClient<{ url: string }>("/facebook/connect");
+            window.location.href = url;
+        } catch (err) {
+            setFbConnectError(err instanceof ApiError ? err.message : "Couldn't start the connection");
+            setFbConnecting(false);
         }
     };
 
@@ -163,6 +183,57 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                                 {connecting ? "Redirecting…" : "Add account"}
                             </button>
                             {connectError && <p className="px-2 pb-1 text-[11px] text-destructive">{connectError}</p>}
+                        </div>
+                        {/* Facebook Pages (2026-11-19) — same popover, its own
+                            section and its own selection. */}
+                        <div className="border-t border-border px-3 pt-2.5 pb-1.5">
+                            <span className="micro-label">Facebook Pages</span>
+                        </div>
+                        <div className="px-1.5 pb-1.5 max-h-56 overflow-y-auto custom-scrollbar">
+                            {fbPages.length === 0 && (
+                                <p className="px-2 py-2 text-[12px] text-muted-foreground">No Page connected yet.</p>
+                            )}
+                            {fbPages.map((p) => {
+                                const isActive = p.id === fbPage?.id;
+                                return (
+                                    <button
+                                        key={p.id}
+                                        role="option"
+                                        aria-selected={isActive}
+                                        onClick={() => { setActiveFacebookPage(p.id); setOpen(false); }}
+                                        className={cn(
+                                            "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg text-left transition-colors",
+                                            isActive ? "bg-muted" : "hover:bg-muted/60"
+                                        )}
+                                    >
+                                        {p.profile_picture_url ? (
+                                            <img src={p.profile_picture_url} alt={p.name} className="w-6 h-6 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                            <span className="w-6 h-6 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0">
+                                                <FacebookLogo className="w-3.5 h-3.5 text-[#1877F2]" />
+                                            </span>
+                                        )}
+                                        <div className="flex flex-col min-w-0 flex-1">
+                                            <span className="text-[12.5px] font-medium text-foreground truncate leading-tight">{p.name}</span>
+                                            <span className="text-[10px] text-muted-foreground leading-tight">
+                                                {p.is_paused ? "Safety pause" : "Active"}
+                                            </span>
+                                        </div>
+                                        {isActive && <Check className="w-3.5 h-3.5 text-foreground shrink-0" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="border-t border-border p-1.5">
+                            <button
+                                onClick={() => void handleConnectFacebook()}
+                                disabled={fbConnecting}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12.5px] font-medium text-foreground hover:bg-muted/60 disabled:opacity-60 transition-colors"
+                            >
+                                {fbConnecting ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                                {fbConnecting ? "Redirecting…" : "Add Page"}
+                            </button>
+                            {fbConnectError && <p className="px-2 pb-1 text-[11px] text-destructive">{fbConnectError}</p>}
                         </div>
                         {/* Session — the signed-in user (functional audit fix:
                             identity + sign-out inside the account menu too) */}

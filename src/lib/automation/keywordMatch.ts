@@ -130,7 +130,7 @@ function escapeRegex(str: string): string {
  */
 export function isExplicitWildcardAutomation(automation: {
   keywords?: string[] | null;
-  trigger_config?: { trigger_mode?: string; keywords_any_mode?: boolean } | null;
+  trigger_config?: { trigger_mode?: string; keywords_any_mode?: boolean; excluded_keywords?: string[]; [key: string]: unknown } | null;
   flow_graph?: { nodes?: Array<{ type: string; data?: { keywordsAnyMode?: boolean } }> } | null;
 }): boolean {
   if (

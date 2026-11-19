@@ -21,7 +21,9 @@ import {
 export interface AutomationFromDB {
   id: string;
   name: string;
-  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention';
+  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention' | 'fb_comment_dm' | 'fb_dm_reply';
+  /** 'facebook' for Facebook Page automations (2026-11-19); 'instagram' (default) otherwise. */
+  channel?: 'instagram' | 'facebook';
   is_active: boolean;
   /** True when the automation was auto-paused by an Instagram disconnect (preserve-on-disconnect, 2026-11-15) — it resumes automatically when the same account reconnects. */
   paused_by_disconnect?: boolean;
@@ -52,10 +54,18 @@ export interface AutomationFromDB {
   total_link_clicks?: number;
   created_at: string;
   updated_at: string;
-  instagram_account_id: string;
+  instagram_account_id: string | null;
   instagram_accounts: {
     id: string;
     username: string;
+    profile_picture_url: string | null;
+  } | null;
+  /** Facebook Page link (2026-11-19) — set only for channel 'facebook'. */
+  facebook_page_id?: string | null;
+  facebook_pages?: {
+    id: string;
+    name: string;
+    username: string | null;
     profile_picture_url: string | null;
   } | null;
 }
@@ -75,9 +85,12 @@ export interface DMResponse {
 }
 
 export interface CreateAutomationPayload {
-  instagramAccountId: string;
+  instagramAccountId?: string | null;
+  /** Facebook Page automations (2026-11-19): the facebook_pages row id.
+   *  Exactly one of instagramAccountId / facebookPageId must be set. */
+  facebookPageId?: string | null;
   name: string;
-  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention';
+  type: 'comment_dm' | 'dm_reply' | 'story_reply' | 'reel_dm' | 'story_mention' | 'fb_comment_dm' | 'fb_dm_reply';
   isActive?: boolean;
   /** AI reply language (2026-11-17): 'en' or 'hinglish'. */
   aiReplyLanguage?: 'en' | 'hinglish';

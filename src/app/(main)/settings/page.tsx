@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { InstagramLogo, CheckCircle, XCircle, CircleNotch, LinkBreak, Warning, ArrowsClockwise, Wrench, PauseCircle } from "@/components/phosphor";
+import { InstagramLogo, FacebookLogo, CheckCircle, XCircle, CircleNotch, LinkBreak, Warning, ArrowsClockwise, Wrench, PauseCircle } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { BrandWave } from "@/components/ui/BrandWave";
 import { createBrowserClient } from "@/lib/supabase";
@@ -11,6 +11,7 @@ import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
 import { IgAvatar } from "@/components/dashboard/IgAvatar";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { useInstagramAccounts, useRefreshInstagramToken, useResubscribeWebhook, useCheckSubscription } from "@/hooks/useInstagramAccounts";
+import { useFacebookPages, useDisconnectFacebookPage, useResubscribeFacebookPage } from "@/hooks/useFacebookPages";
 import { useSetupStatus } from "@/hooks/useSetup";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLoader } from "@/components/ui/AppLoader";
@@ -32,12 +33,19 @@ function SettingsContent() {
     // fetch left the two pulse bars up indefinitely.
     const { data: accounts, isLoading, error: accountsError, refetch: refetchAccounts } = useInstagramAccounts();
     const { data: setup } = useSetupStatus();
+    // Facebook Pages (2026-11-19) — same Settings page, its own section.
+    const { data: fbPages, isLoading: fbLoading, error: fbError, refetch: refetchFbPages } = useFacebookPages();
+    const fbDisconnectMutation = useDisconnectFacebookPage();
+    const fbResubscribeMutation = useResubscribeFacebookPage();
 
     const refreshMutation = useRefreshInstagramToken();
     const resubscribeMutation = useResubscribeWebhook();
     const checkSubscriptionMutation = useCheckSubscription();
     const [connectingIG, setConnectingIG] = useState(false);
+    const [connectingFB, setConnectingFB] = useState(false);
     const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+    const [disconnectingFbId, setDisconnectingFbId] = useState<string | null>(null);
+    const [resubscribingFbId, setResubscribingFbId] = useState<string | null>(null);
     const [refreshingId, setRefreshingId] = useState<string | null>(null);
     const [resubscribingId, setResubscribingId] = useState<string | null>(null);
     const [checkingSubId, setCheckingSubId] = useState<string | null>(null);
@@ -61,6 +69,8 @@ function SettingsContent() {
     useEffect(() => {
         const igConnected = searchParams.get("instagram_connected");
         const igError = searchParams.get("instagram_error");
+        const fbConnected = searchParams.get("facebook_connected");
+        const fbError = searchParams.get("facebook_error");
 
         if (igConnected === "true") {
             setBanner({ type: "success", message: "Instagram account connected." });
@@ -88,6 +98,37 @@ function SettingsContent() {
             setBanner({
                 type: "error",
                 message: (errorMessages[igError] ?? `Error: ${igError}`) + (debugDetail ? ` - ${debugDetail}` : ""),
+            });
+            window.history.replaceState({}, "", "/settings");
+        } else if (fbConnected) {
+            // The callback passes the count of newly connected Pages.
+            const count = Number(fbConnected) || 0;
+            const skipped = Number(searchParams.get("facebook_skipped") ?? "0") || 0;
+            setBanner({
+                type: "success",
+                message: count > 0
+                    ? `${count} Facebook Page${count > 1 ? "s" : ""} connected.${skipped > 0 ? ` ${skipped} skipped (already connected elsewhere).` : ""}`
+                    : "Facebook Page connected.",
+            });
+            void queryClient.invalidateQueries({ queryKey: ["facebook-pages"] });
+            window.history.replaceState({}, "", "/settings");
+        } else if (fbError) {
+            const errorMessages: Record<string, string> = {
+                access_denied: "Facebook connection was cancelled.",
+                no_pages: "No Facebook Pages were granted. Pick at least one Page you admin in the Facebook dialog.",
+                account_already_connected: "This Facebook Page is already connected to another user on open-autoDM.",
+                plan_limit_reached: "Your current plan's connected-account limit has been reached. Upgrade your plan in Billing to connect another account.",
+                state_mismatch: "The connection expired. Try again.",
+                setup_required: setup?.isAdmin
+                    ? "Save your Meta app credentials in the Setup Wizard first."
+                    : "Facebook cannot connect yet — the platform setup is not complete.",
+                server_error: "Something went wrong. Check the details and try again.",
+                invalid_callback: "Invalid callback. Try again.",
+            };
+            const debugDetail = searchParams.get("debug");
+            setBanner({
+                type: "error",
+                message: (errorMessages[fbError] ?? `Error: ${fbError}`) + (debugDetail ? ` - ${debugDetail}` : ""),
             });
             window.history.replaceState({}, "", "/settings");
         }
@@ -123,6 +164,49 @@ function SettingsContent() {
             setBanner({ type: "error", message });
         } finally {
             setDisconnectingId(null);
+        }
+    };
+
+    // Facebook Pages (2026-11-19) — mirrors the Instagram handlers above.
+    // Page tokens do not expire, so there is no refresh flow; the
+    // webhook subscription is repaired with "Fix webhooks" instead of a
+    // status check (no FB subscription-status route in v1).
+    const handleConnectFacebook = async () => {
+        setConnectingFB(true);
+        try {
+            const { url } = await apiClient<{ url: string }>("/facebook/connect");
+            window.location.href = url;
+        } catch (err) {
+            const message = err instanceof ApiError ? err.message : "Couldn't start the Facebook connection";
+            setBanner({ type: "error", message });
+            setConnectingFB(false);
+        }
+    };
+
+    const handleDisconnectFacebook = async (pageId: string) => {
+        if (!confirm("Disconnect this Facebook Page? Your automations will be paused — they'll resume automatically when you reconnect this Page.")) return;
+        setDisconnectingFbId(pageId);
+        try {
+            await fbDisconnectMutation.mutateAsync(pageId);
+            setBanner({ type: "success", message: "Facebook Page disconnected." });
+        } catch (err) {
+            const message = err instanceof ApiError ? err.message : "Couldn't disconnect the Page";
+            setBanner({ type: "error", message });
+        } finally {
+            setDisconnectingFbId(null);
+        }
+    };
+
+    const handleResubscribeFacebook = async (pageId: string) => {
+        setResubscribingFbId(pageId);
+        try {
+            const result = await fbResubscribeMutation.mutateAsync(pageId);
+            setBanner({ type: "success", message: `Webhook subscription refreshed (${result.subscribedFields}). Comment on one of your Page posts to test.` });
+        } catch (err) {
+            const message = err instanceof ApiError ? err.message : "Couldn't refresh the webhook subscription";
+            setBanner({ type: "error", message });
+        } finally {
+            setResubscribingFbId(null);
         }
     };
 
@@ -399,6 +483,114 @@ function SettingsContent() {
                         <div className="text-center py-8 text-[13px] text-muted-foreground">
                             <InstagramLogo className="w-6 h-6 mx-auto mb-2 opacity-30" />
                             <p>No accounts connected yet.</p>
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            {/* Facebook Pages (2026-11-19) */}
+            <section className="bg-card border border-border rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                        <h2 className="text-[14px] font-heading font-semibold text-foreground">Facebook Pages</h2>
+                        <p className="text-[13px] text-muted-foreground mt-0.5">
+                            Pages you admin. Automations reply in Messenger when someone comments on a Page post or messages the Page.
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleConnectFacebook}
+                        disabled={connectingFB}
+                        className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 disabled:opacity-60 transition-opacity shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
+                        {connectingFB ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <FacebookLogo className="w-3.5 h-3.5" />}
+                        {connectingFB ? "Connecting…" : "Connect"}
+                    </button>
+                </div>
+
+                <div className="space-y-2">
+                    {fbLoading ? (
+                        <div className="space-y-2">
+                            {[1, 2].map((i) => (
+                                <div key={i} className="h-16 rounded-lg bg-muted/50 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : fbError && !fbPages ? (
+                        <div className="text-center py-8 text-[13px]" role="alert">
+                            <Warning className="w-6 h-6 mx-auto mb-2 text-destructive/60" />
+                            <p className="font-medium text-foreground">Couldn&apos;t load your Facebook Pages.</p>
+                            <p className="text-muted-foreground mt-1 max-w-md mx-auto">
+                                {fbError.message} If you have connected a Page it is still
+                                connected — this list just failed to load.
+                            </p>
+                            <button
+                                onClick={() => void refetchFbPages()}
+                                className="mt-3 inline-flex h-8 items-center rounded-lg border border-border px-3 text-[13px] font-semibold hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                            >
+                                Try again
+                            </button>
+                        </div>
+                    ) : fbPages && fbPages.length > 0 ? (
+                        fbPages.map((page) => (
+                            <div key={page.id} className="space-y-2">
+                                {page.is_paused && (
+                                    <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg text-[12px] font-medium bg-destructive/10 text-destructive">
+                                        <PauseCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                        <span>
+                                            <b>Safety pause</b> - Meta flagged sends, so messages are paused
+                                            until {page.paused_until ? new Date(page.paused_until).toLocaleString() : "later"} to
+                                            protect this Page.
+                                        </span>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        {page.profile_picture_url ? (
+                                            <img src={page.profile_picture_url} alt={page.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                            <span className="w-9 h-9 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0">
+                                                <FacebookLogo className="w-4 h-4 text-[#1877F2]" />
+                                            </span>
+                                        )}
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[13px] font-semibold text-foreground truncate">{page.name}</span>
+                                                {page.is_paused
+                                                    ? <Warning className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                                    : <CheckCircle className="w-3.5 h-3.5 text-secondary shrink-0" />}
+                                            </div>
+                                            <span className="text-[11px] text-muted-foreground">
+                                                Connected {new Date(page.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-0.5 shrink-0">
+                                        <button
+                                            onClick={() => handleResubscribeFacebook(page.id)}
+                                            disabled={resubscribingFbId === page.id}
+                                            title="Re-sync the webhook subscription"
+                                            className="inline-flex items-center gap-1 h-7 px-2 text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                                        >
+                                            {resubscribingFbId === page.id ? <CircleNotch className="w-3 h-3 animate-spin" /> : <ArrowsClockwise className="w-3 h-3" />}
+                                            {resubscribingFbId === page.id ? "Syncing…" : "Fix webhooks"}
+                                        </button>
+                                        <button
+                                            onClick={() => handleDisconnectFacebook(page.id)}
+                                            disabled={disconnectingFbId === page.id}
+                                            className="inline-flex items-center gap-1 h-7 px-2 text-[12px] font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                                        >
+                                            {disconnectingFbId === page.id ? <CircleNotch className="w-3 h-3 animate-spin" /> : <LinkBreak className="w-3 h-3" />}
+                                            Disconnect
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-8 text-[13px] text-muted-foreground">
+                            <FacebookLogo className="w-6 h-6 mx-auto mb-2 opacity-30" />
+                            <p>No Pages connected yet.</p>
                         </div>
                     )}
                 </div>

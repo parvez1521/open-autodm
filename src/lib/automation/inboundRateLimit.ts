@@ -72,6 +72,7 @@ import type {
   MetaWebhookEntry,
   MetaWebhookMessaging,
 } from '@/lib/types';
+import { isMetaCommentChangeValue } from '@/lib/types';
 
 const logger = createLogger('inbound-rate-limit');
 
@@ -239,7 +240,7 @@ export function extractActionableEvents(body: MetaWebhookBody): InboundEventRef[
     entry.changes?.forEach((change, itemIndex) => {
       // Only comment changes create automation work; other fields
       // (mentions, insights, …) are ignored downstream and pass through.
-      if (change.field === 'comments' && change.value?.id) {
+      if (change.field === 'comments' && isMetaCommentChangeValue(change.value)) {
         events.push({
           igAccountId: entry.id,
           eventKey: `comment:${change.value.id}`,

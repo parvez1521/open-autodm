@@ -1,8 +1,9 @@
 import { motion } from "motion/react";
-import { ChatCircle, PlayCircle, Stack, MagnifyingGlass, InstagramLogo, Heart } from "@/components/phosphor";
+import { ChatCircle, PlayCircle, Stack, MagnifyingGlass, InstagramLogo, FacebookLogo, Heart } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useState, type FormEvent } from "react";
 import { useInstagramPosts, useResolveInstagramPost } from "@/hooks/useInstagramPosts";
+import { useFacebookPosts, useResolveFacebookPost } from "@/hooks/useFacebookPosts";
 import { shouldShowLoadMore } from "./postPickerUtils";
 
 interface SelectPostStepProps {
@@ -10,6 +11,10 @@ interface SelectPostStepProps {
     selectedPost: string | null;
     flowName: string;
     instagramAccountId?: string | null;
+    /** Facebook Page automations (2026-11-19): when channel is
+     *  'facebook' the picker lists the Page's posts instead. */
+    channel?: "instagram" | "facebook";
+    facebookPageId?: string | null;
     /** Hide "Trigger on all posts" — reel_dm funnels always target one
         specific reel (one automation per reel), so "all" is not offered. */
     allowAllPosts?: boolean;
@@ -17,11 +22,17 @@ interface SelectPostStepProps {
     initialFilter?: "all" | "reels" | "posts";
 }
 
-export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAccountId, allowAllPosts = true, initialFilter = "all" }: SelectPostStepProps) {
+export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAccountId, channel = "instagram", facebookPageId, allowAllPosts = true, initialFilter = "all" }: SelectPostStepProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [filter, setFilter] = useState<"all" | "reels" | "posts">(initialFilter);
-    const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching, refresh } = useInstagramPosts(instagramAccountId);
-    const resolvePost = useResolveInstagramPost();
+    const isFacebook = channel === "facebook";
+    // Both hooks run unconditionally (hooks rules); only the active
+    // channel's query is enabled (the other gets an undefined id).
+    const igPosts = useInstagramPosts(isFacebook ? undefined : instagramAccountId);
+    const fbPosts = useFacebookPosts(isFacebook ? facebookPageId : undefined);
+    const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isFetching, refresh } = isFacebook ? fbPosts : igPosts;
+    const resolveIgPost = useResolveInstagramPost();
+    const resolveFbPost = useResolveFacebookPost();
     const [pasteUrl, setPasteUrl] = useState("");
     const [pasteError, setPasteError] = useState<string | null>(null);
     const [pasteLoading, setPasteLoading] = useState(false);
@@ -34,13 +45,20 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
     // exact same onSelect path as clicking a tile.
     async function handlePasteSubmit(e: FormEvent) {
         e.preventDefault();
-        if (!instagramAccountId || pasteLoading) return;
+        if (pasteLoading) return;
+        if (isFacebook) {
+            if (!facebookPageId) return;
+        } else if (!instagramAccountId) {
+            return;
+        }
         const url = pasteUrl.trim();
         if (!url) return;
         setPasteLoading(true);
         setPasteError(null);
         try {
-            const post = await resolvePost(instagramAccountId, url);
+            const post = isFacebook
+                ? await resolveFbPost(facebookPageId!, url)
+                : await resolveIgPost(instagramAccountId!, url);
             onSelect(post.id, flowName, post.thumbnail_url ?? post.media_url ?? null, post.caption ?? "");
         } catch (err) {
             setPasteError(err instanceof Error ? err.message : "Could not load this post — check the link.");
@@ -66,22 +84,27 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
             <div className="sticky top-0 z-20 bg-background border-b border-border">
                 <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5">
-                        <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                            {(["all", "reels", "posts"] as const).map((f) => (
-                                <button
-                                    key={f}
-                                    onClick={() => setFilter(f)}
-                                    className={cn(
-                                        "h-7 px-3 rounded-[7px] text-[12px] font-medium capitalize transition-colors",
-                                        filter === f
-                                            ? "bg-card text-foreground shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {f === "all" ? "All media" : f === "reels" ? "Reels" : "Photos"}
-                                </button>
-                            ))}
-                        </div>
+                        {/* Facebook's /posts edge exposes no media type, so
+                            every post maps to 'image' — no Reels/Photos
+                            split for Facebook. */}
+                        {!isFacebook && (
+                            <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
+                                {(["all", "reels", "posts"] as const).map((f) => (
+                                    <button
+                                        key={f}
+                                        onClick={() => setFilter(f)}
+                                        className={cn(
+                                            "h-7 px-3 rounded-[7px] text-[12px] font-medium capitalize transition-colors",
+                                            filter === f
+                                                ? "bg-card text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        {f === "all" ? "All media" : f === "reels" ? "Reels" : "Photos"}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         {allowAllPosts && (
                             <button
                                 onClick={() => onSelect("all", flowName, null, "")}
@@ -95,7 +118,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                             type="button"
                             onClick={refresh}
                             disabled={isFetching}
-                            title="Reload posts from Instagram (skips the 5-minute cache)"
+                            title={isFacebook ? "Reload posts from Facebook (skips the 5-minute cache)" : "Reload posts from Instagram (skips the 5-minute cache)"}
                             className="inline-flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium border border-border hover:border-foreground/25 rounded-lg transition-colors disabled:opacity-60"
                         >
                             {isFetching ? "Refreshing…" : "Refresh"}
@@ -118,12 +141,20 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
             {/* Grid */}
             <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
                 <div className="max-w-5xl mx-auto">
-                    {!instagramAccountId ? (
+                    {!instagramAccountId && !isFacebook ? (
                         <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
                             <InstagramLogo className="w-7 h-7 text-muted-foreground/30 mb-3" />
                             <p className="text-[13px] text-muted-foreground font-medium">No Instagram account connected.</p>
                             <p className="text-[12px] text-muted-foreground/70 mt-1">
                                 Connect your account in Settings first.
+                            </p>
+                        </div>
+                    ) : isFacebook && !facebookPageId ? (
+                        <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
+                            <FacebookLogo className="w-7 h-7 text-muted-foreground/30 mb-3" />
+                            <p className="text-[13px] text-muted-foreground font-medium">No Facebook Page connected.</p>
+                            <p className="text-[12px] text-muted-foreground/70 mt-1">
+                                Connect your Page in Settings first.
                             </p>
                         </div>
                     ) : isLoading ? (
@@ -142,7 +173,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                     ) : isError ? (
                         <div className="flex flex-col items-center justify-center p-12 text-center border border-destructive/20 border-dashed rounded-xl bg-destructive/5">
                             <p className="text-[13px] text-destructive font-medium">Couldn&apos;t load posts.</p>
-                            <p className="text-[12px] text-muted-foreground mt-1">Check that your Instagram account is still connected.</p>
+                            <p className="text-[12px] text-muted-foreground mt-1">Check that your {isFacebook ? "Facebook Page" : "Instagram account"} is still connected.</p>
                         </div>
                     ) : filteredPosts.length === 0 ? (
                         <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
@@ -230,16 +261,18 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                         account owns; a collab reel owned by the other
                         account (e.g. the newest reel) never appears there,
                         so its link resolves it directly instead. */}
-                    {instagramAccountId && (
+                    {(!isFacebook && instagramAccountId) || (isFacebook && facebookPageId) ? (
                         <form onSubmit={handlePasteSubmit} className="mt-6 border border-border rounded-xl p-4">
                             <p className="text-[13px] font-medium">Post not in the list?</p>
                             <p className="text-[12px] text-muted-foreground mt-0.5">
-                                If your post (for example a collab reel) does not appear in the list, paste its Instagram link — or its numeric media ID — here.
+                                {isFacebook
+                                    ? "If your post does not appear in the list, paste its Facebook link — or its post ID — here."
+                                    : "If your post (for example a collab reel) does not appear in the list, paste its Instagram link — or its numeric media ID — here."}
                             </p>
                             <div className="flex flex-col sm:flex-row gap-2 mt-3">
                                 <input
                                     type="text"
-                                    placeholder="https://www.instagram.com/p/... or media ID"
+                                    placeholder={isFacebook ? "https://www.facebook.com/<page>/posts/... or post ID" : "https://www.instagram.com/p/... or media ID"}
                                     value={pasteUrl}
                                     onChange={(e) => setPasteUrl(e.target.value)}
                                     className="flex-1 h-9 bg-muted/50 border border-border rounded-lg px-3 text-[13px] outline-none focus:border-foreground/30 transition-colors"
@@ -256,7 +289,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                 <p className="text-[12px] text-destructive mt-2">{pasteError}</p>
                             )}
                         </form>
-                    )}
+                    ) : null}
                 </div>
             </div>
         </div>

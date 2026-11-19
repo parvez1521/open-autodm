@@ -82,3 +82,60 @@ export async function reactivateAutomationsAfterReconnect(
   }
   return ((data ?? []) as { id: string }[]).map((row) => row.id);
 }
+
+// ── Facebook Page twins (2026-11-19) ────────────────────────────────────────
+// Same preserve-on-disconnect contract as the Instagram helpers above,
+// keyed on facebook_page_id. Disconnecting a Page pauses (never deletes)
+// its automations; reconnecting the SAME Page reactivates exactly those.
+
+/**
+ * Auto-pause the Page's ACTIVE automations for a disconnect.
+ * Returns the ids that were paused.
+ */
+export async function pauseFacebookAutomationsForDisconnect(
+  db: SupabaseClient,
+  facebookPageId: string,
+  opts?: { userId?: string },
+): Promise<string[]> {
+  let query = db
+    .from('automations')
+    .update({ is_active: false, paused_by_disconnect: true })
+    .eq('facebook_page_id', facebookPageId)
+    .eq('is_active', true);
+  if (opts?.userId) query = query.eq('user_id', opts.userId);
+  const { data, error } = await query.select('id');
+  if (error) {
+    logger.error(
+      { err: error, facebookPageId },
+      'Failed to pause automations for Facebook disconnect',
+    );
+    throw new Error(`Failed to pause automations for disconnect: ${error.message}`);
+  }
+  return ((data ?? []) as { id: string }[]).map((row) => row.id);
+}
+
+/**
+ * Reactivate exactly the automations a disconnect paused, for the SAME
+ * Page reconnecting (matched by facebook_page_id — the callback already
+ * verified the Page belongs to the same owner). Returns the ids that
+ * were reactivated.
+ */
+export async function reactivateFacebookAutomationsAfterReconnect(
+  db: SupabaseClient,
+  facebookPageId: string,
+): Promise<string[]> {
+  const { data, error } = await db
+    .from('automations')
+    .update({ is_active: true, paused_by_disconnect: false })
+    .eq('facebook_page_id', facebookPageId)
+    .eq('paused_by_disconnect', true)
+    .select('id');
+  if (error) {
+    logger.error(
+      { err: error, facebookPageId },
+      'Failed to reactivate automations after Facebook reconnect',
+    );
+    throw new Error(`Failed to reactivate automations after reconnect: ${error.message}`);
+  }
+  return ((data ?? []) as { id: string }[]).map((row) => row.id);
+}

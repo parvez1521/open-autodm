@@ -58,6 +58,7 @@ export {
   EnvelopeSimple,
   Eye,
   EyeSlash,
+  FacebookLogo,
   FileAudio,
   FileMagnifyingGlass,
   FileText,

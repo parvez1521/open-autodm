@@ -47,11 +47,21 @@ export async function enqueueJob(
   // authorize a send.
   let effectivePayload = payload;
   try {
-    const { data: accountRow, error: accountError } = await db
-      .from('instagram_accounts')
-      .select('workspace_id')
-      .eq('id', payload.instagramAccountId)
-      .maybeSingle();
+    // Facebook jobs (2026-11-19): payload.instagramAccountId carries the
+    // facebook_pages row id and channel === 'facebook' — derive the
+    // workspace from the Page binding, not instagram_accounts.
+    const isFacebookJob = payload.channel === 'facebook';
+    const { data: accountRow, error: accountError } = isFacebookJob
+      ? await db
+          .from('facebook_pages')
+          .select('workspace_id')
+          .eq('id', payload.instagramAccountId)
+          .maybeSingle()
+      : await db
+          .from('instagram_accounts')
+          .select('workspace_id')
+          .eq('id', payload.instagramAccountId)
+          .maybeSingle();
     if (!accountError && accountRow) {
       const derived =
         typeof accountRow.workspace_id === 'string' && accountRow.workspace_id.length > 0

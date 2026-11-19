@@ -5,8 +5,9 @@
  * file covers the builder side:
  *  (a) the New automation modal's type list offers Story Mention as an
  *      available (not Soon/disabled) trigger;
- *  (b) all five trigger types are offered — enabling Story Mention did
- *      not drop or disable any existing type.
+ *  (b) all seven trigger types are offered — enabling Story Mention did
+ *      not drop or disable any existing type, and the Facebook batch
+ *      (2026-11-19) adds two more without dropping any.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -21,13 +22,15 @@ describe('Story Mention in the New automation modal', () => {
     expect(mention!.description).toContain('mention');
   });
 
-  it('all five trigger types are offered and available', () => {
+  it('all seven trigger types are offered and available', () => {
     expect(AUTOMATION_TYPES.map((t) => t.id)).toEqual([
       'comment-dm',
       'reel-dm',
       'dm-reply',
       'story-reply',
       'story-mention',
+      'fb-comment-dm',
+      'fb-dm-reply',
     ]);
     for (const type of AUTOMATION_TYPES) {
       expect(type.available).toBe(true);

@@ -35,7 +35,7 @@ export type DebugLevel = 'info' | 'warn' | 'error';
 export type DebugStatus = 'ok' | 'error' | 'skipped' | 'processing';
 
 export function debugLog(
-  service: 'webhook' | 'worker' | 'instagram' | 'oauth' | 'cron',
+  service: 'webhook' | 'worker' | 'instagram' | 'oauth' | 'cron' | 'facebook',
   level: DebugLevel,
   eventType: string,
   status: DebugStatus,

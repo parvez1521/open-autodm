@@ -186,7 +186,7 @@ export function planLimitResponse(gate: EntitlementGate): Response {
 
 async function countActive(
   db: SupabaseClient,
-  table: 'instagram_accounts' | 'automations',
+  table: 'instagram_accounts' | 'facebook_pages' | 'automations',
   column: 'workspace_id' | 'user_id',
   value: string,
 ): Promise<number> {
@@ -204,6 +204,17 @@ export function countWorkspaceInstagramAccounts(db: SupabaseClient, workspaceId:
 }
 export function countUserInstagramAccounts(db: SupabaseClient, userId: string): Promise<number> {
   return countActive(db, 'instagram_accounts', 'user_id', userId);
+}
+// Facebook Page counters (2026-11-19): Pages count toward the SAME
+// 'instagramAccounts' dimension as Instagram accounts (the "connected
+// accounts" slot) — the gate's resolveContext sums both. A separate
+// facebookPages dimension is a small follow-up if the owner wants
+// different limits per channel.
+export function countWorkspaceFacebookPages(db: SupabaseClient, workspaceId: string): Promise<number> {
+  return countActive(db, 'facebook_pages', 'workspace_id', workspaceId);
+}
+export function countUserFacebookPages(db: SupabaseClient, userId: string): Promise<number> {
+  return countActive(db, 'facebook_pages', 'user_id', userId);
 }
 export function countWorkspaceActiveAutomations(db: SupabaseClient, workspaceId: string): Promise<number> {
   return countActive(db, 'automations', 'workspace_id', workspaceId);

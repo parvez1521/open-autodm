@@ -16,6 +16,7 @@ import { after } from 'next/server';
 import { getMetaSettings } from '@/lib/settings';
 import { hmacSha256Hex, safeCompare } from '@/lib/crypto';
 import { processWebhookPayload } from '@/lib/automation/processWebhook';
+import { processFacebookWebhook } from '@/lib/facebook/processFacebookWebhook';
 import { admitInboundWebhook } from '@/lib/automation/inboundRateLimit';
 import { processDueJobs } from '@/lib/automation/engine';
 import { createServiceClient } from '@/lib/supabase/service';
@@ -184,7 +185,16 @@ export async function POST(request: Request): Promise<Response> {
       if (admission.body) {
         await attributeAdmissionWorkspaces(admission.body);
       }
-      const enqueued = admission.body ? await processWebhookPayload(admission.body) : 0;
+      const enqueued = admission.body
+        // Facebook Page webhooks (object === 'page') run through the
+        // parallel FB pipeline; Instagram stays on processWebhookPayload.
+        // Admission passes non-Instagram bodies through unfiltered, and
+        // the HMAC above already accepts either app secret, so no other
+        // change is needed here. (2026-11-19)
+        ? admission.body.object === 'page'
+          ? await processFacebookWebhook(admission.body)
+          : await processWebhookPayload(admission.body)
+        : 0;
       // Fast path: drain what we just enqueued (plus any other due jobs).
       if (enqueued > 0) {
         await processDueJobs(Math.max(enqueued, 5));

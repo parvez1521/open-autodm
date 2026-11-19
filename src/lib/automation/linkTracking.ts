@@ -55,6 +55,10 @@ export async function trackLink(
   params: {
     automationId: string;
     instagramAccountId: string;
+    /** Facebook jobs: the facebook_pages row id. When set, the tracked
+     *  link is stamped with facebook_page_id and instagram_account_id
+     *  stays NULL (migration 20261119000001 made it nullable). */
+    facebookPageId?: string | null;
     destinationUrl: string;
     appUrl: string;
   },
@@ -82,7 +86,8 @@ export async function trackLink(
       const { error } = await db.from('tracked_links').insert({
         code,
         automation_id: params.automationId,
-        instagram_account_id: params.instagramAccountId,
+        instagram_account_id: params.facebookPageId ? null : params.instagramAccountId,
+        ...(params.facebookPageId ? { facebook_page_id: params.facebookPageId } : {}),
         destination_url: destination,
         click_count: 0,
       });
@@ -110,6 +115,8 @@ export async function rewriteResponseLinks(
   params: {
     automationId: string;
     instagramAccountId: string;
+    /** Facebook jobs: the facebook_pages row id (passed through to trackLink). */
+    facebookPageId?: string | null;
     responses: DMResponse[];
     appUrl: string;
   },
@@ -121,6 +128,7 @@ export async function rewriteResponseLinks(
       const tracked = await trackLink(db, {
         automationId: params.automationId,
         instagramAccountId: params.instagramAccountId,
+        facebookPageId: params.facebookPageId ?? null,
         destinationUrl: response.buttonLink,
         appUrl: params.appUrl,
       });
@@ -133,6 +141,7 @@ export async function rewriteResponseLinks(
         const tracked = await trackLink(db, {
           automationId: params.automationId,
           instagramAccountId: params.instagramAccountId,
+          facebookPageId: params.facebookPageId ?? null,
           destinationUrl: btn.link,
           appUrl: params.appUrl,
         });

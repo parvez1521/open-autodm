@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { EASE_OUT } from "@/lib/motion/presets";
-import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Stack, InstagramLogo, Warning, Trash, X, CursorClick, At, Link as LinkIcon } from "@/components/phosphor";
+import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Stack, InstagramLogo, FacebookLogo, Warning, Trash, X, CursorClick, At, Link as LinkIcon } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 
@@ -13,6 +13,8 @@ const TYPE_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ c
     story_reply: { label: "Story Reply", icon: ImageIcon, className: "bg-emerald-500/10 text-emerald-500" },
     reel_dm: { label: "Shared Reel → DM", icon: PaperPlaneTilt, className: "bg-rose-500/10 text-rose-500" },
     story_mention: { label: "Story Mention → DM", icon: At, className: "bg-amber-500/10 text-amber-500" },
+    fb_comment_dm: { label: "Comment → Messenger", icon: FacebookLogo, className: "bg-[#1877F2]/10 text-[#1877F2]" },
+    fb_dm_reply: { label: "Messenger Reply", icon: FacebookLogo, className: "bg-[#1877F2]/10 text-[#1877F2]" },
 };
 
 function triggerDescription(automation: AutomationFromDB): string {
@@ -135,14 +137,18 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                             {/* Left - thumb + info */}
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className="shrink-0">
-                                    {(automation.type === "comment_dm" || automation.type === "reel_dm") ? (
+                                    {(automation.type === "comment_dm" || automation.type === "reel_dm" || automation.type === "fb_comment_dm") ? (
                                         hasPost && thumbUrl ? (
                                             <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted">
                                                 <img src={thumbUrl} alt="Post" className="w-full h-full object-cover" />
                                             </div>
                                         ) : hasPost ? (
                                             <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                                <InstagramLogo className="w-4 h-4 text-muted-foreground/60" />
+                                                {automation.channel === "facebook" ? (
+                                                    <FacebookLogo className="w-4 h-4 text-muted-foreground/60" />
+                                                ) : (
+                                                    <InstagramLogo className="w-4 h-4 text-muted-foreground/60" />
+                                                )}
                                             </div>
                                         ) : (
                                             <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
@@ -164,6 +170,12 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                         <span className={cn("text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0", typeConfig.className)}>
                                             {typeConfig.label}
                                         </span>
+                                        {automation.channel === "facebook" && (
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 bg-[#1877F2]/10 text-[#1877F2]">
+                                                <FacebookLogo className="w-3 h-3" />
+                                                Facebook{automation.facebook_pages?.name ? ` · ${automation.facebook_pages.name}` : ""}
+                                            </span>
+                                        )}
                                         {!isActive && (
                                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 bg-muted text-muted-foreground">
                                                 {automation.paused_by_disconnect
@@ -177,7 +189,7 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                             <CursorClick className="w-3 h-3 opacity-60 shrink-0" />
                                             {triggerDescription(automation)}
                                         </span>
-                                        {(automation.type === "comment_dm" || automation.type === "reel_dm") && (
+                                        {(automation.type === "comment_dm" || automation.type === "reel_dm" || automation.type === "fb_comment_dm") && (
                                             <span className="truncate hidden sm:inline">
                                                 {hasPost ? (automation.post_caption ? automation.post_caption.slice(0, 44) : "Specific post") : automation.type === "reel_dm" ? "Any shared reel" : "All posts"}
                                             </span>

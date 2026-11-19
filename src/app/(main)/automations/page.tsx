@@ -10,6 +10,7 @@ import { ContactsList } from "@/components/automations/ContactsList";
 import { NewAutomationModal } from "@/components/automations/new-flow/NewAutomationModal";
 import { useAutomations, useToggleAutomation, useDeleteAutomation } from "@/hooks/useAutomations";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useActiveFacebookPage } from "@/hooks/useActiveFacebookPage";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 import { AutomationDebugPanel } from "@/components/debug/AutomationDebugPanel";
 
@@ -42,11 +43,23 @@ function AutomationsContent() {
     }, [searchParams]);
 
     const { accountId } = useActiveAccount();
+    const { pageId: activeFacebookPageId } = useActiveFacebookPage();
     // QA fix (2026-11-08): the query error is no longer discarded —
     // AutomationsList renders an honest, retryable error state for it
     // instead of silently showing the empty state (settled failure)
     // or an endless skeleton (unsettled fetch).
-    const { data: automations, isLoading, error: automationsError, refetch: refetchAutomations } = useAutomations(accountId);
+    // Facebook automations (2026-11-19) live in the same table but
+    // under a different account column, so the list fetches UNSCOPED
+    // and filters client-side to the two selections: the active
+    // Instagram account OR the selected Facebook Page. With neither
+    // selected the list is empty — rows for an unselected account
+    // never leak in.
+    const { data: allAutomations, isLoading, error: automationsError, refetch: refetchAutomations } = useAutomations(null);
+    const automations = (allAutomations ?? []).filter((a) =>
+        a.channel === "facebook"
+            ? activeFacebookPageId !== null && a.facebook_page_id === activeFacebookPageId
+            : a.instagram_account_id === accountId,
+    );
     const toggleMutation = useToggleAutomation();
     const deleteMutation = useDeleteAutomation();
 
@@ -123,6 +136,7 @@ function AutomationsContent() {
                 onClose={handleModalClose}
                 editAutomation={editingAutomation}
                 accountId={accountId}
+                facebookPageId={activeFacebookPageId}
                 initialKeyword={initialKeyword}
             />
 

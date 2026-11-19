@@ -43,6 +43,12 @@ import { persist } from 'zustand/middleware';
 interface AccountStore {
   activeAccountId: string | null;
   setActiveAccount: (id: string | null) => void;
+  /** Active Facebook Page selection (2026-11-19) — a SEPARATE selection
+   *  from the Instagram account above. The two consoles coexist: the
+   *  Instagram selection keeps driving the dashboard/IG surfaces, and
+   *  the Page selection drives Facebook triggers. Persisted the same way. */
+  activeFacebookPageId: string | null;
+  setActiveFacebookPage: (id: string | null) => void;
 }
 
 export const useAccountStore = create<AccountStore>()(
@@ -50,6 +56,8 @@ export const useAccountStore = create<AccountStore>()(
     (set) => ({
       activeAccountId: null,
       setActiveAccount: (id) => set({ activeAccountId: id }),
+      activeFacebookPageId: null,
+      setActiveFacebookPage: (id) => set({ activeFacebookPageId: id }),
     }),
     { name: 'open-autodm-active-account' }
   )

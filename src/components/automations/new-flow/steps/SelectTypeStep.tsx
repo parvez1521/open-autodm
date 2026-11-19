@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ChatCircle, PaperPlaneTilt, Image, At, PlayCircle, Stack } from "@/components/phosphor";
+import { ChatCircle, PaperPlaneTilt, Image, At, PlayCircle, Stack, FacebookLogo } from "@/components/phosphor";
 import { AUTOMATION_TYPES } from "../constants";
 import { AUTOMATION_TEMPLATES, type AutomationTemplateId } from "@/lib/automation/templates";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,9 @@ interface SelectTypeStepProps {
     /** One-click starter: prefills the builder with the template's defaults (never auto-creates). */
     onTemplateSelect?: (templateId: AutomationTemplateId) => void;
     selectedType: string | null;
+    /** Facebook trigger cards only render when a Page is connected —
+     *  otherwise they would be dead ends (nothing to attach them to). */
+    showFacebookTriggers?: boolean;
 }
 
 const ICONS = {
@@ -16,10 +19,17 @@ const ICONS = {
     "send": PaperPlaneTilt,
     "image": Image,
     "at-sign": At,
-    "play": PlayCircle
+    "play": PlayCircle,
+    "facebook": FacebookLogo,
 };
 
-export function SelectTypeStep({ onSelect, onTemplateSelect, selectedType }: SelectTypeStepProps) {
+export function SelectTypeStep({ onSelect, onTemplateSelect, selectedType, showFacebookTriggers = false }: SelectTypeStepProps) {
+    // Facebook cards (channel: 'facebook') are hidden until a Page is
+    // connected; Instagram cards always show.
+    const visibleTypes = AUTOMATION_TYPES.filter((type) => {
+        const channel = (type as { channel?: string }).channel;
+        return channel !== "facebook" || showFacebookTriggers;
+    });
     return (
         <div className="flex flex-col items-center justify-center w-full h-full p-6 overflow-y-auto">
             <div className="max-w-2xl w-full mx-auto space-y-8 pb-8">
@@ -33,7 +43,7 @@ export function SelectTypeStep({ onSelect, onTemplateSelect, selectedType }: Sel
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                    {AUTOMATION_TYPES.map((type, idx) => {
+                    {visibleTypes.map((type, idx) => {
                         const Icon = ICONS[type.iconType as keyof typeof ICONS];
                         const isSelected = selectedType === type.id;
 

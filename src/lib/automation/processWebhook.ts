@@ -27,6 +27,7 @@ import type {
   MetaWebhookMessaging,
   AutoDmJobPayload,
 } from '@/lib/types';
+import { isMetaCommentChangeValue } from '@/lib/types';
 
 const logger = createLogger('webhook');
 
@@ -106,7 +107,7 @@ export async function processWebhookPayload(body: MetaWebhookBody): Promise<numb
     const commentIds: string[] = [];
     if (entry.changes?.length) {
       for (const change of entry.changes) {
-        if (change.field === 'comments' && change.value?.id && change.value.from?.id !== entry.id) {
+        if (change.field === 'comments' && isMetaCommentChangeValue(change.value) && change.value.from?.id !== entry.id) {
           commentIds.push(change.value.id);
         }
       }
@@ -125,7 +126,7 @@ export async function processWebhookPayload(body: MetaWebhookBody): Promise<numb
             ...(accountWorkspaceId ? { workspaceId: accountWorkspaceId } : {}),
           });
       } else for (const change of entry.changes) {
-        if (change.field === 'comments') {
+        if (change.field === 'comments' && isMetaCommentChangeValue(change.value)) {
           enqueued += await processCommentEvent(
             igAccount.id as string,
             entry.id,

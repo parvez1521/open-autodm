@@ -619,7 +619,7 @@ describe('§G source pins', () => {
     }
   });
 
-  it('resolveWorkspaceContext is consulted ONLY by the connect + callback routes among user-facing API routes (legacy routes use user_id scoping — transitional boundary)', () => {
+  it('resolveWorkspaceContext is consulted ONLY by the connect + callback routes among user-facing API routes (legacy routes use user_id scoping — transitional boundary; Facebook connect + callback mirror the Instagram pair, 2026-11-19)', () => {
     const apiRoot = path.join(SRC_ROOT, 'app', 'api');
     const hits: string[] = [];
     const walk = (dir: string): void => {
@@ -633,6 +633,8 @@ describe('§G source pins', () => {
     };
     walk(apiRoot);
     expect(hits.sort()).toEqual([
+      'app/api/facebook/callback/route.ts',
+      'app/api/facebook/connect/route.ts',
       'app/api/instagram/callback/route.ts',
       'app/api/instagram/connect/route.ts',
     ]);

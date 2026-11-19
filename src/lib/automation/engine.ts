@@ -18,6 +18,11 @@ import {
   RateLimitDelay,
   AccountOnPause,
 } from '@/lib/automation/processJob';
+import {
+  processFacebookAutoDmJob,
+  processFacebookFollowUpDmJob,
+  pauseFacebookPage,
+} from '@/lib/automation/processFacebookJob';
 import { AccountOnTrafficGuardPause } from '@/lib/automation/trafficGuardError';
 import { AccountPausedMetaError, NonRetryableMetaError, AmbiguousDeliveryError, MetaApiError, META_RATE_LIMIT_CODES } from '@/lib/instagram/errors';
 import type { JobQueueRow } from '@/lib/types';
@@ -91,7 +96,16 @@ async function runJob(job: JobQueueRow, result: DrainResult): Promise<void> {
   }
 
   try {
-    if (job.job_type === 'follow_up') {
+    // Facebook Page jobs (2026-11-19) run through the parallel FB pipeline;
+    // payload.channel === 'facebook' is the only dispatch signal (the job
+    // row itself is channel-agnostic). Instagram jobs are untouched.
+    if (job.payload.channel === 'facebook') {
+      if (job.job_type === 'follow_up') {
+        await processFacebookFollowUpDmJob(job.payload);
+      } else {
+        await processFacebookAutoDmJob(job.payload, job.attempts + 1);
+      }
+    } else if (job.job_type === 'follow_up') {
       await processFollowUpDmJob(job.payload);
     } else {
       await processAutoDmJob(job.payload, job.attempts + 1);
@@ -125,11 +139,13 @@ async function runJob(job: JobQueueRow, result: DrainResult): Promise<void> {
     if (err instanceof AccountPausedMetaError) {
       // Meta says this account is policy-blocked - open the breaker for 24h
       // and stop retrying. Protecting the creator's account beats delivering
-      // one more DM.
-      await pauseAccount(
-        job.payload.instagramAccountId,
-        `Meta policy block (code ${err.code}${err.subcode ? `/${err.subcode}` : ''}): ${err.message}`
-      );
+      // one more DM. Facebook jobs pause the PAGE, not an IG account.
+      const pauseReason = `Meta policy block (code ${err.code}${err.subcode ? `/${err.subcode}` : ''}): ${err.message}`;
+      if (job.payload.channel === 'facebook') {
+        await pauseFacebookPage(job.payload.instagramAccountId, pauseReason);
+      } else {
+        await pauseAccount(job.payload.instagramAccountId, pauseReason);
+      }
       await markJobFailed(job.id, err.message);
       result.failed += 1;
       return;

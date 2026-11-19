@@ -31,9 +31,12 @@ export const dynamic = 'force-dynamic';
 const logger = createLogger('api:automations');
 
 const CreateAutomationSchema = z.object({
-  instagramAccountId: z.string().uuid('instagramAccountId must be a UUID'),
+  instagramAccountId: z.string().uuid('instagramAccountId must be a UUID').nullable().optional(),
+  /** Facebook Page automations (2026-11-19): the facebook_pages row id.
+   *  Exactly one of instagramAccountId / facebookPageId must be set. */
+  facebookPageId: z.string().uuid('facebookPageId must be a UUID').nullable().optional(),
   name: z.string().min(1, 'name is required').max(200),
-  type: z.enum(['comment_dm', 'dm_reply', 'story_reply', 'reel_dm', 'story_mention']),
+  type: z.enum(['comment_dm', 'dm_reply', 'story_reply', 'reel_dm', 'story_mention', 'fb_comment_dm', 'fb_dm_reply']),
   isActive: z.boolean().default(true),
   /** AI reply language (2026-11-17): 'en' or 'hinglish'. Defaults to English. */
   aiReplyLanguage: z.enum(['en', 'hinglish']).default('en'),
@@ -67,7 +70,16 @@ const CreateAutomationSchema = z.object({
   // created/managed through the API without losing their graph.
   triggerConfig: z.record(z.string(), z.unknown()).optional(),
   flowGraph: z.unknown().optional(),
-});
+}).refine(
+  (v) => Boolean(v.instagramAccountId) !== Boolean(v.facebookPageId),
+  { message: 'Exactly one of instagramAccountId / facebookPageId must be set' }
+).refine(
+  (v) => {
+    const isFbType = v.type === 'fb_comment_dm' || v.type === 'fb_dm_reply';
+    return isFbType === Boolean(v.facebookPageId);
+  },
+  { message: 'fb_* types require facebookPageId; Instagram types require instagramAccountId' }
+);
 
 export async function GET(request: Request): Promise<Response> {
   // Per-leg timing (flakiness fix, 2026-11-08, investigation
@@ -86,7 +98,9 @@ export async function GET(request: Request): Promise<Response> {
 
   // Optional per-account scoping. SECURITY: verify the account belongs to
   // this user before filtering by it - never trust a client-sent id.
+  // The id may be an Instagram account OR a Facebook Page row id.
   const requestedAccountId = new URL(request.url).searchParams.get('accountId');
+  let requestedFacebookPageId: string | null = null;
   if (requestedAccountId) {
     const { data: owned } = await db
       .from('instagram_accounts')
@@ -95,7 +109,16 @@ export async function GET(request: Request): Promise<Response> {
       .eq('user_id', user.id)
       .maybeSingle();
     if (!owned) {
-      return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+      const { data: ownedPage } = await db
+        .from('facebook_pages')
+        .select('id')
+        .eq('id', requestedAccountId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!ownedPage) {
+        return Response.json({ error: 'Account not found' }, { status: 404 });
+      }
+      requestedFacebookPageId = requestedAccountId;
     }
   }
 
@@ -117,11 +140,15 @@ export async function GET(request: Request): Promise<Response> {
           ask_to_follow_enabled, ask_to_follow_message,
           ask_to_follow_visit_profile_button, ask_to_follow_confirm_button,
           dm_responses, trigger_config, flow_graph, total_dms_sent, ai_reply_language, created_at, updated_at,
-          instagram_account_id,
-          instagram_accounts ( id, username, profile_picture_url )
+          instagram_account_id, channel, facebook_page_id,
+          instagram_accounts ( id, username, profile_picture_url ),
+          facebook_pages ( id, name, username, profile_picture_url )
         `)
         .eq('user_id', user.id);
-      if (requestedAccountId) query = query.eq('instagram_account_id', requestedAccountId);
+      if (requestedAccountId) {
+        if (requestedFacebookPageId) query = query.eq('facebook_page_id', requestedFacebookPageId);
+        else query = query.eq('instagram_account_id', requestedAccountId);
+      }
       const { data: rows, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
       return rows;
@@ -171,6 +198,12 @@ export async function POST(request: Request): Promise<Response> {
   const data = parsed.data;
 
   // Validate a supplied flow graph before it can reach storage/execution.
+  // Facebook automations never carry a flow graph (the FB engine is
+  // linear-only) — reject one instead of silently dropping it.
+  const isFacebook = Boolean(data.facebookPageId);
+  if (isFacebook && data.flowGraph !== undefined && data.flowGraph !== null) {
+    return Response.json({ error: 'Validation failed - flowGraph is not supported for Facebook automations' }, { status: 400 });
+  }
   let flowGraph: FlowGraph | null = null;
   if (data.flowGraph !== undefined && data.flowGraph !== null) {
     const candidate = data.flowGraph as FlowGraph;
@@ -186,16 +219,45 @@ export async function POST(request: Request): Promise<Response> {
 
   const db = createServiceClient();
 
-  // Ownership: the IG account being attached must belong to this user
-  const { data: igAccount, error: igError } = await db
-    .from('instagram_accounts')
-    .select('id')
-    .eq('id', data.instagramAccountId)
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .single();
-  if (igError || !igAccount) {
-    return Response.json({ error: 'Instagram account not found or not yours' }, { status: 403 });
+  // Facebook v1 limits (the UI hides these for FB; the API enforces them):
+  // no require-follow (no follow signal on Facebook), no scheduled
+  // follow-ups, no lead-form capture.
+  if (isFacebook) {
+    if (data.askToFollowEnabled) {
+      return Response.json({ error: 'Validation failed - askToFollow is not available for Facebook automations' }, { status: 400 });
+    }
+    if (data.followUpEnabled) {
+      return Response.json({ error: 'Validation failed - scheduled follow-ups are not available for Facebook automations' }, { status: 400 });
+    }
+    if (data.dmResponses.some((r) => r.type === 'lead_form')) {
+      return Response.json({ error: 'Validation failed - lead-form responses are not available for Facebook automations' }, { status: 400 });
+    }
+  }
+
+  // Ownership: the account being attached must belong to this user
+  // (Instagram account OR Facebook Page, by the payload's channel).
+  if (isFacebook) {
+    const { data: fbPage, error: fbError } = await db
+      .from('facebook_pages')
+      .select('id')
+      .eq('id', data.facebookPageId)
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single();
+    if (fbError || !fbPage) {
+      return Response.json({ error: 'Facebook Page not found or not yours' }, { status: 403 });
+    }
+  } else {
+    const { data: igAccount, error: igError } = await db
+      .from('instagram_accounts')
+      .select('id')
+      .eq('id', data.instagramAccountId)
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .single();
+    if (igError || !igAccount) {
+      return Response.json({ error: 'Instagram account not found or not yours' }, { status: 403 });
+    }
   }
 
   // Bug 2 enforcement (2026-11-09): creating an automation that
@@ -225,7 +287,9 @@ export async function POST(request: Request): Promise<Response> {
     .from('automations')
     .insert({
       user_id: user.id,
-      instagram_account_id: data.instagramAccountId,
+      instagram_account_id: isFacebook ? null : data.instagramAccountId,
+      facebook_page_id: isFacebook ? data.facebookPageId : null,
+      channel: isFacebook ? 'facebook' : 'instagram',
       name: data.name,
       type: data.type,
       post_id: data.postId ?? null,
@@ -310,8 +374,10 @@ async function p18ListAutomations(
   const repo = createTenantRepository(db, resolved.ctx, 'read');
 
   const requestedAccountId = new URL(request.url).searchParams.get('accountId');
+  let requestedFacebookPageId: string | null = null;
   if (requestedAccountId) {
     // The account must be bound to THIS workspace; foreign/unbound ⇒ 404.
+    // The id may be an Instagram account OR a Facebook Page row id.
     let account: Awaited<ReturnType<typeof repo.instagramAccounts.getByIdInWorkspace>> = null;
     try {
       account = await repo.instagramAccounts.getByIdInWorkspace(requestedAccountId);
@@ -319,7 +385,16 @@ async function p18ListAutomations(
       account = null;
     }
     if (!account) {
-      return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+      const { data: fbPage } = await db
+        .from('facebook_pages')
+        .select('id')
+        .eq('id', requestedAccountId)
+        .eq('workspace_id', resolved.ctx.workspaceId)
+        .maybeSingle();
+      if (!fbPage) {
+        return Response.json({ error: 'Account not found' }, { status: 404 });
+      }
+      requestedFacebookPageId = requestedAccountId;
     }
   }
 
@@ -329,7 +404,11 @@ async function p18ListAutomations(
   const queryStartedAt = Date.now();
   try {
     const rows = await repo.automations.list(
-      requestedAccountId ? { instagram_account_id: requestedAccountId } : {},
+      requestedAccountId
+        ? requestedFacebookPageId
+          ? { facebook_page_id: requestedFacebookPageId }
+          : { instagram_account_id: requestedAccountId }
+        : {},
     );
     const queryMs = Date.now() - queryStartedAt;
     const automations = [...rows].sort((a, b) =>
@@ -379,6 +458,12 @@ async function p18CreateAutomation(
   const data = parsed.data;
 
   let flowGraph: FlowGraph | null = null;
+  // Facebook automations never carry a flow graph (the FB engine is
+  // linear-only) — reject one instead of silently dropping it.
+  const isFacebook = Boolean(data.facebookPageId);
+  if (isFacebook && data.flowGraph !== undefined && data.flowGraph !== null) {
+    return Response.json({ error: 'Validation failed - flowGraph is not supported for Facebook automations' }, { status: 400 });
+  }
   if (data.flowGraph !== undefined && data.flowGraph !== null) {
     const candidate = data.flowGraph as FlowGraph;
     if (typeof candidate !== 'object' || !Array.isArray(candidate.nodes)) {
@@ -389,6 +474,19 @@ async function p18CreateAutomation(
       return Response.json({ error: `Validation failed - flowGraph: ${validation.errors.join('; ')}` }, { status: 400 });
     }
     flowGraph = candidate;
+  }
+
+  // Facebook v1 limits (same as the legacy handler).
+  if (isFacebook) {
+    if (data.askToFollowEnabled) {
+      return Response.json({ error: 'Validation failed - askToFollow is not available for Facebook automations' }, { status: 400 });
+    }
+    if (data.followUpEnabled) {
+      return Response.json({ error: 'Validation failed - scheduled follow-ups are not available for Facebook automations' }, { status: 400 });
+    }
+    if (data.dmResponses.some((r) => r.type === 'lead_form')) {
+      return Response.json({ error: 'Validation failed - lead-form responses are not available for Facebook automations' }, { status: 400 });
+    }
   }
 
   const db = createServiceClient();
@@ -404,20 +502,33 @@ async function p18CreateAutomation(
   }
   const repo = createTenantRepository(db, ctx, 'write');
 
-  // TW-1 fix (workspace mode): the target IG account must be bound to the
+  // TW-1 fix (workspace mode): the target account must be bound to the
   // SAME workspace as the resolved context. Foreign/unbound ⇒ 404, and
-  // nothing is inserted.
+  // nothing is inserted. The account may be an Instagram account OR a
+  // Facebook Page (direct workspace_id-scoped query — the tenant
+  // repository has no facebookPages accessor yet).
   let igAccount: Awaited<ReturnType<typeof repo.instagramAccounts.getByIdInWorkspace>> = null;
-  try {
-    igAccount = await repo.instagramAccounts.getByIdInWorkspace(data.instagramAccountId);
-  } catch {
-    igAccount = null;
+  let fbPage: { id: string; is_active: boolean } | null = null;
+  if (isFacebook) {
+    const { data: pageRow } = await db
+      .from('facebook_pages')
+      .select('id, is_active')
+      .eq('id', data.facebookPageId)
+      .eq('workspace_id', ctx.workspaceId)
+      .maybeSingle();
+    fbPage = pageRow as { id: string; is_active: boolean } | null;
+  } else {
+    try {
+      igAccount = await repo.instagramAccounts.getByIdInWorkspace(data.instagramAccountId!);
+    } catch {
+      igAccount = null;
+    }
   }
-  if (!igAccount) {
-    return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+  if (!igAccount && !fbPage) {
+    return Response.json({ error: 'Account not found' }, { status: 404 });
   }
-  if (igAccount['is_active'] === false) {
-    return Response.json({ error: 'Instagram account not found or not yours' }, { status: 403 });
+  if ((igAccount && igAccount['is_active'] === false) || (fbPage && fbPage.is_active === false)) {
+    return Response.json({ error: 'Account not found or not yours' }, { status: 403 });
   }
 
   // Bug 2 enforcement (2026-11-09): creating an ACTIVE automation
@@ -444,7 +555,9 @@ async function p18CreateAutomation(
     // carrying a foreign workspace_id.
     const created = await repo.automations.insert({
       user_id: user.id,
-      instagram_account_id: data.instagramAccountId,
+      instagram_account_id: isFacebook ? null : data.instagramAccountId,
+      facebook_page_id: isFacebook ? data.facebookPageId : null,
+      channel: isFacebook ? 'facebook' : 'instagram',
       name: data.name,
       type: data.type,
       post_id: data.postId ?? null,

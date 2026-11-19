@@ -19,6 +19,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FakeSupabase, type FakeRow } from './helpers/fakeSupabase';
 import type { MetaWebhookBody } from '@/lib/types';
+import { isMetaCommentChangeValue } from '@/lib/types';
 
 const fake = new FakeSupabase();
 
@@ -206,7 +207,7 @@ describe('excessive valid traffic is shed per-account', () => {
     expect(flood.stats.shed).toBe(2);
     expect(flood.stats.shedByAccount).toEqual({ 'IG-ABUSIVE': 2 });
     // The filtered body carries exactly the admitted events.
-    expect(flood.body?.entry[0]?.changes?.map((c) => c.value.id)).toEqual(['a-1', 'a-2']);
+    expect(flood.body?.entry[0]?.changes?.map((c) => isMetaCommentChangeValue(c.value) ? c.value.id : undefined)).toEqual(['a-1', 'a-2']);
     // Shed events are RECORDED (metadata only), not silently dropped.
     const shedRows = fake
       .rows('inbound_webhook_events')
