@@ -198,7 +198,9 @@ export default function SetupWizard() {
                             className={inputCls}
                         />
                         <p className="text-[11px] text-muted-foreground mt-1">
-                            Encrypted before it touches the database. Never logged, never shown again.
+                            {configured
+                                ? "Leave blank to keep the current secret. Encrypted before it touches the database. Never logged, never shown again."
+                                : "Encrypted before it touches the database. Never logged, never shown again."}
                         </p>
                     </div>
                     <div>
@@ -220,7 +222,7 @@ export default function SetupWizard() {
                     {justSaved && <p className="text-[12px] text-secondary font-medium">Saved. Continue with Step 3.</p>}
                     <button
                         onClick={handleSave}
-                        disabled={saveMutation.isPending || !appId.trim() || !appSecret.trim()}
+                        disabled={saveMutation.isPending || !appId.trim() || (!configured && !appSecret.trim())}
                         className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
                         {saveMutation.isPending ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}
@@ -252,9 +254,13 @@ export default function SetupWizard() {
                             <p className="text-[13px] font-medium text-foreground mb-2.5">
                                 B. Business login - <span className="text-muted-foreground font-normal">3. Set up Instagram business login → Business login settings</span>
                             </p>
-                            <CopyField label="OAuth redirect URI" value={setup?.oauthRedirectUri ?? ""} />
+                            <div className="space-y-2.5">
+                                <CopyField label="Instagram OAuth redirect URI" value={setup?.oauthRedirectUri ?? ""} />
+                                <CopyField label="Facebook OAuth redirect URI" value={setup?.facebookOAuthRedirectUri ?? ""} />
+                            </div>
                             <p className="text-[11px] text-muted-foreground mt-2">
-                                Must match character-for-character.
+                                Must match character-for-character. The Facebook URI goes in
+                                Facebook Login for Business → Settings → Valid OAuth Redirect URIs.
                             </p>
                         </div>
                     </div>

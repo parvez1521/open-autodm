@@ -11,6 +11,7 @@ export interface SetupStatus {
   webhookVerifyToken: string | null;
   webhookUrl: string;
   oauthRedirectUri: string;
+  facebookOAuthRedirectUri: string;
   appUrl: string;
   cronSnippet: string;
 }

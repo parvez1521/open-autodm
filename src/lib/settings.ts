@@ -123,7 +123,17 @@ export async function getMetaSettings(): Promise<MetaSettings | null> {
 
 export async function saveMetaSettings(input: {
   metaAppId: string;
-  metaAppSecret: string;
+  /** Plaintext IG secret to encrypt + store. Omit when preserving the stored secret. */
+  metaAppSecret?: string;
+  /**
+   * Pre-encrypted IG secret to store byte-identical (preserve path — the
+   * Setup Wizard never shows the stored secret again, so a save that only
+   * changes the Facebook secret must not re-encrypt or blank it: the stored
+   * value is what currently verifies live Instagram webhook signatures).
+   * Takes precedence over metaAppSecret when both are given; at least one
+   * of the two is required.
+   */
+  metaAppSecretEncrypted?: string;
   metaFbAppSecret?: string | null;
   webhookVerifyToken: string;
 }): Promise<void> {
@@ -134,13 +144,19 @@ export async function saveMetaSettings(input: {
   const env = getEnv();
   const db = createServiceClient();
   const fbSecret = input.metaFbAppSecret?.trim();
+  const encryptedSecret =
+    input.metaAppSecretEncrypted ??
+    (input.metaAppSecret ? encrypt(input.metaAppSecret.trim(), env.TOKEN_ENCRYPTION_KEY) : undefined);
+  if (!encryptedSecret) {
+    throw new Error('Meta App Secret is required - no existing secret to preserve.');
+  }
   const { error } = await db
     .from('app_settings')
     .upsert(
       {
         id: 1,
         meta_app_id: input.metaAppId.trim(),
-        meta_app_secret_encrypted: encrypt(input.metaAppSecret.trim(), env.TOKEN_ENCRYPTION_KEY),
+        meta_app_secret_encrypted: encryptedSecret,
         meta_fb_app_secret_encrypted: fbSecret ? encrypt(fbSecret, env.TOKEN_ENCRYPTION_KEY) : null,
         webhook_verify_token: input.webhookVerifyToken,
         setup_completed: true,

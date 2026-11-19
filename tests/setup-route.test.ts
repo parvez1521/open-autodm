@@ -36,19 +36,24 @@ const OTHER = { id: 'other-user-id', email: 'other@example.com' };
 
 const VALID_BODY = { metaAppId: '123456789012', metaAppSecret: 'a'.repeat(32) };
 
-function postRequest(): Request {
+function postBody(body: Record<string, unknown>): Request {
   return new Request('https://app.opendm.in/api/setup', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(VALID_BODY),
+    body: JSON.stringify(body),
   });
 }
 
-function seedSettings(setupCompleted: boolean): void {
+function postRequest(): Request {
+  return postBody(VALID_BODY);
+}
+
+function seedSettings(setupCompleted: boolean, encryptedSecret?: string): void {
   fake.replaceRows('app_settings', [
     {
       id: 1,
       meta_app_id: '123456789012',
+      ...(encryptedSecret ? { meta_app_secret_encrypted: encryptedSecret } : {}),
       webhook_verify_token: 'live-verify-token',
       setup_completed: setupCompleted,
     },
@@ -150,6 +155,61 @@ describe('POST /api/setup', () => {
     expect(mockSaveSettings).toHaveBeenCalledTimes(1);
   });
 
+  it('omitting metaAppSecret preserves the existing encrypted secret and sets metaFbAppSecret', async () => {
+    // The live case (2026-11-19): the stored IG secret verifies webhook
+    // signatures and must survive a save that only sets the FB secret.
+    seedSettings(true, 'existing-encrypted-ig-secret');
+    process.env['OWNER_USER_ID'] = OWNER.id;
+    mockAuth.mockResolvedValue(OWNER);
+    const res = await POST(
+      postBody({ metaAppId: '1586956306036999', metaFbAppSecret: 'b'.repeat(32) })
+    );
+    expect(res.status).toBe(200);
+    expect(mockSaveSettings).toHaveBeenCalledTimes(1);
+    expect(mockSaveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metaAppId: '1586956306036999',
+        metaAppSecretEncrypted: 'existing-encrypted-ig-secret',
+        metaFbAppSecret: 'b'.repeat(32),
+      })
+    );
+    // No plaintext IG secret is passed through on the preserve path.
+    expect(mockSaveSettings.mock.calls[0]?.[0]?.metaAppSecret).toBeUndefined();
+  });
+
+  it('an empty-string metaAppSecret (what the wizard sends when blank) also preserves', async () => {
+    seedSettings(true, 'existing-encrypted-ig-secret');
+    process.env['OWNER_USER_ID'] = OWNER.id;
+    mockAuth.mockResolvedValue(OWNER);
+    const res = await POST(postBody({ metaAppId: '1586956306036999', metaAppSecret: '' }));
+    expect(res.status).toBe(200);
+    expect(mockSaveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ metaAppSecretEncrypted: 'existing-encrypted-ig-secret' })
+    );
+  });
+
+  it('omitting metaAppSecret with no existing secret returns 400 (first setup still requires it)', async () => {
+    seedSettings(false);
+    mockAuth.mockResolvedValue(OTHER);
+    const res = await POST(postBody({ metaAppId: '123456789012' }));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/Meta App Secret is required for first-time setup/);
+    expect(mockSaveSettings).not.toHaveBeenCalled();
+  });
+
+  it('providing metaAppSecret overwrites as before (no preserve passthrough)', async () => {
+    seedSettings(true, 'existing-encrypted-ig-secret');
+    process.env['OWNER_USER_ID'] = OWNER.id;
+    mockAuth.mockResolvedValue(OWNER);
+    const res = await POST(postRequest());
+    expect(res.status).toBe(200);
+    expect(mockSaveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ metaAppSecret: 'a'.repeat(32) })
+    );
+    expect(mockSaveSettings.mock.calls[0]?.[0]?.metaAppSecretEncrypted).toBeUndefined();
+  });
+
   it('rejects unauthenticated callers with 401', async () => {
     seedSettings(false);
     mockAuth.mockResolvedValue(null);
@@ -188,5 +248,17 @@ describe('GET /api/setup', () => {
     const res = await GET(new Request('https://app.opendm.in/api/setup'));
     const body = (await res.json()) as { webhookVerifyToken: string | null };
     expect(body.webhookVerifyToken).toBe('live-verify-token');
+  });
+
+  it('returns facebookOAuthRedirectUri alongside the Instagram one', async () => {
+    seedSettings(true);
+    mockAuth.mockResolvedValue(OTHER);
+    const res = await GET(new Request('https://app.opendm.in/api/setup'));
+    const body = (await res.json()) as {
+      oauthRedirectUri: string;
+      facebookOAuthRedirectUri: string;
+    };
+    expect(body.oauthRedirectUri).toBe('https://app.opendm.in/api/instagram/callback');
+    expect(body.facebookOAuthRedirectUri).toBe('https://app.opendm.in/api/facebook/callback');
   });
 });

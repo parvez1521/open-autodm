@@ -30,7 +30,16 @@ export const dynamic = 'force-dynamic';
 
 const SaveSetupSchema = z.object({
   metaAppId: z.string().regex(/^\d{5,25}$/, 'Meta App ID must be numeric'),
-  metaAppSecret: z.string().regex(/^[0-9a-f]{32}$/i, 'Meta App Secret must be 32 hex characters'),
+  // Optional on re-save: the stored IG secret is never shown again, so a
+  // save that only changes the App ID / Facebook secret leaves this blank
+  // and the handler preserves the existing encrypted secret byte-identical
+  // (it is what verifies live Instagram webhook signatures). Required on
+  // first setup — the handler 400s when no secret exists to preserve.
+  metaAppSecret: z
+    .string()
+    .regex(/^[0-9a-f]{32}$/i, 'Meta App Secret must be 32 hex characters')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   // Optional: some Meta apps sign webhooks with the Facebook app secret.
   metaFbAppSecret: z
     .string()
@@ -101,6 +110,7 @@ export async function GET(request: Request): Promise<Response> {
     webhookVerifyToken: maySeeToken ? ((row?.webhook_verify_token as string | null) ?? null) : null,
     webhookUrl: `${appUrl}/api/webhook`,
     oauthRedirectUri: `${appUrl}/api/instagram/callback`,
+    facebookOAuthRedirectUri: `${appUrl}/api/facebook/callback`,
     appUrl,
     cronSnippet: cronSnippet(appUrl),
   });
@@ -133,7 +143,7 @@ export async function POST(request: Request): Promise<Response> {
     const db = createServiceClient();
     const { data: existing } = await db
       .from('app_settings')
-      .select('webhook_verify_token, setup_completed')
+      .select('meta_app_secret_encrypted, webhook_verify_token, setup_completed')
       .eq('id', 1)
       .maybeSingle();
 
@@ -154,9 +164,27 @@ export async function POST(request: Request): Promise<Response> {
 
     const verifyToken = (existing?.webhook_verify_token as string | null) ?? randomToken(16);
 
+    // Preserve the stored IG secret when the wizard left it blank: the
+    // secret is never displayed again, and overwriting it would break live
+    // Instagram webhook signature verification. On first setup there is
+    // nothing to preserve, so a missing secret is a 400.
+    const existingEncryptedSecret = existing?.meta_app_secret_encrypted as string | null | undefined;
+    if (parsed.data.metaAppSecret === undefined && !existingEncryptedSecret) {
+      return Response.json(
+        {
+          error:
+            'Meta App Secret is required for first-time setup - no existing secret to keep. ' +
+            'Paste the 32-character Instagram app secret.',
+        },
+        { status: 400 }
+      );
+    }
+
     await saveMetaSettings({
       metaAppId: parsed.data.metaAppId,
       metaAppSecret: parsed.data.metaAppSecret,
+      metaAppSecretEncrypted:
+        parsed.data.metaAppSecret === undefined ? (existingEncryptedSecret ?? undefined) : undefined,
       metaFbAppSecret: parsed.data.metaFbAppSecret ?? null,
       webhookVerifyToken: verifyToken,
     });
