@@ -11,6 +11,9 @@
  *
  * The dialog lets the user pick which Pages to grant (pages_show_list);
  * the callback connects every Page granted there (usually one).
+ * business_management is requested too: without it, Pages owned by a
+ * Business Portfolio never appear in /me/accounts, so the callback
+ * sees no Pages at all (proven live 2026-11-19).
  */
 
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';

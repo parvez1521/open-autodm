@@ -17,6 +17,13 @@
  *  - Scopes are the Facebook Page permission names below; the app must
  *    pass App Review for them before anyone but app admins/testers can
  *    connect (Development mode until then).
+ *  - business_management is REQUIRED, not optional: a Page owned by a
+ *    Business Portfolio (e.g. "Tech Hacks AI", owned by portfolio
+ *    "tech_hacks___") does NOT appear in /me/accounts for a token
+ *    without it — the endpoint returns {"data": []} even though the
+ *    dialog shows the Page selected and a direct /{page-id} lookup
+ *    returns it with an access token. Proven live 2026-11-19: adding
+ *    business_management made /me/accounts return the Page.
  */
 
 import { FB_GRAPH_BASE } from '@/lib/facebook/api';
@@ -25,8 +32,11 @@ import type { FbShortLivedTokenResponse, FbLongLivedTokenResponse, FbPageAccount
 const FB_OAUTH_URL = 'https://www.facebook.com/v23.0/dialog/oauth';
 const FB_TOKEN_URL = `${FB_GRAPH_BASE}/oauth/access_token`;
 
-/** Scopes required for Page automation (Facebook permission names). */
+/** Scopes required for Page automation (Facebook permission names).
+ * business_management is required so Pages owned by a Business
+ * Portfolio appear in /me/accounts (see header note above). */
 export const FB_REQUIRED_SCOPES = [
+  'business_management',
   'pages_show_list',
   'pages_read_engagement',
   'pages_manage_metadata',
