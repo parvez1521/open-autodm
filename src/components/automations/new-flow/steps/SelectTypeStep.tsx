@@ -12,6 +12,12 @@ interface SelectTypeStepProps {
     /** Facebook trigger cards only render when a Page is connected —
      *  otherwise they would be dead ends (nothing to attach them to). */
     showFacebookTriggers?: boolean;
+    /**
+     * Channel preselect (2026-11-20): the /automations channel
+     * toggle passes the selected tab so only that channel's
+     * triggers show. Undefined = both channels (previous behaviour).
+     */
+    channelFilter?: "instagram" | "facebook";
 }
 
 const ICONS = {
@@ -23,11 +29,14 @@ const ICONS = {
     "facebook": FacebookLogo,
 };
 
-export function SelectTypeStep({ onSelect, onTemplateSelect, selectedType, showFacebookTriggers = false }: SelectTypeStepProps) {
+export function SelectTypeStep({ onSelect, onTemplateSelect, selectedType, showFacebookTriggers = false, channelFilter }: SelectTypeStepProps) {
     // Facebook cards (channel: 'facebook') are hidden until a Page is
-    // connected; Instagram cards always show.
+    // connected; Instagram cards always show. A channel filter (from
+    // the /automations toggle) narrows the grid to that channel only —
+    // types without a channel field are Instagram.
     const visibleTypes = AUTOMATION_TYPES.filter((type) => {
-        const channel = (type as { channel?: string }).channel;
+        const channel = (type as { channel?: string }).channel ?? "instagram";
+        if (channelFilter !== undefined && channel !== channelFilter) return false;
         return channel !== "facebook" || showFacebookTriggers;
     });
     return (
@@ -43,6 +52,11 @@ export function SelectTypeStep({ onSelect, onTemplateSelect, selectedType, showF
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    {visibleTypes.length === 0 && (
+                        <p className="md:col-span-2 text-center text-[13px] text-muted-foreground py-8">
+                            No triggers for this channel yet — connect a Facebook Page in Settings first.
+                        </p>
+                    )}
                     {visibleTypes.map((type, idx) => {
                         const Icon = ICONS[type.iconType as keyof typeof ICONS];
                         const isSelected = selectedType === type.id;
@@ -93,8 +107,10 @@ export function SelectTypeStep({ onSelect, onTemplateSelect, selectedType, showF
 
                 {/* Templates (2026-11-17): one-click starters that prefill
                     the builder — name, type, trigger, opening message and
-                    link response. Nothing is created until the owner saves. */}
-                {onTemplateSelect && (
+                    link response. Nothing is created until the owner saves.
+                    Templates are Instagram-only, so they stay hidden when the
+                    trigger picker is filtered to Facebook. */}
+                {onTemplateSelect && channelFilter !== "facebook" && (
                     <div className="space-y-3">
                         <div className="text-center space-y-1">
                             <h3 className="text-[13px] font-semibold text-foreground">Or start from a template</h3>

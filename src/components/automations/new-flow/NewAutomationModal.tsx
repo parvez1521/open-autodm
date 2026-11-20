@@ -30,6 +30,13 @@ interface NewAutomationModalProps {
      * starts with this keyword already in the trigger keyword list.
      */
     initialKeyword?: string | null;
+    /**
+     * Channel the create flow opens on (2026-11-20): the
+     * /automations channel toggle passes the selected tab so the
+     * trigger picker shows that channel's triggers. Create mode
+     * only — edit mode derives the channel from the stored row.
+     */
+    initialChannel?: "instagram" | "facebook";
 }
 
 export type CardButton = {
@@ -176,7 +183,7 @@ function automationToFlowData(automation: AutomationFromDB): AutomationFlowData 
     };
 }
 
-export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId, facebookPageId, initialKeyword }: NewAutomationModalProps) {
+export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId, facebookPageId, initialKeyword, initialChannel }: NewAutomationModalProps) {
     const isEditMode = !!editAutomation;
 
     const [step, setStep] = useState(0);
@@ -576,6 +583,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             onTemplateSelect={handleTemplateSelect}
                                             selectedType={flowData.type}
                                             showFacebookTriggers={!!firstFacebookPageId}
+                                            channelFilter={!isEditMode ? initialChannel : undefined}
                                         />
                                     )}
                                     {step === 1 && (

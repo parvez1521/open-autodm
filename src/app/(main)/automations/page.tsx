@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus } from "@/components/phosphor";
+import { Plus, InstagramLogo, FacebookLogo } from "@/components/phosphor";
 import { BrandWave } from "@/components/ui/BrandWave";
 import { cn } from "@/lib/utils";
 import { AutomationsList } from "@/components/automations/AutomationsList";
@@ -22,12 +22,35 @@ export default function AutomationsPage() {
     );
 }
 
+type ChannelTab = "instagram" | "facebook";
+
+/** Channel toggle persistence (2026-11-20): the selected channel
+ *  survives reloads; Instagram is the default on first visit. */
+const CHANNEL_STORAGE_KEY = "opendm-automations-channel";
+
 function AutomationsContent() {
     const searchParams = useSearchParams();
     const [activeTab, setActiveTab] = useState<"automations" | "contacts">("automations");
+    const [channelTab, setChannelTab] = useState<ChannelTab>(() => {
+        if (typeof window === "undefined") return "instagram";
+        try {
+            return window.localStorage.getItem(CHANNEL_STORAGE_KEY) === "facebook" ? "facebook" : "instagram";
+        } catch {
+            return "instagram";
+        }
+    });
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAutomation, setEditingAutomation] = useState<AutomationFromDB | null>(null);
     const [initialKeyword, setInitialKeyword] = useState<string | null>(null);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(CHANNEL_STORAGE_KEY, channelTab);
+        } catch {
+            // Storage unavailable (private mode) — the tab still
+            // works for this visit; nothing else depends on it.
+        }
+    }, [channelTab]);
 
     // Script Writer handoff (audit fix, 2026-11-08): a ?keyword= from
     // the generated script opens the create flow with that keyword
@@ -54,12 +77,27 @@ function AutomationsContent() {
     // Instagram account OR the selected Facebook Page. With neither
     // selected the list is empty — rows for an unselected account
     // never leak in.
+    // Channel tabs (2026-11-20): the list shows ONE channel at a
+    // time — the selected tab filters by channel first, then by the
+    // active account/Page within it.
     const { data: allAutomations, isLoading, error: automationsError, refetch: refetchAutomations } = useAutomations(null);
     const automations = (allAutomations ?? []).filter((a) =>
-        a.channel === "facebook"
-            ? activeFacebookPageId !== null && a.facebook_page_id === activeFacebookPageId
-            : a.instagram_account_id === accountId,
+        channelTab === "facebook"
+            ? a.channel === "facebook" && activeFacebookPageId !== null && a.facebook_page_id === activeFacebookPageId
+            : a.channel !== "facebook" && a.instagram_account_id === accountId,
     );
+    // Channel-aware empty state (2026-11-20): when the selected
+    // channel has no account connected, say so plainly instead of
+    // the generic "no automations" — the missing connection is the
+    // real reason the list is empty.
+    const channelEmptyCopy =
+        channelTab === "facebook"
+            ? activeFacebookPageId === null
+                ? { title: "No Facebook Page connected", message: "Connect a Facebook Page in Settings to see its automations here." }
+                : { title: "No Facebook automations yet", message: "Create one to reply to comments or DMs on your Page automatically." }
+            : accountId === null
+                ? { title: "No Instagram account selected", message: "Select an Instagram account to see its automations here." }
+                : { title: "No Instagram automations yet", message: "Create one to reply to comments, DMs, or story replies automatically." };
     const toggleMutation = useToggleAutomation();
     const deleteMutation = useDeleteAutomation();
 
@@ -116,16 +154,46 @@ function AutomationsContent() {
             {/* Content */}
             <div className="min-h-[420px]">
                 {activeTab === "automations" ? (
-                    <AutomationsList
-                        automations={automations ?? []}
-                        isLoading={isLoading}
-                        onToggle={handleToggle}
-                        onDelete={handleDelete}
-                        onEdit={handleEdit}
-                        deleteError={deleteMutation.error?.message ?? null}
-                        loadError={automationsError?.message ?? null}
-                        onRetry={() => void refetchAutomations()}
-                    />
+                    <>
+                        {/* Channel toggle (2026-11-20): Instagram and
+                            Facebook automations live in one table, but
+                            the list shows one channel at a time. Same
+                            pill style as the Automations/Contacts tabs
+                            above. */}
+                        <div className="inline-flex items-center bg-muted rounded-lg p-0.5 mb-4" role="tablist" aria-label="Automation channel">
+                            {(["instagram", "facebook"] as const).map((channel) => {
+                                const Icon = channel === "instagram" ? InstagramLogo : FacebookLogo;
+                                return (
+                                    <button
+                                        key={channel}
+                                        onClick={() => setChannelTab(channel)}
+                                        aria-pressed={channelTab === channel}
+                                        className={cn(
+                                            "inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[7px] text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                            channelTab === channel
+                                                ? "bg-card text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        <Icon className="w-3.5 h-3.5" />
+                                        {channel === "instagram" ? "Instagram" : "Facebook"}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <AutomationsList
+                            automations={automations ?? []}
+                            isLoading={isLoading}
+                            onToggle={handleToggle}
+                            onDelete={handleDelete}
+                            onEdit={handleEdit}
+                            deleteError={deleteMutation.error?.message ?? null}
+                            loadError={automationsError?.message ?? null}
+                            onRetry={() => void refetchAutomations()}
+                            emptyTitle={channelEmptyCopy.title}
+                            emptyMessage={channelEmptyCopy.message}
+                        />
+                    </>
                 ) : (
                     <ContactsList />
                 )}
@@ -138,6 +206,7 @@ function AutomationsContent() {
                 accountId={accountId}
                 facebookPageId={activeFacebookPageId}
                 initialKeyword={initialKeyword}
+                initialChannel={channelTab}
             />
 
             {/* Debug panel - visible only when NEXT_PUBLIC_DEBUG=true */}

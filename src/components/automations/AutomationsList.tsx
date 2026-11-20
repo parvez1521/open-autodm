@@ -42,9 +42,17 @@ interface AutomationsListProps {
      */
     loadError?: string | null;
     onRetry?: () => void;
+    /**
+     * Channel-aware empty state (2026-11-20): the /automations page
+     * passes channel-specific copy so the empty state never hides
+     * the real reason (e.g. no Facebook Page connected yet).
+     * Defaults keep the original generic copy.
+     */
+    emptyTitle?: string;
+    emptyMessage?: string;
 }
 
-export function AutomationsList({ automations, isLoading, onToggle, onDelete, onEdit, deleteError, loadError, onRetry }: AutomationsListProps) {
+export function AutomationsList({ automations, isLoading, onToggle, onDelete, onEdit, deleteError, loadError, onRetry, emptyTitle, emptyMessage }: AutomationsListProps) {
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     if (isLoading) {
@@ -85,9 +93,9 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                 <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center mb-4">
                     <Lightning className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <h3 className="text-[15px] font-heading font-semibold mb-1 text-foreground">No automations yet</h3>
+                <h3 className="text-[15px] font-heading font-semibold mb-1 text-foreground">{emptyTitle ?? "No automations yet"}</h3>
                 <p className="text-[13px] text-muted-foreground max-w-xs">
-                    Create one to reply to comments, DMs, or story replies automatically.
+                    {emptyMessage ?? "Create one to reply to comments, DMs, or story replies automatically."}
                 </p>
             </div>
         );
