@@ -9,14 +9,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, CaretUpDown, Plus, CircleNotch, SignOut, FacebookLogo } from "@/components/phosphor";
+import { Check, CaretUpDown, Plus, CircleNotch, SignOut, FacebookLogo, InstagramLogo } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { createBrowserClient } from "@/lib/supabase";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useActiveFacebookPage } from "@/hooks/useActiveFacebookPage";
+import type { FacebookPage } from "@/hooks/useFacebookPages";
 import { IgAvatar } from "@/components/dashboard/IgAvatar";
 import type { InstagramAccount } from "@/hooks/useInstagramAccounts";
+
+type SwitcherChannel = "instagram" | "facebook";
+
+/** Switcher popover tab persistence (2026-11-20): the selected
+ *  channel survives reloads; Instagram is the default on first
+ *  visit. Deliberately a SEPARATE key from the /automations tab
+ *  (opendm-automations-channel): sharing it would let a popover
+ *  tab switch silently flip the automations list filter. */
+const SWITCHER_CHANNEL_STORAGE_KEY = "opendm-switcher-channel";
 
 function AccountAvatar({ account, size = 7 }: { account: InstagramAccount | null; size?: 6 | 7 }) {
     return (
@@ -28,6 +38,17 @@ function AccountAvatar({ account, size = 7 }: { account: InstagramAccount | null
     );
 }
 
+function FacebookPageAvatar({ page, size = 7 }: { page: FacebookPage | null; size?: 6 | 7 }) {
+    if (page?.profile_picture_url) {
+        return <img src={page.profile_picture_url} alt={page.name} className={size === 6 ? "w-6 h-6 rounded-full object-cover shrink-0" : "w-7 h-7 rounded-full object-cover shrink-0"} />;
+    }
+    return (
+        <span className={size === 6 ? "w-6 h-6 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0" : "w-7 h-7 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0"}>
+            <FacebookLogo className={size === 6 ? "w-3.5 h-3.5 text-[#1877F2]" : "w-4 h-4 text-[#1877F2]"} />
+        </span>
+    );
+}
+
 export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed: boolean; userEmail?: string | null }) {
     const { account, accounts, setActiveAccount } = useActiveAccount();
     // Facebook Pages (2026-11-19) — a SEPARATE selection from the IG
@@ -36,12 +57,44 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
     // funnels for both selections.
     const { page: fbPage, pages: fbPages, setActiveFacebookPage } = useActiveFacebookPage();
     const [open, setOpen] = useState(false);
+    const [switcherChannel, setSwitcherChannel] = useState<SwitcherChannel>(() => {
+        if (typeof window === "undefined") return "instagram";
+        try {
+            return window.localStorage.getItem(SWITCHER_CHANNEL_STORAGE_KEY) === "facebook" ? "facebook" : "instagram";
+        } catch {
+            return "instagram";
+        }
+    });
     const [connecting, setConnecting] = useState(false);
     const [connectError, setConnectError] = useState<string | null>(null);
     const [fbConnecting, setFbConnecting] = useState(false);
     const [fbConnectError, setFbConnectError] = useState<string | null>(null);
     const [signingOut, setSigningOut] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
+
+    // Persist the popover channel choice (same pattern as the
+    // /automations channel tabs).
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(SWITCHER_CHANNEL_STORAGE_KEY, switcherChannel);
+        } catch {
+            // Storage unavailable (private mode) — the tab still
+            // works for this visit; nothing else depends on it.
+        }
+    }, [switcherChannel]);
+
+    // Open the popover on a channel: clicking the other channel's
+    // row while open switches the tab; clicking the same row
+    // again closes it. Selecting a channel never clears the other
+    // channel's selection.
+    const openChannel = (channel: SwitcherChannel) => {
+        if (open && switcherChannel === channel) {
+            setOpen(false);
+            return;
+        }
+        setSwitcherChannel(channel);
+        setOpen(true);
+    };
 
     const handleSignOut = async () => {
         setSigningOut(true);
@@ -93,39 +146,77 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
 
     return (
         <div ref={rootRef} className="relative">
-            {/* Trigger */}
-            <button
-                onClick={() => setOpen((o) => !o)}
-                aria-haspopup="listbox"
-                aria-expanded={open}
-                className={cn(
-                    "w-full flex items-center rounded-lg p-2 hover:bg-muted/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                    isCollapsed ? "justify-center" : "gap-2.5"
-                )}
-                title={isCollapsed ? (account ? `@${account.username}` : "Accounts") : undefined}
-            >
-                <AccountAvatar account={account} />
-                {!isCollapsed && (
-                    <>
-                        <div className="flex flex-col min-w-0 flex-1 text-left">
-                            {account ? (
-                                <>
-                                    <span className="text-[12px] font-medium text-foreground truncate leading-tight">@{account.username}</span>
-                                    <span className="text-[10px] text-muted-foreground leading-tight">
-                                        {accounts.length > 1 ? `${accounts.length} accounts` : "Connected"}
-                                    </span>
-                                </>
-                            ) : (
-                                <>
-                                    <span className="text-[12px] font-medium text-foreground leading-tight">No account</span>
-                                    <span className="text-[10px] text-muted-foreground leading-tight">Connect Instagram</span>
-                                </>
-                            )}
-                        </div>
-                        <CaretUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    </>
-                )}
-            </button>
+            {/* Trigger — one compact row per channel (2026-11-20):
+                the Instagram row and the Facebook row are separate
+                options; each opens the popover on its own channel.
+                Collapsed: the two rows collapse to their icons with
+                the existing title tooltips. */}
+            <div className={cn("flex flex-col", isCollapsed ? "gap-1" : "gap-0.5")}>
+                <button
+                    onClick={() => openChannel("instagram")}
+                    aria-haspopup="listbox"
+                    aria-expanded={open}
+                    className={cn(
+                        "w-full flex items-center rounded-lg p-2 hover:bg-muted/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                        isCollapsed ? "justify-center" : "gap-2.5"
+                    )}
+                    title={isCollapsed ? (account ? `@${account.username}` : "Instagram accounts") : undefined}
+                >
+                    <AccountAvatar account={account} />
+                    {!isCollapsed && (
+                        <>
+                            <div className="flex flex-col min-w-0 flex-1 text-left">
+                                {account ? (
+                                    <>
+                                        <span className="text-[12px] font-medium text-foreground truncate leading-tight">@{account.username}</span>
+                                        <span className="text-[10px] text-muted-foreground leading-tight">
+                                            {accounts.length > 1 ? `${accounts.length} accounts` : "Connected"}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-[12px] font-medium text-foreground leading-tight">No account</span>
+                                        <span className="text-[10px] text-muted-foreground leading-tight">Connect Instagram</span>
+                                    </>
+                                )}
+                            </div>
+                            <CaretUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        </>
+                    )}
+                </button>
+                <button
+                    onClick={() => openChannel("facebook")}
+                    aria-haspopup="listbox"
+                    aria-expanded={open}
+                    className={cn(
+                        "w-full flex items-center rounded-lg p-2 hover:bg-muted/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                        isCollapsed ? "justify-center" : "gap-2.5"
+                    )}
+                    title={isCollapsed ? (fbPage ? fbPage.name : "Facebook Pages") : undefined}
+                >
+                    <FacebookPageAvatar page={fbPage} />
+                    {!isCollapsed && (
+                        <>
+                            <div className="flex flex-col min-w-0 flex-1 text-left">
+                                {fbPage ? (
+                                    <>
+                                        <span className="text-[12px] font-medium text-foreground truncate leading-tight">{fbPage.name}</span>
+                                        <span className="text-[10px] text-muted-foreground leading-tight">
+                                            {fbPage.is_paused ? "Safety pause" : "Active"}
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-[12px] font-medium text-foreground leading-tight">No Page connected</span>
+                                        <span className="text-[10px] text-muted-foreground leading-tight">Connect Facebook</span>
+                                    </>
+                                )}
+                            </div>
+                            <CaretUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        </>
+                    )}
+                </button>
+            </div>
 
             {/* Popover */}
             <AnimatePresence>
@@ -141,6 +232,34 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                             isCollapsed ? "left-0" : "left-0 right-0 w-auto min-w-[210px]"
                         )}
                     >
+                        {/* Channel toggle (2026-11-20) — same pill style
+                            as the /automations channel tabs; only the
+                            selected channel's list + Add button show. */}
+                        <div className="px-3 pt-2.5 pb-1">
+                            <div className="flex items-center bg-muted rounded-lg p-0.5" role="tablist" aria-label="Account channel">
+                                {(["instagram", "facebook"] as const).map((channel) => {
+                                    const Icon = channel === "instagram" ? InstagramLogo : FacebookLogo;
+                                    return (
+                                        <button
+                                            key={channel}
+                                            onClick={() => setSwitcherChannel(channel)}
+                                            aria-pressed={switcherChannel === channel}
+                                            className={cn(
+                                                "inline-flex flex-1 items-center justify-center gap-1.5 h-8 px-3.5 rounded-[7px] text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                                switcherChannel === channel
+                                                    ? "bg-card text-foreground shadow-sm"
+                                                    : "text-muted-foreground hover:text-foreground"
+                                            )}
+                                        >
+                                            <Icon className="w-3.5 h-3.5" />
+                                            {channel === "instagram" ? "Instagram" : "Facebook"}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        {switcherChannel === "instagram" && (
+                        <>
                         <div className="px-3 pt-2.5 pb-1.5">
                             <span className="micro-label">Instagram accounts</span>
                         </div>
@@ -184,6 +303,9 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                             </button>
                             {connectError && <p className="px-2 pb-1 text-[11px] text-destructive">{connectError}</p>}
                         </div>
+                        </>)}
+                        {switcherChannel === "facebook" && (
+                        <>
                         {/* Facebook Pages (2026-11-19) — same popover, its own
                             section and its own selection. */}
                         <div className="border-t border-border px-3 pt-2.5 pb-1.5">
@@ -206,13 +328,7 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                                             isActive ? "bg-muted" : "hover:bg-muted/60"
                                         )}
                                     >
-                                        {p.profile_picture_url ? (
-                                            <img src={p.profile_picture_url} alt={p.name} className="w-6 h-6 rounded-full object-cover shrink-0" />
-                                        ) : (
-                                            <span className="w-6 h-6 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0">
-                                                <FacebookLogo className="w-3.5 h-3.5 text-[#1877F2]" />
-                                            </span>
-                                        )}
+                                        <FacebookPageAvatar page={p} size={6} />
                                         <div className="flex flex-col min-w-0 flex-1">
                                             <span className="text-[12.5px] font-medium text-foreground truncate leading-tight">{p.name}</span>
                                             <span className="text-[10px] text-muted-foreground leading-tight">
@@ -235,6 +351,7 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                             </button>
                             {fbConnectError && <p className="px-2 pb-1 text-[11px] text-destructive">{fbConnectError}</p>}
                         </div>
+                        </>)}
                         {/* Session — the signed-in user (functional audit fix:
                             identity + sign-out inside the account menu too) */}
                         <div className="border-t border-border p-1.5">
