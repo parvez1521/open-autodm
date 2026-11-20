@@ -65,8 +65,8 @@ function AutomationsContent() {
         }
     }, [searchParams]);
 
-    const { accountId } = useActiveAccount();
-    const { pageId: activeFacebookPageId } = useActiveFacebookPage();
+    const { accountId, isLoading: instagramAccountsLoading } = useActiveAccount();
+    const { pageId: activeFacebookPageId, isLoading: facebookPagesLoading } = useActiveFacebookPage();
     // QA fix (2026-11-08): the query error is no longer discarded —
     // AutomationsList renders an honest, retryable error state for it
     // instead of silently showing the empty state (settled failure)
@@ -81,6 +81,16 @@ function AutomationsContent() {
     // time — the selected tab filters by channel first, then by the
     // active account/Page within it.
     const { data: allAutomations, isLoading, error: automationsError, refetch: refetchAutomations } = useAutomations(null);
+    // Empty-state flash fix (2026-11-20): the account/Page selection
+    // queries resolve AFTER the automations query on a reload, so a
+    // null selection is indeterminate while they are pending — it
+    // must not render the "not connected" empty state. The skeleton
+    // stays up until the selected channel's selection has settled;
+    // only then does a null selection honestly mean "not connected".
+    // (The automations query's isLoading alone did not cover this:
+    // it can settle while the selection is still pending, which is
+    // exactly the flash the owner saw on the Facebook tab.)
+    const selectionLoading = channelTab === "facebook" ? facebookPagesLoading : instagramAccountsLoading;
     const automations = (allAutomations ?? []).filter((a) =>
         channelTab === "facebook"
             ? a.channel === "facebook" && activeFacebookPageId !== null && a.facebook_page_id === activeFacebookPageId
@@ -189,7 +199,7 @@ function AutomationsContent() {
                         </div>
                         <AutomationsList
                             automations={automations ?? []}
-                            isLoading={isLoading}
+                            isLoading={isLoading || selectionLoading}
                             onToggle={handleToggle}
                             onDelete={handleDelete}
                             onEdit={handleEdit}
