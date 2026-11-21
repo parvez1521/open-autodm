@@ -847,9 +847,9 @@ export default function LandingPage() {
                                     Simple, <em>honest</em> pricing
                                 </h2>
                                 <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-                                    The plans below are hosted and managed for you:
-                                    checkout is being switched on, so nothing can be bought
-                                    yet. No per-seat pricing and no per-message charges,
+                                    The plans below are hosted and managed for you.
+                                    Checkout is live, and you can pay securely. No
+                                    per-seat pricing and no per-message charges,
                                     either way.
                                 </p>
                                 <RevealRule className="mt-6 max-w-24" />
