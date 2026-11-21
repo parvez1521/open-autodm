@@ -51,6 +51,10 @@ export type DMResponse = {
     content: string;
     buttonTitle?: string;
     buttonLink?: string;
+    /** Text responses: link buttons, max 2 (2026-11-22). The legacy
+     *  buttonTitle/buttonLink above are still the first button, so
+     *  automations saved before this keep working unchanged. */
+    buttons?: CardButton[];
     cardImage?: string;
     cardTitle?: string;
     cardSubtitle?: string;

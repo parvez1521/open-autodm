@@ -31,6 +31,7 @@ import { debugLog, type DebugLevel, type DebugStatus } from '@/lib/debugLog';
 import { decrypt } from '@/lib/crypto';
 import { getEnv, getAppUrl } from '@/lib/env';
 import { trackLink, rewriteResponseLinks } from '@/lib/automation/linkTracking';
+import { getTextLinkButtons, formatInlineLinkButtons } from '@/lib/automation/responseButtons';
 import { recordLeadAsk } from '@/lib/automation/leadCapture';
 import type { AutoDmJobPayload, AutomationRow, InstagramAccountRow, DMResponse } from '@/lib/types';
 import {
@@ -101,14 +102,22 @@ async function sendOneResponse(
   }
 
   const messageText = renderTemplate(response.content.trim(), username);
-  const link = response.buttonLink?.trim();
-  if (link) {
-    const buttonTitle = response.buttonTitle?.trim() || 'Open link';
+  // Link buttons (2026-11-22): up to 2 per text response, resolved by
+  // getTextLinkButtons (prefers `buttons`, falls back to the legacy
+  // buttonTitle/buttonLink). The button template takes up to 3.
+  const buttons = getTextLinkButtons(response);
+  if (buttons.length > 0) {
     try {
-      await sendInstagramLinkButtonDm(igAccountIgsid, recipient, messageText, buttonTitle, link, accessToken);
+      await sendInstagramLinkButtonDm(
+        igAccountIgsid,
+        recipient,
+        messageText,
+        buttons.map((b) => ({ title: b.title, url: b.link })),
+        accessToken,
+      );
     } catch (buttonErr) {
       if (!shouldFallBackToInlineLink(buttonErr)) throw buttonErr;
-      await sendInstagramDm(igAccountIgsid, recipient, `${messageText}\n\n${buttonTitle}: ${link}`, accessToken);
+      await sendInstagramDm(igAccountIgsid, recipient, `${messageText}\n\n${formatInlineLinkButtons(buttons)}`, accessToken);
     }
   } else {
     await sendInstagramDm(igAccountIgsid, recipient, messageText, accessToken);

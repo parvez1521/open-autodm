@@ -134,6 +134,28 @@ export async function rewriteResponseLinks(
       });
       if (tracked !== response.buttonLink) next = { ...next, buttonLink: tracked };
     }
+    // Second link button (2026-11-22): rewrite every `buttons` link the
+    // same way, so both buttons get their own tracked short URL.
+    if (response.buttons?.length) {
+      const trackedButtons = [];
+      let changed = false;
+      for (const btn of response.buttons) {
+        if (!btn.link?.trim()) {
+          trackedButtons.push(btn);
+          continue;
+        }
+        const tracked = await trackLink(db, {
+          automationId: params.automationId,
+          instagramAccountId: params.instagramAccountId,
+          facebookPageId: params.facebookPageId ?? null,
+          destinationUrl: btn.link,
+          appUrl: params.appUrl,
+        });
+        if (tracked !== btn.link) changed = true;
+        trackedButtons.push({ ...btn, link: tracked });
+      }
+      if (changed) next = { ...next, buttons: trackedButtons };
+    }
     if (response.cardButtons?.length) {
       const trackedButtons = [];
       let changed = false;

@@ -125,13 +125,19 @@ function AutomationsContent() {
 
             {/* Tabs + new */}
             <div className="flex items-center justify-between gap-4">
+                {/* Pill radius (2026-11-22): the buttons sit 2px inside the
+                    container (p-0.5), so their radius must be the
+                    container's rounded-lg (8px) minus that padding = 6px.
+                    7px made the active pill's corner arc overhang the
+                    container's rounded outer corners. Same rule on the
+                    channel toggle below. */}
                 <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
                     {(["automations", "contacts"] as const).map((tab) => (
                         <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={cn(
-                                "h-8 px-3.5 rounded-[7px] text-[13px] font-medium capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                "h-8 px-3.5 rounded-[6px] text-[13px] font-medium capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                                 activeTab === tab
                                     ? "bg-card text-foreground shadow-sm"
                                     : "text-muted-foreground hover:text-foreground"
@@ -169,7 +175,7 @@ function AutomationsContent() {
                                         onClick={() => setChannelTab(channel)}
                                         aria-pressed={channelTab === channel}
                                         className={cn(
-                                            "inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[7px] text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                            "inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[6px] text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                                             channelTab === channel
                                                 ? "bg-card text-foreground shadow-sm"
                                                 : "text-muted-foreground hover:text-foreground"

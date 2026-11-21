@@ -28,6 +28,9 @@ export const DMResponseSchema = z.object({
   content: z.string(),
   buttonTitle: z.string().optional(),
   buttonLink: z.string().optional(),
+  /** Text responses: link buttons, max 2 per step (2026-11-22). The
+   *  legacy buttonTitle/buttonLink above are still the first button. */
+  buttons: z.array(z.object({ id: z.string(), title: z.string(), link: z.string() })).max(2).optional(),
   cardImage: z.string().optional(),
   cardTitle: z.string().optional(),
   cardSubtitle: z.string().optional(),

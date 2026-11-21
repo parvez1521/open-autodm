@@ -372,8 +372,39 @@ function CardEditor({ res, onUpdate }: { res: DMResponse; onUpdate: (p: Partial<
 }
 
 /* ─── Text response editor ─── */
+/* Link buttons (2026-11-22): a text step carries up to 2 link buttons.
+ * Stored as `buttons` (max 2); the legacy buttonTitle/buttonLink fields
+ * stay synced to buttons[0] so old automations and every legacy reader
+ * keep working unchanged. */
+const DRAFT_LINK_BUTTON_ID = "draft-link-1";
+
 function TextEditor({ res, onUpdate }: { res: DMResponse; onUpdate: (p: Partial<DMResponse>) => void }) {
-    const [showBtn, setShowBtn] = useState(!!(res.buttonTitle || res.buttonLink));
+    const storedButtons = res.buttons ?? [];
+    // Legacy single-button rows have no `buttons` array — read them as one button.
+    const legacyButton: CardButton[] = res.buttonLink?.trim()
+        ? [{ id: "legacy", title: res.buttonTitle ?? "", link: res.buttonLink }]
+        : [];
+    const buttons = storedButtons.length > 0 ? storedButtons : legacyButton;
+    const [showBtn, setShowBtn] = useState(buttons.length > 0);
+    // First visit to the block (no button stored yet): show one empty
+    // draft row without writing anything until the user types.
+    const visibleButtons = showBtn
+        ? (buttons.length > 0 ? buttons : [{ id: DRAFT_LINK_BUTTON_ID, title: "", link: "" }])
+        : [];
+
+    const syncButtons = (next: CardButton[]) => onUpdate({
+        buttons: next,
+        buttonTitle: next[0]?.title ?? "",
+        buttonLink: next[0]?.link ?? "",
+    });
+    const updateButton = (id: string, patch: Partial<CardButton>) =>
+        syncButtons(visibleButtons.map(b => b.id === id ? { ...b, ...patch } : b));
+    const addButton = () => syncButtons([...visibleButtons, { id: randomId(), title: "", link: "" }]);
+    const removeButton = (id: string) => {
+        const next = buttons.filter(b => b.id !== id);
+        if (next.length === 0) setShowBtn(false);
+        syncButtons(next);
+    };
 
     return (
         <div className="space-y-2.5">
@@ -389,23 +420,32 @@ function TextEditor({ res, onUpdate }: { res: DMResponse; onUpdate: (p: Partial<
                 <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground tabular-nums">{res.content.length}/1000</span>
             </div>
 
-            {showBtn ? (
-                <div className="rounded-lg border border-border overflow-hidden">
+            {visibleButtons.map((btn, i) => (
+                <div key={btn.id} className="rounded-lg border border-border overflow-hidden">
                     <div className="px-3 py-1.5 bg-muted/50 border-b border-border flex items-center justify-between">
-                        <span className="micro-label">Link button</span>
-                        <button onClick={() => { setShowBtn(false); onUpdate({ buttonTitle: "", buttonLink: "" }); }}
+                        <span className="micro-label">Link button{i > 0 ? ` ${i + 1}` : ""}</span>
+                        <button onClick={() => removeButton(btn.id)}
                             className="text-muted-foreground hover:text-destructive">
                             <X className="w-3 h-3" />
                         </button>
                     </div>
                     <div className="p-2.5 space-y-1.5">
-                        <input value={res.buttonTitle ?? ""} onChange={e => onUpdate({ buttonTitle: e.target.value })}
+                        <input value={btn.title} onChange={e => updateButton(btn.id, { title: e.target.value })}
                             placeholder="Button label (e.g. Get the guide)" className={inputCls} />
-                        <input value={res.buttonLink ?? ""} onChange={e => onUpdate({ buttonLink: e.target.value })}
+                        <input value={btn.link} onChange={e => updateButton(btn.id, { link: e.target.value })}
                             placeholder="https://your-link.com" className={inputCls} />
-                        <p className="text-[10px] text-muted-foreground">Delivered as a tappable button inside the DM.</p>
+                        {i === 0 && <p className="text-[10px] text-muted-foreground">Delivered as a tappable button inside the DM.</p>}
                     </div>
                 </div>
+            ))}
+
+            {showBtn ? (
+                buttons.length === 1 && (
+                    <button onClick={addButton}
+                        className="flex items-center gap-1 text-[12px] font-semibold text-primary hover:opacity-80 transition-opacity">
+                        <Plus className="w-3 h-3" /> Add another link
+                    </button>
+                )
             ) : (
                 <button onClick={() => setShowBtn(true)}
                     className="flex items-center gap-1 text-[12px] font-semibold text-primary hover:opacity-80 transition-opacity">

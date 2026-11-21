@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { CaretLeft, PaperPlaneTilt, ChatCircle, Lightning, ChatCircleDots } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import type { DMResponse } from "../NewAutomationModal";
+import { getTextLinkButtons } from "@/lib/automation/responseButtons";
 
 /* ─── Phone shell ─── */
 export function PhoneShell({ children, label }: { children: React.ReactNode; label: string }) {
@@ -293,13 +294,13 @@ export function DMConversationPhone({
                             >
                                 <div className="bg-[#3797f0] rounded-2xl rounded-br-sm overflow-hidden max-w-[85%]">
                                     <p className="text-[12px] leading-relaxed whitespace-pre-line px-3 py-2.5">{resp.content || "Your message here…"}</p>
-                                    {resp.buttonLink && (
-                                        <div className="border-t border-white/20">
+                                    {getTextLinkButtons(resp).map((btn, i) => (
+                                        <div key={i} className="border-t border-white/20">
                                             <div className="w-full text-center text-[12px] font-semibold text-white/90 py-2">
-                                                {resp.buttonTitle || "Open link"}
+                                                {btn.title}
                                             </div>
                                         </div>
-                                    )}
+                                    ))}
                                 </div>
                                 <CreatorAvatar url={creatorProfilePicUrl} size="xs" />
                             </motion.div>
