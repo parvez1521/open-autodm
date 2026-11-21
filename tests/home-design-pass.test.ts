@@ -201,10 +201,11 @@ describe("design pass round 4 — KeywordTicker, images, pricing band", () => {
   it("the landing pricing band shows every plan and stays honest", () => {
     expect(page).toContain("PLANS");
     // Round 5: prices are owner-approved — no DRAFT labelling; the
-    // honesty line is now "checkout is being switched on".
+    // honesty line changed 2026-11-21 because checkout is live.
     expect(page).not.toContain("DRAFT");
-    expect(page).toContain("checkout is being switched on");
-    expect(page).toContain("nothing can");
+    expect(page).toContain("Checkout is live");
+    expect(page).toContain("you can pay securely");
+    expect(page).not.toContain("checkout is being switched on");
   });
 
   it("the before/after chapter is present and labelled illustrative", () => {
