@@ -10,15 +10,20 @@
  * list and in the editor. The posts API itself always fetches fresh
  * URLs from Meta, but the list/editor never re-fetch.
  *
- * Collab wrinkle: the connected account's token cannot read a
- * tech_hacks.ai-owned collab post by list OR by media ID (the Item 6
- * root cause), so a naive `/{media-id}` refresh fails for exactly the
- * posts whose thumbnails are broken (Clone, AI Slop, Higgsfield,
- * Don't mae). The oEmbed fallback covers those: oEmbed returns a fresh
- * `thumbnail_url` for any public post URL, regardless of ownership —
- * the same call the paste-link resolve route already makes with the
- * user token. The permalink is rebuilt from the numeric media ID via
- * `encodeInstagramShortcode` (shortcode IS the media ID in base-64).
+ * Collab hard limit (2026-11-22): the connected account's token cannot
+ * read a tech_hacks.ai-owned collab post by list OR by media ID (the
+ * Item 6 root cause), so `/{media-id}` fails for exactly those posts
+ * (Clone, AI Slop, Higgsfield, Don't mae). The first version of this
+ * module fell back to oEmbed for those — but Meta removed
+ * `thumbnail_url` (and `thumbnail_width`, `thumbnail_height`,
+ * `author_name`) from Instagram oEmbed responses on 2025-11-03, so
+ * oEmbed can NEVER return a thumbnail any more, for any post. The
+ * oEmbed path was therefore removed: it only ever returned null and
+ * wasted a Meta call. There is no Meta API available to this app that
+ * can return a fresh thumbnail for a collab post owned by another
+ * account — the only route to a real thumbnail there is connecting the
+ * owning account (tech_hacks.ai) so its own token can read the media.
+ * Until then the caller renders the clean placeholder for those rows.
  *
  * Deliberately NO database write here: `automations` has an
  * `updated_at` trigger, so refreshing the stored snapshot in place
@@ -29,8 +34,6 @@
  * node-environment Vitest suite can import it. The fetcher is
  * injected so tests can stub Meta without network.
  */
-
-import { encodeInstagramShortcode, normalizeInstagramPostUrl } from './postUrl';
 
 /** Minimal fetch shape — the global `fetch` satisfies this structurally. */
 export type ThumbnailFetcher = (url: string) => Promise<{
@@ -69,17 +72,18 @@ export function parseThumbnailIds(raw: string | null | undefined, max = 20): str
 /**
  * Resolve one fresh thumbnail URL for an Instagram media ID.
  *
- * Path A — own post: `/{media-id}` with the account token returns a
- * fresh `thumbnail_url` (or `media_url` for images).
- * Path B — collab post (token cannot read it by ID): oEmbed over the
- * rebuilt permalink returns a fresh `thumbnail_url`.
- * Returns null when neither path yields a URL — the caller renders
- * the clean placeholder instead of a broken image.
+ * Single path — `/{media-id}` with the account token returns a fresh
+ * `thumbnail_url` (or `media_url` for images). Returns null when the
+ * token cannot read the post: collab posts owned by another account
+ * (the Item 6 root cause) are unreadable by ID, and there is no
+ * fallback — oEmbed no longer returns `thumbnail_url` (Meta removed
+ * the field on 2025-11-03), so a former oEmbed fallback could only
+ * ever return null. The caller renders the clean placeholder for
+ * those rows instead of a broken image.
  */
 export async function resolveInstagramThumbnail(
   fetcher: ThumbnailFetcher,
   graphBase: string,
-  facebookBase: string,
   accessToken: string,
   postId: string,
 ): Promise<string | null> {
@@ -96,21 +100,7 @@ export async function resolveInstagramThumbnail(
       if (url) return url;
     }
   } catch {
-    // Fall through to oEmbed.
+    // Fall through to null — the caller renders the placeholder.
   }
-
-  const shortcode = encodeInstagramShortcode(mediaId);
-  if (!shortcode) return null;
-  try {
-    const res = await fetcher(
-      `${facebookBase}/instagram_oembed?url=${encodeURIComponent(
-        normalizeInstagramPostUrl(shortcode),
-      )}&access_token=${accessToken}`,
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as { thumbnail_url?: string };
-    return data.thumbnail_url ?? null;
-  } catch {
-    return null;
-  }
+  return null;
 }

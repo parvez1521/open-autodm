@@ -40,8 +40,15 @@ function AccountAvatar({ account, size = 7 }: { account: InstagramAccount | null
 }
 
 function FacebookPageAvatar({ page, size = 7 }: { page: FacebookPage | null; size?: 6 | 7 }) {
-    if (page?.profile_picture_url) {
-        return <img src={page.profile_picture_url} alt={page.name} className={size === 6 ? "w-6 h-6 rounded-full object-cover shrink-0" : "w-7 h-7 rounded-full object-cover shrink-0"} />;
+    // The stored profile_picture_url is a Meta CDN link that expires
+    // (same class as the post thumbnails) — a dead one falls back to
+    // the Facebook mark instead of a broken-image glyph (2026-11-22).
+    const [failed, setFailed] = useState(false);
+    useEffect(() => {
+        setFailed(false);
+    }, [page?.profile_picture_url]);
+    if (page?.profile_picture_url && !failed) {
+        return <img src={page.profile_picture_url} alt={page.name} onError={() => setFailed(true)} className={size === 6 ? "w-6 h-6 rounded-full object-cover shrink-0" : "w-7 h-7 rounded-full object-cover shrink-0"} />;
     }
     return (
         <span className={size === 6 ? "w-6 h-6 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0" : "w-7 h-7 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0"}>

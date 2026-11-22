@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { CaretLeft, PaperPlaneTilt, ChatCircle, Lightning, ChatCircleDots } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
@@ -19,11 +20,25 @@ export function PhoneShell({ children, label }: { children: React.ReactNode; lab
     );
 }
 
-/* ─── Creator avatar ─── */
+/* ─── Creator avatar ───
+   The URL is the connected account's stored profile_picture_url — a
+   Meta CDN link that expires like the post thumbnails (2026-11-22:
+   the DM preview showed a broken-image glyph beside the reply
+   bubble). A dead URL falls back to the same Lightning tile as a
+   missing one, instead of a broken image; a fresh URL (token
+   refresh / reconnect) gets a fresh attempt. Same pattern as
+   IgAvatar. */
 function CreatorAvatar({ url, size = "sm" }: { url?: string | null; size?: "sm" | "xs" }) {
     const cls = size === "xs" ? "w-5 h-5" : "w-7 h-7";
-    if (url) {
-        return <img src={url} alt="you" className={cn(cls, "rounded-full object-cover shrink-0")} />;
+    const [failed, setFailed] = useState(false);
+
+    // A fresh URL (token refresh / reconnect) gets a fresh attempt.
+    useEffect(() => {
+        setFailed(false);
+    }, [url]);
+
+    if (url && !failed) {
+        return <img src={url} alt="you" className={cn(cls, "rounded-full object-cover shrink-0")} onError={() => setFailed(true)} />;
     }
     return (
         <div className={cn(cls, "rounded-full bg-zinc-700 shrink-0 flex items-center justify-center")}>

@@ -24,6 +24,25 @@ export default function SettingsPage() {
     );
 }
 
+/** Facebook Page avatar with a graceful fallback — the stored
+ * profile_picture_url is a Meta CDN link that expires (same class as
+ * the post thumbnails); a dead one shows the Facebook mark instead
+ * of a broken-image glyph (2026-11-22). Same pattern as IgAvatar. */
+function FacebookPageAvatar({ page }: { page: { name: string; profile_picture_url: string | null } }) {
+    const [failed, setFailed] = useState(false);
+    useEffect(() => {
+        setFailed(false);
+    }, [page.profile_picture_url]);
+    if (page.profile_picture_url && !failed) {
+        return <img src={page.profile_picture_url} alt={page.name} className="w-9 h-9 rounded-full object-cover shrink-0" onError={() => setFailed(true)} />;
+    }
+    return (
+        <span className="w-9 h-9 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0">
+            <FacebookLogo className="w-4 h-4 text-[#1877F2]" />
+        </span>
+    );
+}
+
 function SettingsContent() {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
@@ -545,13 +564,7 @@ function SettingsContent() {
 
                                 <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        {page.profile_picture_url ? (
-                                            <img src={page.profile_picture_url} alt={page.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
-                                        ) : (
-                                            <span className="w-9 h-9 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0">
-                                                <FacebookLogo className="w-4 h-4 text-[#1877F2]" />
-                                            </span>
-                                        )}
+                                        <FacebookPageAvatar page={page} />
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[13px] font-semibold text-foreground truncate">{page.name}</span>

@@ -15,9 +15,12 @@
  * Auth / account lookup / token decryption mirror the posts list
  * route (posts/[accountId]/route.ts) in both the legacy and the
  * workspace-mode (P18) branches. The refresh itself lives in
- * lib/instagram/thumbnailRefresh: `/{media-id}` for own posts, oEmbed
- * over the rebuilt permalink for collab posts the token cannot read
- * by ID.
+ * lib/instagram/thumbnailRefresh: `/{media-id}` for own posts. There
+ * is deliberately NO oEmbed fallback: Meta removed `thumbnail_url`
+ * from Instagram oEmbed responses on 2025-11-03, so oEmbed can never
+ * return a thumbnail — collab posts owned by another account (the
+ * Item 6 root cause) resolve to null and the caller renders the clean
+ * placeholder instead of a broken image.
  */
 
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
@@ -39,7 +42,6 @@ export const dynamic = 'force-dynamic';
 
 const logger = createLogger('api:posts:thumbnails');
 const META_GRAPH_BASE = `https://graph.instagram.com/${META_API_VERSION}`;
-const META_FACEBOOK_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
 
 type RouteContext = { params: Promise<{ accountId: string }> };
 type Db = ReturnType<typeof createServiceClient>;
@@ -123,7 +125,6 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
       const url = await resolveInstagramThumbnail(
         fetch,
         META_GRAPH_BASE,
-        META_FACEBOOK_BASE,
         resolved.accessToken,
         id,
       );
