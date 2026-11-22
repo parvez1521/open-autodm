@@ -2,11 +2,12 @@
 import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
 import {
-    X, Trash, Plus,
+    X, Trash, Plus, Check,
     Image as ImageIcon, CaretDown, Chat, SquaresFour,
     Lightning, Warning,
 } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
+import { getEditorSections, type EditorSectionId } from "@/lib/automation/editorSections";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { AutomationFlowData, DMResponse, CardButton } from "../NewAutomationModal";
 import { CommentsPhone, DMConversationPhone, StoryPhone } from "./PhoneComponents";
@@ -40,35 +41,30 @@ const textareaCls = "w-full text-[13px] bg-background border border-border round
 
 /* Per-type copy - the builder speaks the trigger's language */
 const TYPE_COPY: Record<string, {
-    triggerTitle: string;
     keywordModeSpecific: string;
     keywordModeAny: string;
     keywordPlaceholder: string;
     anyModeHint: string | null;
 }> = {
     "comment-dm": {
-        triggerTitle: "When someone comments",
         keywordModeSpecific: "Specific keywords",
         keywordModeAny: "Any comment",
         keywordPlaceholder: "Type a keyword and press Enter…",
         anyModeHint: null,
     },
     "dm-reply": {
-        triggerTitle: "When someone DMs you",
         keywordModeSpecific: "Specific keywords",
         keywordModeAny: "Any message",
         keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
         anyModeHint: "Any message replies to EVERY DM you receive - including real conversations. Use specific keywords unless you're sure.",
     },
     "story-reply": {
-        triggerTitle: "When someone replies to your story",
         keywordModeSpecific: "Specific keywords",
         keywordModeAny: "Any reply",
         keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
         anyModeHint: null,
     },
     "reel-dm": {
-        triggerTitle: "When someone shares this reel in a DM",
         // Keyword fields below are unused since 2026-11-17 (the editor
         // renders no keyword UI for reel_dm) — kept only because the
         // TYPE_COPY shape requires them for every trigger type.
@@ -78,21 +74,18 @@ const TYPE_COPY: Record<string, {
         anyModeHint: "Triggers on every share of this reel — no keyword needed. Keywords only add an extra filter on the share's text, and most reels are shared with no text at all.",
     },
     "story-mention": {
-        triggerTitle: "When someone mentions you in their story",
         keywordModeSpecific: "Specific keywords",
         keywordModeAny: "Any mention",
         keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
         anyModeHint: "Triggers on every mention — no keyword needed. Keywords only add an extra filter on the mention's text, and most mentions carry no text at all.",
     },
     "fb-comment-dm": {
-        triggerTitle: "When someone comments on your Page post",
         keywordModeSpecific: "Specific keywords",
         keywordModeAny: "Any comment",
         keywordPlaceholder: "Type a keyword and press Enter…",
         anyModeHint: null,
     },
     "fb-dm-reply": {
-        triggerTitle: "When someone messages your Page",
         keywordModeSpecific: "Specific keywords",
         keywordModeAny: "Any message",
         keywordPlaceholder: "e.g. DIET, GUIDE, LINK…",
@@ -129,6 +122,74 @@ function SectionHeader({ title, action }: { title: string; action?: React.ReactN
             <span className="micro-label text-foreground/80">{title}</span>
             <div className="h-px flex-1 bg-border" />
             {action}
+        </div>
+    );
+}
+
+/* ─── Accordion section ───
+ * Stepped editor (2026-11-22, owner): the configure form shows one
+ * section at a time — Post → Keyword → Follow required → DM message.
+ * The header always shows a short summary of what is set, so progress
+ * is visible at a glance without opening the section. "Continue" only
+ * opens the next section — it never validates or saves; validation
+ * still happens at Save in the modal footer, exactly as before. */
+function AccordionSection({ index, title, summary, done, open, onToggle, onContinue, isLast, children }: {
+    index: number;
+    title: string;
+    summary: string;
+    done: boolean;
+    open: boolean;
+    onToggle: () => void;
+    onContinue: () => void;
+    isLast: boolean;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="border border-border rounded-lg overflow-hidden">
+            <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={open}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-muted/50 hover:bg-muted/70 transition-colors text-left"
+            >
+                <span className={cn(
+                    "w-5 h-5 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0",
+                    done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                )}>
+                    {done ? <Check className="w-3 h-3" /> : index}
+                </span>
+                <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-foreground">{title}</span>
+                    <span className="block text-[11px] text-muted-foreground truncate">{summary}</span>
+                </span>
+                <CaretDown className={cn("w-4 h-4 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
+            </button>
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-3 space-y-3">
+                            {children}
+                            {!isLast && (
+                                <div className="flex justify-end pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={onContinue}
+                                        className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-colors"
+                                    >
+                                        Continue
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -662,6 +723,548 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
         data.dmResponses.length < MAX_DM_RESPONSES &&
         (data.dmOpeningMessageEnabled ? true : data.dmResponses.length < 1);
 
+    // Stepped sections (2026-11-22, owner): the configure form is an
+    // accordion — Post → Keyword → Follow required → DM message, one
+    // open at a time. Only the wrapping changed: every block below is
+    // the same JSX, moved unchanged, and the save payload is untouched.
+    const sections = getEditorSections(data);
+    const [openSection, setOpenSection] = useState<EditorSectionId>(sections[0]?.id ?? "dm");
+    const openIndex = sections.findIndex((s) => s.id === openSection);
+    const goToNextSection = () => {
+        if (openIndex >= 0 && openIndex < sections.length - 1) {
+            setOpenSection(sections[openIndex + 1]!.id);
+        }
+    };
+
+    // Section 1 — Post. The selected-post box (with Change post) from
+    // the old flat form. reel_dm keeps its "share is the trigger" note
+    // here, since it has no keyword section.
+    const postContent = (
+        <>
+            {data.postThumbnailUrl ? (
+                <div className="flex items-center gap-2.5 p-2.5 bg-muted/40 rounded-lg">
+                    <img src={data.postThumbnailUrl} alt="post" className="w-9 h-9 object-cover rounded-md shrink-0" />
+                    <div className="min-w-0 flex-1">
+                        <p className="micro-label">Selected post</p>
+                        <p className="text-[12px] text-foreground truncate">
+                            {data.postCaption ? data.postCaption.slice(0, 70) : "No caption"}
+                        </p>
+                    </div>
+                    {onChangePost && (
+                        <button
+                            type="button"
+                            onClick={onChangePost}
+                            className="inline-flex items-center h-7 px-2.5 text-[12px] font-medium border border-border hover:bg-muted rounded-lg transition-colors shrink-0"
+                        >
+                            Change post
+                        </button>
+                    )}
+                </div>
+            ) : (
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-lg">
+                    <Lightning className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-[12px] font-medium text-muted-foreground">
+                        {data.postId && data.postId !== "all" ? "Specific post selected" : isReelDm ? "Triggers on any shared reel" : "Triggers on all posts"}
+                    </span>
+                </div>
+            )}
+            {isReelDm && (
+                <p className="text-[12px] text-muted-foreground">
+                    The share itself is the trigger — every time someone shares this reel in a DM, they get the link. No keyword needed.
+                </p>
+            )}
+        </>
+    );
+
+    // Section 2 — Keyword / comment. Trigger keywords, the AI reply
+    // language and the public comment replies (comment flows only).
+    const keywordContent = (
+        <div className="space-y-3">
+            <KeywordInput
+                keywords={data.keywords}
+                onChange={kws => onUpdate({ keywords: kws })}
+                anyMode={isAnyMode}
+                onAnyModeChange={isAny => onUpdate({ keywordsAnyMode: isAny })}
+                copy={copy}
+            />
+
+            {/* AI reply language (2026-11-17) — the language AI-drafted
+                replies are generated in. The labels here stay in
+                English; only the generated reply text changes. */}
+            <section className="space-y-2">
+                <SectionHeader title="AI reply language" />
+                <p className="text-[12px] text-muted-foreground">
+                    Language for AI-drafted replies in this automation. Hinglish is Hindi in Roman script, for an audience that speaks it.
+                </p>
+                <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
+                    {(["en", "hinglish"] as const).map((lang) => (
+                        <button
+                            key={lang}
+                            type="button"
+                            onClick={() => onUpdate({ aiReplyLanguage: lang })}
+                            aria-pressed={data.aiReplyLanguage === lang}
+                            className={cn(
+                                "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
+                                data.aiReplyLanguage === lang
+                                    ? "bg-card text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {lang === "en" ? "English" : "Hinglish"}
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            {/* Public comment replies - comment automations only */}
+            {isComment && (
+                <section className="space-y-2.5">
+                    <SectionHeader
+                        title="Public comment reply"
+                        action={<span className="text-[11px] font-medium text-muted-foreground shrink-0">{data.customReplies.length} variation{data.customReplies.length === 1 ? "" : "s"}</span>}
+                    />
+                    <p className="text-[12px] text-muted-foreground">
+                        A random line from this list is posted publicly under the trigger comment.
+                    </p>
+
+                    <div className="space-y-1.5">
+                        {data.customReplies.map((r, i) => (
+                            <div key={i} className="flex items-center gap-1.5 group">
+                                <span className="flex-1 min-w-0 text-[13px] text-foreground bg-muted/40 rounded-lg px-3 py-1.5 truncate">{r}</span>
+                                <button
+                                    onClick={() => onUpdate({ customReplies: data.customReplies.filter((_, j) => j !== i) })}
+                                    className="opacity-50 hover:opacity-100 focus-visible:opacity-100 p-1.5 text-muted-foreground hover:text-destructive transition-all shrink-0"
+                                    title="Remove this variation"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex gap-1.5">
+                        <input
+                            value={commentInput}
+                            onChange={e => setCommentInput(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCommentReply(); } }}
+                            placeholder="Type a reply and press Enter…"
+                            className={inputCls}
+                        />
+                        <button
+                            onClick={() => { addCommentReply(); setRepliesSaved(true); }}
+                            className="w-9 h-9 flex items-center justify-center bg-muted rounded-lg hover:bg-muted/70 transition-colors shrink-0"
+                        >
+                            <Plus className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+
+                    <AiDraftControl
+                        action="public_replies"
+                        label="Generate with AI"
+                        placeholder="Describe the vibe for the replies…"
+                        defaultPrompt="Generate warm, natural 1-sentence Instagram comment replies confirming we sent them a DM"
+                        automationName={data.name}
+                        language={data.aiReplyLanguage}
+                        postCaption={data.postCaption}
+                        onResult={res => {
+                            if (res.variations && res.variations.length > 0) {
+                                onUpdate({ customReplies: res.variations });
+                                setRepliesSaved(true);
+                            }
+                        }}
+                    />
+                    <p className="text-[11px] text-muted-foreground">AI drafts replacement replies from your prompt, review, edit or delete them before saving.</p>
+                </section>
+            )}
+        </div>
+    );
+
+    // Section 3 — Follow required. The card is the same one that used
+    // to live inside the Auto DM block; it only makes sense with Auto
+    // DM on, so while Auto DM is off this section says so instead of
+    // showing fields that could never fire.
+    const followContent = !data.isAutoDmEnabled ? (
+        <p className="text-[12px] text-muted-foreground">
+            Turn on Auto DM in the DM message section to require a follow.
+        </p>
+    ) : (
+        // Require follow — Facebook has no "follows the Page" signal,
+        // so this section is hidden for FB triggers (the follow section
+        // only exists for non-Facebook types).
+        <div className="border border-border rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2.5 bg-muted/50 border-b border-border">
+                <div>
+                    <p className="text-[12.5px] font-semibold text-foreground">Require follow</p>
+                    <p className="text-[11px] text-muted-foreground">Deliver only after Instagram confirms they follow you</p>
+                </div>
+                <Toggle on={data.askToFollowEnabled} onChange={() => onUpdate({ askToFollowEnabled: !data.askToFollowEnabled })} />
+            </div>
+
+            <AnimatePresence>
+                {data.askToFollowEnabled && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-3 space-y-2.5">
+                            <div>
+                                <label className="micro-label block mb-1">&ldquo;Not following&rdquo; message</label>
+                                <textarea
+                                    value={data.askToFollowMessage}
+                                    onChange={e => onUpdate({ askToFollowMessage: e.target.value })}
+                                    rows={2}
+                                    maxLength={80}
+                                    placeholder="Hey! It seems you're not following me yet…"
+                                    className={textareaCls}
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-0.5">Max 80 chars (card title limit).</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="micro-label block mb-1">Profile button</label>
+                                    <input
+                                        value={data.askToFollowVisitProfileButton}
+                                        onChange={e => onUpdate({ askToFollowVisitProfileButton: e.target.value })}
+                                        maxLength={20}
+                                        placeholder="Visit Profile"
+                                        className={inputCls}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="micro-label block mb-1">Confirm button</label>
+                                    <input
+                                        value={data.askToFollowConfirmButton}
+                                        onChange={e => onUpdate({ askToFollowConfirmButton: e.target.value })}
+                                        maxLength={20}
+                                        placeholder="I'm following ✅"
+                                        className={inputCls}
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                                Follow status is really checked via Instagram&apos;s profile API - followers skip this card,
+                                and the confirm tap re-checks before delivering.
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+
+    // Section 4 — DM message. Auto DM (opening message + responses),
+    // with the scheduled follow-up message below it in the same
+    // section, as the owner asked.
+    const dmContent = (
+        <div className="space-y-3">
+            <SectionHeader
+                title="Auto DM"
+                action={<Toggle on={data.isAutoDmEnabled} onChange={() => onUpdate({ isAutoDmEnabled: !data.isAutoDmEnabled })} />}
+            />
+
+            <AnimatePresence>
+                {data.isAutoDmEnabled && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="overflow-hidden space-y-3"
+                    >
+                        {/* Opening message */}
+                        <div className="border border-border rounded-lg overflow-hidden">
+                            <div className="flex items-center justify-between px-3 py-2.5 bg-muted/50 border-b border-border">
+                                <div>
+                                    <p className="text-[12.5px] font-semibold text-foreground">Opening message</p>
+                                    <p className="text-[11px] text-muted-foreground">The first DM, sent automatically on trigger</p>
+                                </div>
+                                <Toggle
+                                    on={data.dmOpeningMessageEnabled}
+                                    onChange={() => onUpdate({ dmOpeningMessageEnabled: !data.dmOpeningMessageEnabled })}
+                                />
+                            </div>
+                            <AnimatePresence>
+                                {data.dmOpeningMessageEnabled && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.18 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="p-3 space-y-2.5">
+                                            {/* Variations - one is picked at random for each DM.
+                                                Restored 2026-11-12: this selector was lost in
+                                                the 985ed5c redesign, so the editor showed a
+                                                single message and the "3 variations" were
+                                                nowhere to be found. */}
+                                            <div className="flex items-center gap-1 flex-wrap">
+                                                <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
+                                                    {variations.map((_, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => setActiveVariationTab(i)}
+                                                            className={cn(
+                                                                "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
+                                                                safeVariationTab === i
+                                                                    ? "bg-card text-foreground shadow-sm"
+                                                                    : "text-muted-foreground hover:text-foreground"
+                                                            )}
+                                                        >
+                                                            Variation {i + 1}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                                {variations.length < MAX_DM_OPENING_VARIATIONS && (
+                                                    <button
+                                                        onClick={addVariation}
+                                                        className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-semibold text-primary hover:bg-primary/10 transition-colors"
+                                                    >
+                                                        <Plus className="w-3 h-3" /> Add variation
+                                                    </button>
+                                                )}
+                                                {variations.length > 1 && (
+                                                    <button
+                                                        onClick={() => removeVariation(safeVariationTab)}
+                                                        className="inline-flex items-center gap-1 h-7 px-2 text-[12px] font-medium text-muted-foreground hover:text-destructive transition-colors"
+                                                    >
+                                                        <Trash className="w-3 h-3" /> Remove
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-muted-foreground">
+                                                {variations.length} variation{variations.length === 1 ? "" : "s"} - one is picked at random for each DM, so repeat commenters don&apos;t get the identical message every time.
+                                            </p>
+                                            <div className="relative">
+                                                <textarea
+                                                    value={activeOpeningMessage}
+                                                    onChange={e => updateVariation(safeVariationTab, e.target.value)}
+                                                    rows={4}
+                                                    maxLength={1000}
+                                                    placeholder="Hey! Thanks so much for stopping by…"
+                                                    className={textareaCls}
+                                                />
+                                                <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground tabular-nums">{activeOpeningMessage.length}/1000</span>
+                                            </div>
+                                            {isComment && (
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    Tip: <code className="font-mono bg-muted px-1 rounded">{"{username}"}</code> becomes the commenter&apos;s @handle.
+                                                </p>
+                                            )}
+
+                                            <AiDraftControl
+                                                action="opening_variations"
+                                                label="Generate variations"
+                                                placeholder="Describe the opening message…"
+                                                defaultPrompt="Warm, friendly opening DM that thanks them for commenting and offers the link"
+                                                automationName={data.name}
+                                                language={data.aiReplyLanguage}
+                                                postCaption={data.postCaption}
+                                                onResult={res => {
+                                                    if (res.variations && res.variations.length > 0) {
+                                                        setOpeningAiOptions(res.variations);
+                                                        setOpeningAiFallback(res.status === "fallback");
+                                                    }
+                                                }}
+                                            />
+                                            {openingAiOptions && openingAiOptions.length > 0 && (
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className="micro-label">AI variations, pick one</p>
+                                                        {openingAiFallback && (
+                                                            <p className="text-[11px] text-muted-foreground shrink-0">AI unavailable — template suggestions</p>
+                                                        )}
+                                                        <button onClick={() => { setOpeningAiOptions(null); setOpeningAiFallback(false); }} className="text-muted-foreground hover:text-foreground">
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                    {openingAiOptions.map((v, i) => (
+                                                        <button
+                                                            key={i}
+                                                            onClick={() => { updateVariation(safeVariationTab, v); setOpeningAiOptions(null); setOpeningAiFallback(false); }}
+                                                            className="block w-full text-left text-[13px] text-foreground bg-muted/40 hover:bg-muted rounded-lg px-3 py-2 transition-colors"
+                                                        >
+                                                            {v}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <div className="rounded-lg border border-border p-2.5 space-y-1.5">
+                                                <p className="micro-label">Reveal button</p>
+                                                <p className="text-[11px] text-muted-foreground">They tap this to receive your responses - the tap confirms real interest.</p>
+                                                <input
+                                                    value={data.dmOpeningMessageButtonTitle}
+                                                    onChange={e => onUpdate({ dmOpeningMessageButtonTitle: e.target.value })}
+                                                    maxLength={20}
+                                                    placeholder="Send me the link"
+                                                    className={inputCls}
+                                                />
+                                                <p className="text-[10px] text-muted-foreground">Max 20 characters{isFacebook ? "" : " (Instagram limit)"}. Leave empty to send responses immediately.</p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Responses */}
+                        <div className="space-y-2.5">
+                            <SectionHeader title="Responses" />
+
+                            {data.dmResponses.length >= MAX_DM_RESPONSES && (
+                                <div className="text-[12px] text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+                                    Max {MAX_DM_RESPONSES} responses per flow - each one is a separate Instagram send, and short flows keep your account safe and your audience reading.
+                                </div>
+                            )}
+
+                            {!data.dmOpeningMessageEnabled && data.dmResponses.length >= 1 && (
+                                <div className="text-[12px] text-amber-600 bg-amber-500/10 rounded-lg px-3 py-2 font-medium">
+                                    Opening message is off - only one response is sent.
+                                </div>
+                            )}
+
+                            {data.dmResponses.map((res, idx) => (
+                                <ResponseBlock
+                                    key={res.id}
+                                    res={res}
+                                    idx={idx}
+                                    onUpdate={p => updateResponse(idx, p)}
+                                    onDelete={() => deleteResponse(idx)}
+                                />
+                            ))}
+
+                            <div className="flex gap-1.5 flex-wrap">
+                                <button
+                                    onClick={() => canAddMoreResponses && addResponse("text")}
+                                    disabled={!canAddMoreResponses}
+                                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <Chat className="w-3.5 h-3.5" /> Text message
+                                </button>
+                                <button
+                                    onClick={() => canAddMoreResponses && addResponse("card")}
+                                    disabled={!canAddMoreResponses}
+                                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <SquaresFour className="w-3.5 h-3.5" /> Card message
+                                </button>
+                                {/* Lead forms are not supported for
+                                    Facebook in v1 (API rejects them). */}
+                                {!isFacebook && (
+                                <button
+                                    onClick={() => canAddMoreResponses && addResponse("lead_form")}
+                                    disabled={!canAddMoreResponses}
+                                    className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <Chat className="w-3.5 h-3.5" /> Lead form
+                                </button>
+                                )}
+                            </div>
+
+                            <AiDraftControl
+                                action="response_draft"
+                                label="AI draft"
+                                placeholder="Describe the response…"
+                                defaultPrompt="Helpful DM response delivering the requested resource and offering help"
+                                automationName={data.name}
+                                language={data.aiReplyLanguage}
+                                postCaption={data.postCaption}
+                                disabled={!canAddMoreResponses}
+                                onResult={res => {
+                                    if (res.draft) {
+                                        onUpdate({
+                                            dmResponses: [
+                                                ...data.dmResponses,
+                                                { id: randomId(), type: "text", content: res.draft },
+                                            ],
+                                        });
+                                    }
+                                }}
+                            />
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Follow-up message (scheduled check-in) — not supported
+                    for Facebook in v1 (API rejects it). */}
+            {!isFacebook && (
+            <section className="space-y-3">
+                <SectionHeader
+                    title="Follow-up message"
+                    action={<Toggle on={data.followUpEnabled} onChange={() => onUpdate({ followUpEnabled: !data.followUpEnabled })} />}
+                />
+                <AnimatePresence>
+                    {data.followUpEnabled && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.18 }}
+                            className="overflow-hidden space-y-3"
+                        >
+                            <p className="text-[12px] text-muted-foreground">
+                                One check-in DM, sent after the person replies (button tap or a matching DM).
+                                It is never sent to someone who opted out, and only inside Meta&apos;s 24-hour window.
+                            </p>
+                            <div>
+                                <label className="micro-label block mb-1">Send after</label>
+                                <select
+                                    value={data.followUpDelayMinutes}
+                                    onChange={e => onUpdate({ followUpDelayMinutes: Number(e.target.value) })}
+                                    className={inputCls}
+                                >
+                                    <option value={10}>10 minutes</option>
+                                    <option value={20}>20 minutes</option>
+                                    <option value={60}>1 hour</option>
+                                    <option value={120}>2 hours</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="micro-label block mb-1">Message</label>
+                                <textarea
+                                    value={data.followUpMessage}
+                                    onChange={e => onUpdate({ followUpMessage: e.target.value })}
+                                    placeholder="e.g. Hey {username}, just checking in, did the guide help?"
+                                    rows={3}
+                                    maxLength={1000}
+                                    className={textareaCls}
+                                />
+                                <p className="text-[11px] text-muted-foreground mt-1">Sent exactly as written (with {"{username}"} personalised). No AI rewriting.</p>
+                                <AiDraftControl
+                                    action="follow_up_draft"
+                                    label="Generate draft"
+                                    placeholder="Describe the check-in…"
+                                    defaultPrompt="Polite check-in asking if they got a chance to look at the link"
+                                    automationName={data.name}
+                                    language={data.aiReplyLanguage}
+                                    onResult={res => {
+                                        if (res.draft) {
+                                            onUpdate({ followUpMessage: res.draft });
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </section>
+            )}
+        </div>
+    );
+
+    const sectionContent: Record<EditorSectionId, React.ReactNode> = {
+        post: postContent,
+        keyword: keywordContent,
+        follow: followContent,
+        dm: dmContent,
+    };
+
     return (
         <div className="flex flex-col h-full overflow-hidden">
             {/* Form / Preview switch - small screens only. Below xl the
@@ -701,514 +1304,25 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                     />
                 </section>
 
-                {/* Post context - post-targeted automations only */}
-                {hasPostTarget && (
-                    <>
-                        {data.postThumbnailUrl ? (
-                            <div className="flex items-center gap-2.5 p-2.5 bg-muted/40 rounded-lg">
-                                <img src={data.postThumbnailUrl} alt="post" className="w-9 h-9 object-cover rounded-md shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                    <p className="micro-label">Selected post</p>
-                                    <p className="text-[12px] text-foreground truncate">
-                                        {data.postCaption ? data.postCaption.slice(0, 70) : "No caption"}
-                                    </p>
-                                </div>
-                                {onChangePost && (
-                                    <button
-                                        type="button"
-                                        onClick={onChangePost}
-                                        className="inline-flex items-center h-7 px-2.5 text-[12px] font-medium border border-border hover:bg-muted rounded-lg transition-colors shrink-0"
-                                    >
-                                        Change post
-                                    </button>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-lg">
-                                <Lightning className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span className="text-[12px] font-medium text-muted-foreground">
-                                    {data.postId && data.postId !== "all" ? "Specific post selected" : isReelDm ? "Triggers on any shared reel" : "Triggers on all posts"}
-                                </span>
-                            </div>
-                        )}
-                    </>
-                )}
+                {/* Stepped sections — one open at a time, in order. */}
+                <div className="space-y-2.5">
+                    {sections.map((section, i) => (
+                        <AccordionSection
+                            key={section.id}
+                            index={i + 1}
+                            title={section.title}
+                            summary={section.summary}
+                            done={section.done}
+                            open={openSection === section.id}
+                            onToggle={() => setOpenSection(section.id)}
+                            onContinue={goToNextSection}
+                            isLast={i === sections.length - 1}
+                        >
+                            {sectionContent[section.id]}
+                        </AccordionSection>
+                    ))}
+                </div>
 
-                {/* Trigger — Shared Reel funnels have no keyword option
-                    (2026-11-17, owner): the share itself is the trigger,
-                    so there is no "Specific keywords" toggle or input.
-                    Every other trigger keeps its keyword UI below. */}
-                <section className="space-y-2.5">
-                    <SectionHeader title={copy.triggerTitle} />
-                    {isReelDm ? (
-                        <p className="text-[12px] text-muted-foreground">
-                            The share itself is the trigger — every time someone shares this reel in a DM, they get the link. No keyword needed.
-                        </p>
-                    ) : (
-                        <KeywordInput
-                            keywords={data.keywords}
-                            onChange={kws => onUpdate({ keywords: kws })}
-                            anyMode={isAnyMode}
-                            onAnyModeChange={isAny => onUpdate({ keywordsAnyMode: isAny })}
-                            copy={copy}
-                        />
-                    )}
-                </section>
-
-                {/* AI reply language (2026-11-17) — the language AI-drafted
-                    replies are generated in. The labels here stay in
-                    English; only the generated reply text changes. */}
-                <section className="space-y-2">
-                    <SectionHeader title="AI reply language" />
-                    <p className="text-[12px] text-muted-foreground">
-                        Language for AI-drafted replies in this automation. Hinglish is Hindi in Roman script, for an audience that speaks it.
-                    </p>
-                    <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                        {(["en", "hinglish"] as const).map((lang) => (
-                            <button
-                                key={lang}
-                                type="button"
-                                onClick={() => onUpdate({ aiReplyLanguage: lang })}
-                                aria-pressed={data.aiReplyLanguage === lang}
-                                className={cn(
-                                    "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
-                                    data.aiReplyLanguage === lang
-                                        ? "bg-card text-foreground shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground"
-                                )}
-                            >
-                                {lang === "en" ? "English" : "Hinglish"}
-                            </button>
-                        ))}
-                    </div>
-                </section>
-
-                {/* Public comment replies - comment automations only */}
-                {isComment && (
-                    <section className="space-y-2.5">
-                        <SectionHeader
-                            title="Public comment reply"
-                            action={<span className="text-[11px] font-medium text-muted-foreground shrink-0">{data.customReplies.length} variation{data.customReplies.length === 1 ? "" : "s"}</span>}
-                        />
-                        <p className="text-[12px] text-muted-foreground">
-                            A random line from this list is posted publicly under the trigger comment.
-                        </p>
-
-                        <div className="space-y-1.5">
-                            {data.customReplies.map((r, i) => (
-                                <div key={i} className="flex items-center gap-1.5 group">
-                                    <span className="flex-1 min-w-0 text-[13px] text-foreground bg-muted/40 rounded-lg px-3 py-1.5 truncate">{r}</span>
-                                    <button
-                                        onClick={() => onUpdate({ customReplies: data.customReplies.filter((_, j) => j !== i) })}
-                                        className="opacity-50 hover:opacity-100 focus-visible:opacity-100 p-1.5 text-muted-foreground hover:text-destructive transition-all shrink-0"
-                                        title="Remove this variation"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex gap-1.5">
-                            <input
-                                value={commentInput}
-                                onChange={e => setCommentInput(e.target.value)}
-                                onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCommentReply(); } }}
-                                placeholder="Type a reply and press Enter…"
-                                className={inputCls}
-                            />
-                            <button
-                                onClick={() => { addCommentReply(); setRepliesSaved(true); }}
-                                className="w-9 h-9 flex items-center justify-center bg-muted rounded-lg hover:bg-muted/70 transition-colors shrink-0"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-
-                        <AiDraftControl
-                            action="public_replies"
-                            label="Generate with AI"
-                            placeholder="Describe the vibe for the replies…"
-                            defaultPrompt="Generate warm, natural 1-sentence Instagram comment replies confirming we sent them a DM"
-                            automationName={data.name}
-                            language={data.aiReplyLanguage}
-                            postCaption={data.postCaption}
-                            onResult={res => {
-                                if (res.variations && res.variations.length > 0) {
-                                    onUpdate({ customReplies: res.variations });
-                                    setRepliesSaved(true);
-                                }
-                            }}
-                        />
-                        <p className="text-[11px] text-muted-foreground">AI drafts replacement replies from your prompt, review, edit or delete them before saving.</p>
-                    </section>
-                )}
-
-                {/* Auto DM */}
-                <section className="space-y-3">
-                    <SectionHeader
-                        title="Auto DM"
-                        action={<Toggle on={data.isAutoDmEnabled} onChange={() => onUpdate({ isAutoDmEnabled: !data.isAutoDmEnabled })} />}
-                    />
-
-                    <AnimatePresence>
-                        {data.isAutoDmEnabled && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.18 }}
-                                className="overflow-hidden space-y-3"
-                            >
-                                {/* Opening message */}
-                                <div className="border border-border rounded-lg overflow-hidden">
-                                    <div className="flex items-center justify-between px-3 py-2.5 bg-muted/50 border-b border-border">
-                                        <div>
-                                            <p className="text-[12.5px] font-semibold text-foreground">Opening message</p>
-                                            <p className="text-[11px] text-muted-foreground">The first DM, sent automatically on trigger</p>
-                                        </div>
-                                        <Toggle
-                                            on={data.dmOpeningMessageEnabled}
-                                            onChange={() => onUpdate({ dmOpeningMessageEnabled: !data.dmOpeningMessageEnabled })}
-                                        />
-                                    </div>
-                                    <AnimatePresence>
-                                        {data.dmOpeningMessageEnabled && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: "auto", opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.18 }}
-                                                className="overflow-hidden"
-                                            >
-                                                <div className="p-3 space-y-2.5">
-                                                    {/* Variations - one is picked at random for each DM.
-                                                        Restored 2026-11-12: this selector was lost in
-                                                        the 985ed5c redesign, so the editor showed a
-                                                        single message and the "3 variations" were
-                                                        nowhere to be found. */}
-                                                    <div className="flex items-center gap-1 flex-wrap">
-                                                        <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                                                            {variations.map((_, i) => (
-                                                                <button
-                                                                    key={i}
-                                                                    onClick={() => setActiveVariationTab(i)}
-                                                                    className={cn(
-                                                                        "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
-                                                                        safeVariationTab === i
-                                                                            ? "bg-card text-foreground shadow-sm"
-                                                                            : "text-muted-foreground hover:text-foreground"
-                                                                    )}
-                                                                >
-                                                                    Variation {i + 1}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                        {variations.length < MAX_DM_OPENING_VARIATIONS && (
-                                                            <button
-                                                                onClick={addVariation}
-                                                                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg text-[12px] font-semibold text-primary hover:bg-primary/10 transition-colors"
-                                                            >
-                                                                <Plus className="w-3 h-3" /> Add variation
-                                                            </button>
-                                                        )}
-                                                        {variations.length > 1 && (
-                                                            <button
-                                                                onClick={() => removeVariation(safeVariationTab)}
-                                                                className="inline-flex items-center gap-1 h-7 px-2 text-[12px] font-medium text-muted-foreground hover:text-destructive transition-colors"
-                                                            >
-                                                                <Trash className="w-3 h-3" /> Remove
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-[11px] text-muted-foreground">
-                                                        {variations.length} variation{variations.length === 1 ? "" : "s"} - one is picked at random for each DM, so repeat commenters don&apos;t get the identical message every time.
-                                                    </p>
-                                                    <div className="relative">
-                                                        <textarea
-                                                            value={activeOpeningMessage}
-                                                            onChange={e => updateVariation(safeVariationTab, e.target.value)}
-                                                            rows={4}
-                                                            maxLength={1000}
-                                                            placeholder="Hey! Thanks so much for stopping by…"
-                                                            className={textareaCls}
-                                                        />
-                                                        <span className="absolute bottom-2 right-3 text-[10px] text-muted-foreground tabular-nums">{activeOpeningMessage.length}/1000</span>
-                                                    </div>
-                                                    {isComment && (
-                                                        <p className="text-[10px] text-muted-foreground">
-                                                            Tip: <code className="font-mono bg-muted px-1 rounded">{"{username}"}</code> becomes the commenter&apos;s @handle.
-                                                        </p>
-                                                    )}
-
-                                                    <AiDraftControl
-                                                        action="opening_variations"
-                                                        label="Generate variations"
-                                                        placeholder="Describe the opening message…"
-                                                        defaultPrompt="Warm, friendly opening DM that thanks them for commenting and offers the link"
-                                                        automationName={data.name}
-                            language={data.aiReplyLanguage}
-                                                        postCaption={data.postCaption}
-                                                        onResult={res => {
-                                                            if (res.variations && res.variations.length > 0) {
-                                                                setOpeningAiOptions(res.variations);
-                                                                setOpeningAiFallback(res.status === "fallback");
-                                                            }
-                                                        }}
-                                                    />
-                                                    {openingAiOptions && openingAiOptions.length > 0 && (
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex items-center justify-between gap-2">
-                                                                <p className="micro-label">AI variations, pick one</p>
-                                                                {openingAiFallback && (
-                                                                    <p className="text-[11px] text-muted-foreground shrink-0">AI unavailable — template suggestions</p>
-                                                                )}
-                                                                <button onClick={() => { setOpeningAiOptions(null); setOpeningAiFallback(false); }} className="text-muted-foreground hover:text-foreground">
-                                                                    <X className="w-3.5 h-3.5" />
-                                                                </button>
-                                                            </div>
-                                                            {openingAiOptions.map((v, i) => (
-                                                                <button
-                                                                    key={i}
-                                                                    onClick={() => { updateVariation(safeVariationTab, v); setOpeningAiOptions(null); setOpeningAiFallback(false); }}
-                                                                    className="block w-full text-left text-[13px] text-foreground bg-muted/40 hover:bg-muted rounded-lg px-3 py-2 transition-colors"
-                                                                >
-                                                                    {v}
-                                                                </button>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    <div className="rounded-lg border border-border p-2.5 space-y-1.5">
-                                                        <p className="micro-label">Reveal button</p>
-                                                        <p className="text-[11px] text-muted-foreground">They tap this to receive your responses - the tap confirms real interest.</p>
-                                                        <input
-                                                            value={data.dmOpeningMessageButtonTitle}
-                                                            onChange={e => onUpdate({ dmOpeningMessageButtonTitle: e.target.value })}
-                                                            maxLength={20}
-                                                            placeholder="Send me the link"
-                                                            className={inputCls}
-                                                        />
-                                                        <p className="text-[10px] text-muted-foreground">Max 20 characters{isFacebook ? "" : " (Instagram limit)"}. Leave empty to send responses immediately.</p>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-
-                                {/* Require follow — Facebook has no "follows the Page"
-                                    signal, so this section is hidden for FB triggers. */}
-                                {!isFacebook && (
-                                <div className="border border-border rounded-lg overflow-hidden">
-                                    <div className="flex items-center justify-between px-3 py-2.5 bg-muted/50 border-b border-border">
-                                        <div>
-                                            <p className="text-[12.5px] font-semibold text-foreground">Require follow</p>
-                                            <p className="text-[11px] text-muted-foreground">Deliver only after Instagram confirms they follow you</p>
-                                        </div>
-                                        <Toggle on={data.askToFollowEnabled} onChange={() => onUpdate({ askToFollowEnabled: !data.askToFollowEnabled })} />
-                                    </div>
-
-                                    <AnimatePresence>
-                                        {data.askToFollowEnabled && (
-                                            <motion.div
-                                                initial={{ height: 0, opacity: 0 }}
-                                                animate={{ height: "auto", opacity: 1 }}
-                                                exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.18 }}
-                                                className="overflow-hidden"
-                                            >
-                                                <div className="p-3 space-y-2.5">
-                                                    <div>
-                                                        <label className="micro-label block mb-1">&ldquo;Not following&rdquo; message</label>
-                                                        <textarea
-                                                            value={data.askToFollowMessage}
-                                                            onChange={e => onUpdate({ askToFollowMessage: e.target.value })}
-                                                            rows={2}
-                                                            maxLength={80}
-                                                            placeholder="Hey! It seems you're not following me yet…"
-                                                            className={textareaCls}
-                                                        />
-                                                        <p className="text-[10px] text-muted-foreground mt-0.5">Max 80 chars (card title limit).</p>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div>
-                                                            <label className="micro-label block mb-1">Profile button</label>
-                                                            <input
-                                                                value={data.askToFollowVisitProfileButton}
-                                                                onChange={e => onUpdate({ askToFollowVisitProfileButton: e.target.value })}
-                                                                maxLength={20}
-                                                                placeholder="Visit Profile"
-                                                                className={inputCls}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="micro-label block mb-1">Confirm button</label>
-                                                            <input
-                                                                value={data.askToFollowConfirmButton}
-                                                                onChange={e => onUpdate({ askToFollowConfirmButton: e.target.value })}
-                                                                maxLength={20}
-                                                                placeholder="I'm following ✅"
-                                                                className={inputCls}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-[10px] text-muted-foreground">
-                                                        Follow status is really checked via Instagram&apos;s profile API - followers skip this card,
-                                                        and the confirm tap re-checks before delivering.
-                                                    </p>
-                                                </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
-                                </div>
-                                )}
-
-                                {/* Responses */}
-                                <div className="space-y-2.5">
-                                    <SectionHeader title="Responses" />
-
-                                    {data.dmResponses.length >= MAX_DM_RESPONSES && (
-                                        <div className="text-[12px] text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-                                            Max {MAX_DM_RESPONSES} responses per flow - each one is a separate Instagram send, and short flows keep your account safe and your audience reading.
-                                        </div>
-                                    )}
-
-                                    {!data.dmOpeningMessageEnabled && data.dmResponses.length >= 1 && (
-                                        <div className="text-[12px] text-amber-600 bg-amber-500/10 rounded-lg px-3 py-2 font-medium">
-                                            Opening message is off - only one response is sent.
-                                        </div>
-                                    )}
-
-                                    {data.dmResponses.map((res, idx) => (
-                                        <ResponseBlock
-                                            key={res.id}
-                                            res={res}
-                                            idx={idx}
-                                            onUpdate={p => updateResponse(idx, p)}
-                                            onDelete={() => deleteResponse(idx)}
-                                        />
-                                    ))}
-
-                                    <div className="flex gap-1.5 flex-wrap">
-                                        <button
-                                            onClick={() => canAddMoreResponses && addResponse("text")}
-                                            disabled={!canAddMoreResponses}
-                                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <Chat className="w-3.5 h-3.5" /> Text message
-                                        </button>
-                                        <button
-                                            onClick={() => canAddMoreResponses && addResponse("card")}
-                                            disabled={!canAddMoreResponses}
-                                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <SquaresFour className="w-3.5 h-3.5" /> Card message
-                                        </button>
-                                        {/* Lead forms are not supported for
-                                            Facebook in v1 (API rejects them). */}
-                                        {!isFacebook && (
-                                        <button
-                                            onClick={() => canAddMoreResponses && addResponse("lead_form")}
-                                            disabled={!canAddMoreResponses}
-                                            className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[12px] font-medium border border-border text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                        >
-                                            <Chat className="w-3.5 h-3.5" /> Lead form
-                                        </button>
-                                        )}
-                                    </div>
-
-                                    <AiDraftControl
-                                        action="response_draft"
-                                        label="AI draft"
-                                        placeholder="Describe the response…"
-                                        defaultPrompt="Helpful DM response delivering the requested resource and offering help"
-                                        automationName={data.name}
-                            language={data.aiReplyLanguage}
-                                        postCaption={data.postCaption}
-                                        disabled={!canAddMoreResponses}
-                                        onResult={res => {
-                                            if (res.draft) {
-                                                onUpdate({
-                                                    dmResponses: [
-                                                        ...data.dmResponses,
-                                                        { id: randomId(), type: "text", content: res.draft },
-                                                    ],
-                                                });
-                                            }
-                                        }}
-                                    />
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </section>
-
-                {/* Follow-up message (scheduled check-in) — not supported
-                    for Facebook in v1 (API rejects it). */}
-                {!isFacebook && (
-                <section className="space-y-3">
-                    <SectionHeader
-                        title="Follow-up message"
-                        action={<Toggle on={data.followUpEnabled} onChange={() => onUpdate({ followUpEnabled: !data.followUpEnabled })} />}
-                    />
-                    <AnimatePresence>
-                        {data.followUpEnabled && (
-                            <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: "auto" }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.18 }}
-                                className="overflow-hidden space-y-3"
-                            >
-                                <p className="text-[12px] text-muted-foreground">
-                                    One check-in DM, sent after the person replies (button tap or a matching DM).
-                                    It is never sent to someone who opted out, and only inside Meta&apos;s 24-hour window.
-                                </p>
-                                <div>
-                                    <label className="micro-label block mb-1">Send after</label>
-                                    <select
-                                        value={data.followUpDelayMinutes}
-                                        onChange={e => onUpdate({ followUpDelayMinutes: Number(e.target.value) })}
-                                        className={inputCls}
-                                    >
-                                        <option value={10}>10 minutes</option>
-                                        <option value={20}>20 minutes</option>
-                                        <option value={60}>1 hour</option>
-                                        <option value={120}>2 hours</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="micro-label block mb-1">Message</label>
-                                    <textarea
-                                        value={data.followUpMessage}
-                                        onChange={e => onUpdate({ followUpMessage: e.target.value })}
-                                        placeholder="e.g. Hey {username}, just checking in, did the guide help?"
-                                        rows={3}
-                                        maxLength={1000}
-                                        className={textareaCls}
-                                    />
-                                    <p className="text-[11px] text-muted-foreground mt-1">Sent exactly as written (with {"{username}"} personalised). No AI rewriting.</p>
-                                    <AiDraftControl
-                                        action="follow_up_draft"
-                                        label="Generate draft"
-                                        placeholder="Describe the check-in…"
-                                        defaultPrompt="Polite check-in asking if they got a chance to look at the link"
-                                        automationName={data.name}
-                            language={data.aiReplyLanguage}
-                                        onResult={res => {
-                                            if (res.draft) {
-                                                onUpdate({ followUpMessage: res.draft });
-                                            }
-                                        }}
-                                    />
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </section>
-                )}
             </div>
 
             {/* ── Right - phones ── */}
