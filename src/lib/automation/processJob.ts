@@ -1561,24 +1561,26 @@ export async function processFollowUpDmJob(payload: AutoDmJobPayload): Promise<v
       lastMessageText = response.cardTitle ?? response.content ?? 'Card message';
     } else {
       const messageText = renderTemplate(response.content.trim(), payload.triggerUsername);
-      const link = response.buttonLink?.trim();
-      if (link) {
+      // Link buttons (2026-11-22): up to 2 per text response, resolved by
+      // getTextLinkButtons (prefers `buttons`, falls back to the legacy
+      // buttonTitle/buttonLink). The reveal-tap path used to read only the
+      // legacy fields, so the second button was silently dropped.
+      const buttons = getTextLinkButtons(response);
+      if (buttons.length > 0) {
         // Tappable link button first; inline-link fallback if Meta rejects it.
-        const buttonTitle = response.buttonTitle?.trim() || 'Open link';
         try {
           await sendInstagramLinkButtonDm(
             payload.igAccountIgsid,
             { id: payload.triggerUserId },
             messageText,
-            buttonTitle,
-            link,
+            buttons.map((b) => ({ title: b.title, url: b.link })),
             accessToken
           );
           lastMessageText = messageText;
         } catch (buttonErr) {
           if (!shouldFallBackToInlineLink(buttonErr)) throw buttonErr;
           logEvent( 'warn', 'responses_send', 'processing', 'Link button rejected - falling back to inline link', {});
-          const fallback = `${messageText}\n\n${buttonTitle}: ${link}`;
+          const fallback = `${messageText}\n\n${formatInlineLinkButtons(buttons)}`;
           await sendInstagramDm(payload.igAccountIgsid, { id: payload.triggerUserId }, fallback, accessToken);
           lastMessageText = fallback;
         }
