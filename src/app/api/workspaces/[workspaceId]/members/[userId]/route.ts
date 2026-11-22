@@ -54,7 +54,7 @@ export async function PATCH(request: Request, context: RouteContext): Promise<Re
   // that to the same 403 not-a-member outcome as before. The
   // capability gate still runs before the RPC — a non-manager gets
   // 403 and the RPC is never called.
-  const rpcClient = await createUserRpcClient(request, user.id);
+  const rpcClient = await createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id });
   if (!rpcClient.ok) {
     return Response.json({ error: rpcClient.error }, { status: rpcClient.status });
   }
@@ -100,7 +100,7 @@ export async function DELETE(request: Request, context: RouteContext): Promise<R
   // user-scoped factory client per request carries the fresh context
   // resolution AND the RPC; the service role is not used in this
   // route at all, and the capability gate still precedes the RPC.
-  const rpcClient = await createUserRpcClient(request, user.id);
+  const rpcClient = await createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id });
   if (!rpcClient.ok) {
     return Response.json({ error: rpcClient.error }, { status: rpcClient.status });
   }

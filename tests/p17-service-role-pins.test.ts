@@ -279,7 +279,7 @@ const CLASSIFIED: Record<string, Classified> = {
   // the user-JWT factory (pinned in p19-workspaces-rpc-auth.test.ts).
   'app/api/workspaces/accept/route.ts': {
     kind: 'entitlement-gate',
-    tokens: ['getAuthenticatedUser', 'evaluateEntitlementGate', 'hashInvitationToken(token)', 'createUserRpcClient(request, user.id)'],
+    tokens: ['getAuthenticatedUser', 'evaluateEntitlementGate', 'hashInvitationToken(token)', 'createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id })'],
     exceptionReason:
       'Flag-gated (ENTITLEMENTS_ENFORCED), read-only teamSeats check before the accept RPC: invitation-by-hash, member count and subscription of the target workspace are unreadable to the not-yet-member invitee under RLS, so the pre-check requires the service role. No service-role writes; the accept RPC runs on the user-JWT client.',
   },

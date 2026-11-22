@@ -47,7 +47,7 @@ export async function GET(request: Request): Promise<Response> {
   // the queries are unchanged, and the id set still derives
   // exclusively from the caller's own memberships above — the service
   // role is no longer involved in this read path at all.
-  const rpcClient = await createUserRpcClient(request, user.id);
+  const rpcClient = await createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id });
   if (!rpcClient.ok) {
     return Response.json({ error: rpcClient.error }, { status: rpcClient.status });
   }
@@ -105,7 +105,7 @@ export async function POST(request: Request): Promise<Response> {
   // through the caller's own user-JWT client (see userClient.ts).
   // Programme 30 (AA-6): the GET list path above now uses the same
   // factory, so this file no longer imports the service client at all.
-  const rpcClient = await createUserRpcClient(request, user.id);
+  const rpcClient = await createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id });
   if (!rpcClient.ok) {
     return Response.json({ error: rpcClient.error }, { status: rpcClient.status });
   }

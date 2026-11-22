@@ -319,7 +319,12 @@ describe('source pins: no service-role membership RPC remains', () => {
   it('workspaces POST: the create_workspace receiver is the factory client (handler-scoped: POST never builds a service client)', () => {
     const src = readSrc('app/api/workspaces/route.ts');
     const post = src.slice(src.indexOf('export async function POST'));
-    expect(post).toContain('createUserRpcClient(request, user.id)');
+    // Pin change (2026-11-23, slow-load fix): the factory call now
+    // carries { alreadyVerifiedUserId: user.id } — the route already
+    // verified this request via getAuthenticatedUser, so the factory
+    // skips its redundant second getUser round-trip. The client is
+    // still built by the user-JWT factory, never the service role.
+    expect(post).toContain('createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id })');
     expect(post).toContain('const db = rpcClient.client;');
     expect(post).toContain("db.rpc('create_workspace'");
     expect(post).not.toContain('createServiceClient');
@@ -327,7 +332,7 @@ describe('source pins: no service-role membership RPC remains', () => {
     // client — the membership-derived list + enrichment read through
     // the factory client too, so the whole file is service-free.
     const get = src.slice(src.indexOf('export async function GET'), src.indexOf('export async function POST'));
-    expect(get).toContain('createUserRpcClient(request, user.id)');
+    expect(get).toContain('createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id })');
     expect(get).toContain('const db = rpcClient.client;');
     expect(get).toContain('listUserWorkspaces(db, user.id)');
     expect(src).not.toContain('createServiceClient');
@@ -338,7 +343,9 @@ describe('source pins: no service-role membership RPC remains', () => {
     const src = readSrc('app/api/workspaces/accept/route.ts');
     // P19 invariant, unchanged: the membership-writing RPC runs
     // through the caller's user-JWT client — never the service role.
-    expect(src).toContain('createUserRpcClient(request, user.id)');
+    // (2026-11-23 pin change: the call now carries
+    // { alreadyVerifiedUserId: user.id } — see the POST pin above.)
+    expect(src).toContain('createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id })');
     expect(src).toContain('const db = rpcClient.client;');
     expect(src).toContain("db.rpc('accept_workspace_invitation'");
     // Dated exception (2026-11-09, trial/workspace farming fix): the
@@ -368,7 +375,9 @@ describe('source pins: no service-role membership RPC remains', () => {
     expect(src).not.toContain('@/lib/supabase/service');
     expect(src).toContain('resolveRouteWorkspaceContext(db, user.id, workspaceId)');
     expect(src).toContain("requireCapability(resolved.ctx, 'manageMembers')");
-    expect(src.match(/createUserRpcClient\(request, user\.id\)/g)).toHaveLength(2);
+    // (2026-11-23 pin change: both calls now carry
+    // { alreadyVerifiedUserId: user.id } — see the POST pin above.)
+    expect(src.match(/createUserRpcClient\(request, user\.id, \{ alreadyVerifiedUserId: user\.id \}\)/g)).toHaveLength(2);
   });
 
   it('factory hygiene pin: userClient.ts carries no service-role reference and no logging', () => {

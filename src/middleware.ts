@@ -7,6 +7,13 @@
  *     whether pricing surfaces render INR or USD — never both. Set
  *     once, only when absent, on the final pass-through response so
  *     the Supabase cookie rebuild above cannot drop it.
+ *  4. Stamps the verified user's email onto the request headers
+ *     forwarded to the page (2026-11-23, slow-load fix — see
+ *     src/lib/verifiedUserEmailHeader.ts): the (main) layout used to
+ *     run its own supabase.auth.getUser() on every page load just
+ *     for the sidebar email, one more Auth round-trip after the
+ *     verification above. The header is deleted when unverified, so
+ *     a client-sent spoof can never survive; it is display-only.
  *
  * /api/* is fully excluded: the webhook and cron endpoints must never be
  * touched by session logic, and app API routes authenticate via Bearer JWT.
@@ -16,6 +23,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { isIdentityAllowed } from '@/lib/signupProtection';
 import { GEO_CURRENCY_COOKIE, currencyForCountry } from '@/lib/billing/geo';
+import { VERIFIED_USER_EMAIL_HEADER } from '@/lib/verifiedUserEmailHeader';
 
 const SUPABASE_URL = process.env['NEXT_PUBLIC_SUPABASE_URL']!;
 const SUPABASE_ANON_KEY = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']!;
@@ -121,7 +129,26 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return supabaseResponse;
+  // Verified-user email header (see header note 4): the (main)
+  // layout reads this instead of running its own getUser() — one
+  // fewer Auth round-trip per page load. Set only for the user
+  // verified above; DELETED when unverified so a client-sent spoof
+  // can never survive into a page render. The final response is
+  // rebuilt from the request headers, and every cookie the session
+  // refresh / geo logic set on the original passthrough response is
+  // carried over.
+  const requestHeaders = new Headers(request.headers);
+  if (user?.email) {
+    requestHeaders.set(VERIFIED_USER_EMAIL_HEADER, user.email);
+  } else {
+    requestHeaders.delete(VERIFIED_USER_EMAIL_HEADER);
+  }
+  const finalResponse = NextResponse.next({ request: { headers: requestHeaders } });
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    finalResponse.cookies.set(cookie);
+  });
+
+  return finalResponse;
 }
 
 export const config = {

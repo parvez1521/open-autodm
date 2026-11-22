@@ -41,7 +41,7 @@ export async function GET(request: Request, context: RouteContext): Promise<Resp
   // under RLS, which the resolver already maps to the same
   // 403 not-a-member outcome the service-client read produced. The
   // queries and the response shape are unchanged.
-  const rpcClient = await createUserRpcClient(request, user.id);
+  const rpcClient = await createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id });
   if (!rpcClient.ok) {
     return Response.json({ error: rpcClient.error }, { status: rpcClient.status });
   }

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Sidebar, MobileSidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { ScrollMorph } from "@/components/ui/ScrollMorph";
@@ -8,6 +8,7 @@ import { readWorkspaceFlags } from "@/lib/tenancy/workspaceFlags";
 import { WorkspaceProvider } from "@/components/workspace/WorkspaceProvider";
 import { createServerClient } from "@/lib/supabase";
 import { isAdminEmail } from "@/lib/admin/panel";
+import { readVerifiedUserEmail } from "@/lib/verifiedUserEmailHeader";
 
 /**
  * The signed-in console is never indexed (SEO pass, 2026-11-10):
@@ -24,8 +25,21 @@ export const metadata: Metadata = {
  * verifies the session with the Auth server — never a local token
  * decode. Any failure renders the shell without an email line
  * rather than failing the layout.
+ *
+ * Slow-load fix (2026-11-23): the middleware already verified this
+ * request's session and stamped the email onto the request headers
+ * (display-only — see src/lib/verifiedUserEmailHeader.ts), so read
+ * that first. Only when the header is absent (middleware bypassed)
+ * fall back to a fresh getUser() round-trip.
  */
 async function readUserEmail(): Promise<string | null> {
+    try {
+        const headerStore = await headers();
+        const fromHeader = readVerifiedUserEmail(headerStore);
+        if (fromHeader) return fromHeader;
+    } catch {
+        // Fall through to the getUser() fallback below.
+    }
     try {
         const cookieStore = await cookies();
         const supabase = createServerClient(cookieStore);

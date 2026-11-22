@@ -93,7 +93,7 @@ export async function POST(request: Request): Promise<Response> {
   // the service role — the RPC must run through the caller's own
   // user-JWT client (see userClient.ts). (The service client above is
   // used ONLY for the entitlement gate's read-only seat check.)
-  const rpcClient = await createUserRpcClient(request, user.id);
+  const rpcClient = await createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id });
   if (!rpcClient.ok) {
     return Response.json({ error: rpcClient.error }, { status: rpcClient.status });
   }

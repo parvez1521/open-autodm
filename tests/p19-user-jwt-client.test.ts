@@ -330,6 +330,84 @@ describe('transport conflicts (Bearer governs, exactly as getAuthenticatedUser)'
   });
 });
 
+describe('alreadyVerifiedUserId — skip the redundant second getUser (2026-11-23 slow-load fix)', () => {
+  it('control: WITHOUT the option, the Bearer path verifies via /auth/v1/user (one call)', async () => {
+    const res = await createUserRpcClient(bearerReq('jwt-for-x'), USER_X.id);
+    expect(res.ok).toBe(true);
+    expect(state.captured.filter((c) => c.url.includes('/auth/v1/user'))).toHaveLength(1);
+  });
+
+  it('Bearer + already-verified id ⇒ ok WITHOUT any /auth/v1/user call, and the RPC still carries the caller token', async () => {
+    const res = await createUserRpcClient(bearerReq('jwt-for-x'), USER_X.id, {
+      alreadyVerifiedUserId: USER_X.id,
+    });
+    expect(res.ok).toBe(true);
+    expect(state.captured.filter((c) => c.url.includes('/auth/v1/user'))).toEqual([]);
+    if (!res.ok) return;
+    state.captured.length = 0;
+    await res.client.rpc('create_workspace', { p_name: 'S' });
+    const rpcReq = state.captured.find((c) => c.url.includes('/rest/v1/rpc/'));
+    expect(rpcReq!.headers['authorization']).toBe('Bearer jwt-for-x');
+  });
+
+  it('Bearer + already-verified id for a DIFFERENT user than expected ⇒ 403, no client', async () => {
+    const res = await createUserRpcClient(bearerReq('jwt-for-x'), USER_X.id, {
+      alreadyVerifiedUserId: USER_Y.id,
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.status).toBe(403);
+  });
+
+  it('the skip is a caller guarantee: with the option the factory never consults Auth at all — the route\'s own getAuthenticatedUser is the verification', async () => {
+    // An invalid token + a matching already-verified id still yields
+    // a client here, because the factory trusts the caller. That is
+    // safe ONLY because every call site runs getAuthenticatedUser on
+    // the same request first (an invalid token 401s there and never
+    // reaches the factory). This pin documents the contract so a
+    // future call site cannot pass the option from untrusted input.
+    const res = await createUserRpcClient(bearerReq('jwt-garbage'), USER_X.id, {
+      alreadyVerifiedUserId: USER_X.id,
+    });
+    expect(res.ok).toBe(true);
+    expect(state.captured.filter((c) => c.url.includes('/auth/v1/user'))).toEqual([]);
+  });
+
+  it('cookie + already-verified id ⇒ ok WITHOUT the SSR getUser (proven: cookieError would 401 without the skip)', async () => {
+    state.setCookieUser(USER_X);
+    state.setCookieError(true);
+    const res = await createUserRpcClient(plainReq(), USER_X.id, {
+      alreadyVerifiedUserId: USER_X.id,
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.client as unknown).toBe(state.ssrClients[0]);
+  });
+
+  it('cookie + already-verified id for a different user ⇒ 403', async () => {
+    state.setCookieUser(USER_X);
+    const res = await createUserRpcClient(plainReq(), USER_X.id, {
+      alreadyVerifiedUserId: USER_Y.id,
+    });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.status).toBe(403);
+  });
+
+  it('all six workspace call sites pass the already-verified id (pin)', () => {
+    const files = [
+      'src/app/api/workspaces/route.ts',
+      'src/app/api/workspaces/[workspaceId]/members/route.ts',
+      'src/app/api/workspaces/[workspaceId]/members/[userId]/route.ts',
+      'src/app/api/workspaces/accept/route.ts',
+    ];
+    for (const file of files) {
+      const src = readFileSync(path.resolve(process.cwd(), file), 'utf8');
+      expect(src).toContain('createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id })');
+      // No bare two-argument call remains (the regex requires the
+      // closing paren right after user.id — the new form has a comma).
+      expect(src).not.toMatch(/createUserRpcClient\(request, user\.id\)/);
+    }
+  });
+});
 describe('hygiene', () => {
   it('factory source contains no service-role key reference and no privileged-client factory reference (pin)', () => {
     const src = readFileSync(path.resolve(process.cwd(), 'src/lib/supabase/userClient.ts'), 'utf8');

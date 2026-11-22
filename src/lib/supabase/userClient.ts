@@ -45,6 +45,23 @@
  *   - No caching: a fresh client instance is built on every call.
  *   - Nothing is logged — no tokens, headers, or cookies — and failure
  *     results carry generic messages only, never credential material.
+ *
+ * SKIP-VERIFICATION OPTION (2026-11-23, slow-load fix):
+ *   Every /api/workspaces call ran getAuthenticatedUser (getUser #1)
+ *   AND this factory's own getUser (#2) — two sequential Supabase
+ *   Auth round-trips on the gate call every authenticated page waits
+ *   on (workspace resolution gates every page's data hooks). When the
+ *   caller already authenticated THIS request via getAuthenticatedUser
+ *   it passes that verified id as `alreadyVerifiedUserId` and the
+ *   factory skips its own redundant second verification. This is a
+ *   caller guarantee, never a client input: the value must come from
+ *   the route's own getAuthenticatedUser result for the same Request.
+ *   The returned client still carries the user's own token/cookie, so
+ *   PostgREST/RLS enforces auth.uid() on every RPC/query it makes;
+ *   the skip only drops the duplicate Auth round-trip, never an
+ *   authorization check. A mismatch between the option and
+ *   expectedUserId fails closed (IDENTITY_MISMATCH) without building
+ *   a client. Omitting the option keeps the old behaviour.
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -56,6 +73,15 @@ import { parseBearerToken } from '@/lib/bearerToken';
 export type UserRpcClientResult =
   | { ok: true; client: SupabaseClient }
   | { ok: false; status: number; error: string };
+
+export interface CreateUserRpcClientOptions {
+  /**
+   * User id the caller already verified for THIS request via
+   * getAuthenticatedUser. Must equal expectedUserId; a mismatch fails
+   * closed. See the header note above.
+   */
+  alreadyVerifiedUserId?: string;
+}
 
 const UNAUTHENTICATED: UserRpcClientResult = {
   ok: false,
@@ -78,6 +104,7 @@ const UNAVAILABLE: UserRpcClientResult = {
 export async function createUserRpcClient(
   request: Request,
   expectedUserId: string,
+  opts?: CreateUserRpcClientOptions,
 ): Promise<UserRpcClientResult> {
   if (!expectedUserId) return UNAUTHENTICATED;
 
@@ -97,18 +124,24 @@ export async function createUserRpcClient(
     const jwt = parsed.token;
     if (jwt.trim() === '') return UNAUTHENTICATED;
 
-    let verifiedUserId: string | null = null;
-    try {
-      const verifier = createClient(url, anonKey, {
-        auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-      });
-      const { data, error } = await verifier.auth.getUser(jwt);
-      if (error || !data.user) return UNAUTHENTICATED;
-      verifiedUserId = data.user.id;
-    } catch {
-      return UNAUTHENTICATED;
+    if (opts?.alreadyVerifiedUserId !== undefined) {
+      // Caller already verified this request's identity; skip the
+      // redundant second auth.getUser round-trip (see header note).
+      if (opts.alreadyVerifiedUserId !== expectedUserId) return IDENTITY_MISMATCH;
+    } else {
+      let verifiedUserId: string | null = null;
+      try {
+        const verifier = createClient(url, anonKey, {
+          auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+        });
+        const { data, error } = await verifier.auth.getUser(jwt);
+        if (error || !data.user) return UNAUTHENTICATED;
+        verifiedUserId = data.user.id;
+      } catch {
+        return UNAUTHENTICATED;
+      }
+      if (verifiedUserId !== expectedUserId) return IDENTITY_MISMATCH;
     }
-    if (verifiedUserId !== expectedUserId) return IDENTITY_MISMATCH;
 
     const client = createClient(url, anonKey, {
       global: { headers: { Authorization: `Bearer ${jwt}` } },
@@ -128,6 +161,12 @@ export async function createUserRpcClient(
         },
       },
     });
+    if (opts?.alreadyVerifiedUserId !== undefined) {
+      // Same skip as the Bearer path: the caller already verified
+      // this request's session via getAuthenticatedUser.
+      if (opts.alreadyVerifiedUserId !== expectedUserId) return IDENTITY_MISMATCH;
+      return { ok: true, client: client as unknown as SupabaseClient };
+    }
     const { data, error } = await client.auth.getUser();
     if (error || !data.user) return UNAUTHENTICATED;
     if (data.user.id !== expectedUserId) return IDENTITY_MISMATCH;

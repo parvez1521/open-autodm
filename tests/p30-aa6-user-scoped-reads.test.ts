@@ -247,7 +247,11 @@ describe('AA-6: source pins', () => {
       const src = readSrc(rel);
       expect(src, rel).not.toContain('createServiceClient');
       expect(src, rel).not.toContain('@/lib/supabase/service');
-      expect(src, rel).toContain('createUserRpcClient(request, user.id)');
+      // (2026-11-23 pin change: the factory call now carries
+      // { alreadyVerifiedUserId: user.id } — the route already
+      // verified this request, so the factory skips its redundant
+      // second getUser round-trip.)
+      expect(src, rel).toContain('createUserRpcClient(request, user.id, { alreadyVerifiedUserId: user.id })');
     }
   });
 });

@@ -62,12 +62,20 @@ function formatDate(iso: string): string {
 }
 
 export function ContactsList() {
-    const { data: contacts, isLoading, error: contactsError, refetch, isFetching } = useContacts();
+    // isPending (not isLoading): while the WorkspaceProvider scope is
+    // 'unavailable' the query is DISABLED and TanStack reports
+    // isLoading false with no data — the old flag skipped the
+    // skeleton and the empty state ("No Contacts Yet") flashed on
+    // every reload until the scope resolved. isPending stays true
+    // while disabled-with-no-data, so the skeleton holds until the
+    // contacts actually arrive. (2026-11-23, audit #12 follow-up —
+    // same class as the 0080aff settings/dashboard fixes.)
+    const { data: contacts, isPending, error: contactsError, refetch, isFetching } = useContacts();
     const [search, setSearch] = useState("");
     // Leads tab (2026-11-17): the leads query only fires when the tab is
     // open, so the contacts page costs nothing extra by default.
     const [tab, setTab] = useState<"contacts" | "leads">("contacts");
-    const { data: leads, isLoading: leadsLoading, error: leadsError, refetch: refetchLeads, isFetching: leadsFetching } = useLeads(undefined, tab === "leads");
+    const { data: leads, isPending: leadsPending, error: leadsError, refetch: refetchLeads, isFetching: leadsFetching } = useLeads(undefined, tab === "leads");
     const [exporting, setExporting] = useState(false);
     const [exportError, setExportError] = useState<string | null>(null);
     const { workspaceRuntimeEnabled, selectedWorkspaceId } = useWorkspace();
@@ -136,7 +144,7 @@ export function ContactsList() {
         );
     }, [contacts, search]);
 
-    if (isLoading) {
+    if (isPending) {
         return (
             <div className="flex flex-col space-y-4">
                 {[1, 2, 3].map((i) => (
@@ -191,7 +199,7 @@ export function ContactsList() {
             </div>
 
             {tab === "leads" ? (
-                <LeadsPanel leads={leads} isLoading={leadsLoading} error={leadsError} onRetry={() => void refetchLeads()} isFetching={leadsFetching} />
+                <LeadsPanel leads={leads} isLoading={leadsPending} error={leadsError} onRetry={() => void refetchLeads()} isFetching={leadsFetching} />
             ) : !contacts || contacts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
                     <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
