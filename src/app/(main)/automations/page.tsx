@@ -11,6 +11,7 @@ import { NewAutomationModal } from "@/components/automations/new-flow/NewAutomat
 import { useAutomations, useToggleAutomation, useDeleteAutomation } from "@/hooks/useAutomations";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useActiveFacebookPage } from "@/hooks/useActiveFacebookPage";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 import { AutomationDebugPanel } from "@/components/debug/AutomationDebugPanel";
 
@@ -67,6 +68,7 @@ function AutomationsContent() {
 
     const { accountId, isLoading: instagramAccountsLoading } = useActiveAccount();
     const { pageId: activeFacebookPageId, isLoading: facebookPagesLoading } = useActiveFacebookPage();
+    const { loading: workspaceLoading } = useWorkspace();
     // QA fix (2026-11-08): the query error is no longer discarded —
     // AutomationsList renders an honest, retryable error state for it
     // instead of silently showing the empty state (settled failure)
@@ -81,16 +83,23 @@ function AutomationsContent() {
     // time — the selected tab filters by channel first, then by the
     // active account/Page within it.
     const { data: allAutomations, isLoading, error: automationsError, refetch: refetchAutomations } = useAutomations(null);
-    // Empty-state flash fix (2026-11-20): the account/Page selection
-    // queries resolve AFTER the automations query on a reload, so a
-    // null selection is indeterminate while they are pending — it
-    // must not render the "not connected" empty state. The skeleton
-    // stays up until the selected channel's selection has settled;
-    // only then does a null selection honestly mean "not connected".
-    // (The automations query's isLoading alone did not cover this:
-    // it can settle while the selection is still pending, which is
-    // exactly the flash the owner saw on the Facebook tab.)
-    const selectionLoading = channelTab === "facebook" ? facebookPagesLoading : instagramAccountsLoading;
+    // Empty-state flash fix v2 (2026-11-22): v1 gated only on the
+    // selection queries' isLoading — but those queries are DISABLED
+    // (enabled: scope !== 'unavailable' in useInstagramAccounts /
+    // useFacebookPages) until the WorkspaceProvider resolves a
+    // selection, and a disabled TanStack query reports isLoading ===
+    // false with data undefined. So on a reload the gate passed
+    // while the workspace was still loading and the false "not
+    // connected" empty state rendered immediately (browser-verified
+    // 2026-11-22: it appeared while the sidebar still said "Loading
+    // workspaces..."). The provider's `loading` flag is the
+    // authoritative indeterminate signal — true from the first paint
+    // while the runtime is enabled — so it must be part of the gate.
+    // Only once the workspace has settled AND the selected channel's
+    // selection query has settled does a null selection honestly
+    // mean "not connected".
+    const selectionLoading =
+        workspaceLoading || (channelTab === "facebook" ? facebookPagesLoading : instagramAccountsLoading);
     const automations = (allAutomations ?? []).filter((a) =>
         channelTab === "facebook"
             ? a.channel === "facebook" && activeFacebookPageId !== null && a.facebook_page_id === activeFacebookPageId

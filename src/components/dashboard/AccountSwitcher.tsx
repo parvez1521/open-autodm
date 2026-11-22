@@ -15,6 +15,7 @@ import { apiClient, ApiError } from "@/lib/api/client";
 import { createBrowserClient } from "@/lib/supabase";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useActiveFacebookPage } from "@/hooks/useActiveFacebookPage";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import type { FacebookPage } from "@/hooks/useFacebookPages";
 import { IgAvatar } from "@/components/dashboard/IgAvatar";
 import type { InstagramAccount } from "@/hooks/useInstagramAccounts";
@@ -50,12 +51,25 @@ function FacebookPageAvatar({ page, size = 7 }: { page: FacebookPage | null; siz
 }
 
 export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed: boolean; userEmail?: string | null }) {
-    const { account, accounts, setActiveAccount } = useActiveAccount();
+    const { account, accounts, isLoading: instagramAccountsLoading, setActiveAccount } = useActiveAccount();
     // Facebook Pages (2026-11-19) — a SEPARATE selection from the IG
     // account above. Picking a Page never clears the IG selection:
     // the two consoles coexist, and the automations page shows the
     // funnels for both selections.
-    const { page: fbPage, pages: fbPages, setActiveFacebookPage } = useActiveFacebookPage();
+    const { page: fbPage, pages: fbPages, isLoading: facebookPagesLoading, setActiveFacebookPage } = useActiveFacebookPage();
+    // Loading-flash fix v2 (2026-11-22): the selection queries are
+    // DISABLED until the WorkspaceProvider resolves a selection, and
+    // a disabled TanStack query reports isLoading === false with
+    // data undefined — so a null account/Page reads as "not
+    // connected" while the workspace is still loading (the sidebar
+    // said "Loading workspaces..." while the rows already claimed
+    // "No account" / "No Page connected"). The provider's `loading`
+    // flag is the authoritative indeterminate signal; each row (and
+    // its popover list) shows a loading placeholder until its
+    // channel has genuinely settled.
+    const { loading: workspaceLoading } = useWorkspace();
+    const igLoading = workspaceLoading || instagramAccountsLoading;
+    const fbLoading = workspaceLoading || facebookPagesLoading;
     const [open, setOpen] = useState(false);
     const [switcherChannel, setSwitcherChannel] = useState<SwitcherChannel>(() => {
         if (typeof window === "undefined") return "instagram";
@@ -162,11 +176,20 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                     )}
                     title={isCollapsed ? (account ? `@${account.username}` : "Instagram accounts") : undefined}
                 >
-                    <AccountAvatar account={account} />
+                    {igLoading ? (
+                        <span className="w-7 h-7 rounded-full bg-muted animate-pulse shrink-0" />
+                    ) : (
+                        <AccountAvatar account={account} />
+                    )}
                     {!isCollapsed && (
                         <>
                             <div className="flex flex-col min-w-0 flex-1 text-left">
-                                {account ? (
+                                {igLoading ? (
+                                    <>
+                                        <span className="block h-3 w-24 rounded bg-muted animate-pulse" />
+                                        <span className="block h-2.5 w-16 rounded bg-muted/60 animate-pulse mt-1.5" />
+                                    </>
+                                ) : account ? (
                                     <>
                                         <span className="text-[12px] font-medium text-foreground truncate leading-tight">@{account.username}</span>
                                         <span className="text-[10px] text-muted-foreground leading-tight">
@@ -194,11 +217,20 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                     )}
                     title={isCollapsed ? (fbPage ? fbPage.name : "Facebook Pages") : undefined}
                 >
-                    <FacebookPageAvatar page={fbPage} />
+                    {fbLoading ? (
+                        <span className="w-7 h-7 rounded-full bg-muted animate-pulse shrink-0" />
+                    ) : (
+                        <FacebookPageAvatar page={fbPage} />
+                    )}
                     {!isCollapsed && (
                         <>
                             <div className="flex flex-col min-w-0 flex-1 text-left">
-                                {fbPage ? (
+                                {fbLoading ? (
+                                    <>
+                                        <span className="block h-3 w-24 rounded bg-muted animate-pulse" />
+                                        <span className="block h-2.5 w-16 rounded bg-muted/60 animate-pulse mt-1.5" />
+                                    </>
+                                ) : fbPage ? (
                                     <>
                                         <span className="text-[12px] font-medium text-foreground truncate leading-tight">{fbPage.name}</span>
                                         <span className="text-[10px] text-muted-foreground leading-tight">
@@ -265,7 +297,11 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                         </div>
                         <div className="px-1.5 pb-1.5 max-h-56 overflow-y-auto custom-scrollbar">
                             {accounts.length === 0 && (
-                                <p className="px-2 py-2 text-[12px] text-muted-foreground">Nothing connected yet.</p>
+                                igLoading ? (
+                                    <p className="px-2 py-2 text-[12px] text-muted-foreground">Loading…</p>
+                                ) : (
+                                    <p className="px-2 py-2 text-[12px] text-muted-foreground">Nothing connected yet.</p>
+                                )
                             )}
                             {accounts.map((a) => {
                                 const isActive = a.id === account?.id;
@@ -313,7 +349,11 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                         </div>
                         <div className="px-1.5 pb-1.5 max-h-56 overflow-y-auto custom-scrollbar">
                             {fbPages.length === 0 && (
-                                <p className="px-2 py-2 text-[12px] text-muted-foreground">No Page connected yet.</p>
+                                fbLoading ? (
+                                    <p className="px-2 py-2 text-[12px] text-muted-foreground">Loading…</p>
+                                ) : (
+                                    <p className="px-2 py-2 text-[12px] text-muted-foreground">No Page connected yet.</p>
+                                )
                             )}
                             {fbPages.map((p) => {
                                 const isActive = p.id === fbPage?.id;
