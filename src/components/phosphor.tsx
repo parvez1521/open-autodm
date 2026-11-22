@@ -49,6 +49,7 @@ export {
   Clock,
   ClockCounterClockwise,
   Compass,
+  Cookie,
   Copy,
   Cpu,
   Crosshair,

@@ -96,6 +96,16 @@ export function LoginForm({ signupOpen = false }: { signupOpen?: boolean }) {
         if (raw) {
             setError(humanAuthError(raw));
             window.history.replaceState({}, "", "/login");
+            return;
+        }
+        // Session-expired signal (production-pages audit, 2026-11-23):
+        // the middleware redirects here with ?session=expired when a
+        // session cookie existed but could not be verified. Say so
+        // plainly instead of silently treating it as never-signed-in,
+        // then scrub the parameter so a refresh doesn't repeat it.
+        if (fromQuery.get("session") === "expired") {
+            setError("Your session expired. Sign in again.");
+            window.history.replaceState({}, "", "/login");
         }
     }, []);
 

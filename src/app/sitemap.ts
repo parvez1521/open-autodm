@@ -28,5 +28,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     entry("/privacy-policy", 0.3, "yearly"),
     entry("/terms", 0.3, "yearly"),
     entry("/data-deletion", 0.3, "yearly"),
+    entry("/cookie-policy", 0.3, "yearly"),
+    entry("/accessibility", 0.3, "yearly"),
+    entry("/security", 0.3, "yearly"),
+    entry("/support", 0.5, "monthly"),
   ];
 }

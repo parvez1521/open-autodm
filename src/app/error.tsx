@@ -33,6 +33,21 @@ export default function ErrorPage({
                 Your automations and data are unaffected — this is a display problem on
                 this page only. Try again, or head back to the console.
             </p>
+            {/* Support reference code (production-pages audit,
+                2026-11-23): Next.js attaches a digest to the error;
+                showing it lets support match a report to the failure
+                without exposing any internals. */}
+            {error.digest && (
+                <p className="mt-4 text-[12.5px] text-muted-foreground">
+                    Reference code:{" "}
+                    <code className="font-mono text-foreground/80">{error.digest}</code>
+                    {" — include it if you "}
+                    <Link href="/support" className="text-primary underline underline-offset-2 hover:text-foreground">
+                        contact support
+                    </Link>
+                    .
+                </p>
+            )}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <button
                     type="button"

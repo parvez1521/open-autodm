@@ -14,6 +14,12 @@
  *     for the sidebar email, one more Auth round-trip after the
  *     verification above. The header is deleted when unverified, so
  *     a client-sent spoof can never survive; it is display-only.
+ *  5. Session-expired signal (production-pages audit, 2026-11-23):
+ *     when a protected route redirects an unverified visitor to
+ *     /login AND a Supabase session cookie is present, the session
+ *     existed but could not be verified — expired or revoked — so
+ *     the redirect carries ?session=expired and the login form says
+ *     so instead of silently treating it as never-signed-in.
  *
  * /api/* is fully excluded: the webhook and cron endpoints must never be
  * touched by session logic, and app API routes authenticate via Bearer JWT.
@@ -27,6 +33,20 @@ import { VERIFIED_USER_EMAIL_HEADER } from '@/lib/verifiedUserEmailHeader';
 
 const SUPABASE_URL = process.env['NEXT_PUBLIC_SUPABASE_URL']!;
 const SUPABASE_ANON_KEY = process.env['NEXT_PUBLIC_SUPABASE_ANON_KEY']!;
+
+/**
+ * A Supabase session cookie is present on the request. @supabase/ssr
+ * names its session cookies `sb-<project-ref>-auth-token` (split
+ * into numbered parts, `.0`/`.1`, when the session is large) and
+ * this app sets no cookieOptions.name override, so the default
+ * naming applies. Matching on the `auth-token` infix covers the
+ * base name and its chunks; no other cookie in this app contains
+ * it. Used only to tell an expired session apart from a visitor
+ * who was never signed in — never an authorization input.
+ */
+function hasSupabaseSessionCookie(request: NextRequest): boolean {
+  return request.cookies.getAll().some((cookie) => cookie.name.includes('auth-token'));
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -79,6 +99,15 @@ export async function middleware(request: NextRequest) {
   if (isProtectedRoute && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/login';
+    // Session-expired signal (see header note 5): a session cookie
+    // is present but getUser() could not verify it, so the session
+    // expired or was revoked. No cookie at all means simply
+    // signed-out. A verified-but-disallowed identity
+    // (verifiedUser non-null) is not an expiry either — the session
+    // itself is valid, the identity is refused.
+    if (!verifiedUser && hasSupabaseSessionCookie(request)) {
+      redirectUrl.searchParams.set('session', 'expired');
+    }
     return NextResponse.redirect(redirectUrl);
   }
 

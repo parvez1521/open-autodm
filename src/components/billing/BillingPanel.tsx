@@ -65,6 +65,7 @@ import {
 import { formatPriceMinor } from "@/lib/billing/geo";
 import { useDisplayCurrency } from "@/lib/billing/useDisplayCurrency";
 import { WORKSPACE_SELECTION_STORAGE_KEY } from "@/components/workspace/WorkspaceProvider";
+import { ForbiddenState } from "@/components/ui/ForbiddenState";
 
 const CONTACT_HREF = "mailto:work.techhacksai@gmail.com";
 const RAZORPAY_SCRIPT = "https://checkout.razorpay.com/v1/checkout.js";
@@ -530,9 +531,11 @@ export default function BillingPanel() {
       </div>
 
       {!status.canManageBilling && (
-        <p className="text-sm text-muted-foreground">
-          You are a {status.role} in this workspace — only the workspace owner can start a trial or check out.
-        </p>
+        <ForbiddenState
+          compact
+          title="Billing is managed by the workspace owner"
+          description={`You are a ${status.role} in this workspace — only the workspace owner can start a trial or check out. Ask the owner to make the change, or contact support if you think your role is wrong.`}
+        />
       )}
       {notice && (
         <div className="border border-border p-4" role="status">

@@ -11,6 +11,7 @@ import "./globals.css";
  * nothing else loaded.
  */
 export default function GlobalError({
+    error,
     reset,
 }: {
     error: Error & { digest?: string };
@@ -28,6 +29,22 @@ export default function GlobalError({
                         The console failed to load. Your automations and data are
                         unaffected. Reload to try again.
                     </p>
+                    {/* Support reference code (production-pages audit,
+                        2026-11-23): the Next.js error digest, shown so
+                        a report can be matched to the failure. A plain
+                        anchor, not the Link component — this boundary
+                        renders with nothing else loaded. */}
+                    {error.digest && (
+                        <p className="mt-4 text-[12.5px] text-muted-foreground">
+                            Reference code:{" "}
+                            <code className="font-mono text-foreground/80">{error.digest}</code>
+                            {" — include it if you "}
+                            <a href="/support" className="text-primary underline underline-offset-2 hover:text-foreground">
+                                contact support
+                            </a>
+                            .
+                        </p>
+                    )}
                     <button
                         type="button"
                         onClick={() => reset()}

@@ -1,14 +1,14 @@
 /**
  * ⚠ OWNER / LEGAL REVIEW REQUIRED before this restored page is treated as final:
  *
- * (a) Section 5 (Third-Party Service Providers) states that Cloudflare Workers AI
- *     provides "optional ephemeral AI inference … for drafting message variations and
- *     generating automated contextual responses when enabled by the account owner" and
- *     that "interaction text" is processed via Workers AI. The current `main` source
- *     contains NO such automation-AI path (only the Script Writer, fed by
- *     operator-typed inputs). This claim is PENDING Phase E reconciliation of which
- *     behaviour production v13 actually has. Do not treat §5's Workers AI wording as
- *     verified against `main` until Phase E concludes.
+ * (a) Section 5 (Third-Party Service Providers) — CORRECTED 2026-11-23
+ *     (production-pages audit): the old wording claimed Workers AI
+ *     generated live automated replies to comments and messages.
+ *     The code was verified (src/lib/ai/workersAi.ts — DRAFTING
+ *     ONLY; the runtime generators are deliberately not restored,
+ *     tests/ai-mixed-scope-negative.test.ts) and §5 now states
+ *     drafting-only use. This note item is resolved; item (b) below
+ *     still stands.
  *
  * (b) Section 5 names "Supabase, Inc." as the database/auth provider, while the Meta
  *     App Review Data Handling form (owner-approved) lists "Supabase Pte. Ltd." (the
@@ -224,9 +224,10 @@ export default function PrivacyPolicyPage() {
           </li>
           <li>
             <strong className="text-foreground">Cloudflare, Inc.:</strong> Provides serverless compute, global CDN
-            distribution, scheduled trigger workers, and optional ephemeral AI inference (Cloudflare Workers AI)
-            for drafting message variations and generating automated contextual responses when enabled by the account owner.
-            Interaction text processed via Workers AI is evaluated in real time within Cloudflare&apos;s isolated infrastructure
+            distribution, and scheduled trigger workers. Cloudflare Workers AI is used only for drafting — the
+            message-variation drafts and scripts the account owner asks for in the Creator Studio (Script Writer).
+            Workers AI does not generate live automated replies to comments or direct messages. Text submitted for
+            drafting is processed in real time within Cloudflare&apos;s isolated infrastructure
             and is never retained or used to train foundation models.
           </li>
         </ul>

@@ -650,6 +650,36 @@ function SettingsContent() {
                     Sign out
                 </button>
             </section>
+
+            {/* Your data (production-pages audit, 2026-11-23): only real
+                actions are linked. Contacts export is the existing CSV
+                download on the Contacts page; data deletion is the
+                existing instructions page. There is no self-serve
+                full-account deletion — no backend route exists for it —
+                so no delete-account button is shown here. */}
+            <section className="bg-card border border-border rounded-xl p-5 space-y-4">
+                <div>
+                    <h2 className="text-[14px] font-heading font-semibold text-foreground">Your data</h2>
+                    <p className="text-[13px] text-muted-foreground mt-0.5">
+                        Export or remove the data open-autoDM holds for your workspace.
+                    </p>
+                </div>
+                <div className="flex flex-col gap-2 text-[13.5px]">
+                    <Link href="/contacts" className="text-primary underline underline-offset-2 hover:text-foreground w-fit">
+                        Export contacts (CSV)
+                    </Link>
+                    <p className="text-[12.5px] text-muted-foreground -mt-1">
+                        Download your audience contacts from the Contacts page.
+                    </p>
+                    <Link href="/data-deletion" className="text-primary underline underline-offset-2 hover:text-foreground w-fit">
+                        Data deletion instructions
+                    </Link>
+                    <p className="text-[12.5px] text-muted-foreground -mt-1">
+                        How to disconnect an account or request removal of your data. To request removal of your
+                        account itself, follow those instructions or contact the operator.
+                    </p>
+                </div>
+            </section>
         </div>
     );
 }

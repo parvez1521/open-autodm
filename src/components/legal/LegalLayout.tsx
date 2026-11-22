@@ -1,12 +1,12 @@
 import Link from 'next/link';
 import { LogoMark, LogoWordmark } from '@/components/ui/Logo';
-import { ArrowLeft, Shield, FileText, Trash, EnvelopeSimple } from '@/components/phosphor';
+import { ArrowLeft, Shield, FileText, Trash, EnvelopeSimple, Cookie, Eye, ShieldCheck } from '@/components/phosphor';
 
 interface LegalLayoutProps {
   title: string;
   subtitle: string;
   lastUpdated: string;
-  activePath: '/privacy-policy' | '/terms' | '/data-deletion';
+  activePath: '/privacy-policy' | '/terms' | '/data-deletion' | '/cookie-policy' | '/accessibility' | '/security';
   children: React.ReactNode;
 }
 
@@ -21,6 +21,9 @@ export function LegalLayout({
     { label: 'Privacy Policy', href: '/privacy-policy', icon: Shield, active: activePath === '/privacy-policy' },
     { label: 'Terms of Service', href: '/terms', icon: FileText, active: activePath === '/terms' },
     { label: 'Data Deletion', href: '/data-deletion', icon: Trash, active: activePath === '/data-deletion' },
+    { label: 'Cookie Policy', href: '/cookie-policy', icon: Cookie, active: activePath === '/cookie-policy' },
+    { label: 'Accessibility', href: '/accessibility', icon: Eye, active: activePath === '/accessibility' },
+    { label: 'Security', href: '/security', icon: ShieldCheck, active: activePath === '/security' },
   ];
 
   return (
@@ -108,6 +111,12 @@ export function LegalLayout({
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
             <span>·</span>
             <Link href="/data-deletion" className="hover:text-foreground transition-colors">Data Deletion</Link>
+            <span>·</span>
+            <Link href="/cookie-policy" className="hover:text-foreground transition-colors">Cookie Policy</Link>
+            <span>·</span>
+            <Link href="/accessibility" className="hover:text-foreground transition-colors">Accessibility</Link>
+            <span>·</span>
+            <Link href="/security" className="hover:text-foreground transition-colors">Security</Link>
             <span>·</span>
             <a href="mailto:work.techhacksai@gmail.com" className="inline-flex items-center gap-1 hover:text-foreground transition-colors">
               <EnvelopeSimple className="w-3 h-3" />

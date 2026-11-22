@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Instrument_Serif, Plus_Jakarta_Sans } from "next/font/google";
 import { AppProviders } from "@/components/providers/Providers";
+import { OfflineBanner } from "@/components/ui/OfflineBanner";
 import { introScript } from "@/components/home/intro";
 import { JsonLd } from "@/components/seo/JsonLd";
 import {
@@ -86,6 +87,9 @@ export default function RootLayout({
         <JsonLd data={organizationJsonLd()} />
         <JsonLd data={websiteJsonLd()} />
         <AppProviders>
+          {/* Offline banner (production-pages audit, 2026-11-23):
+              renders nothing while online. */}
+          <OfflineBanner />
           {children}
         </AppProviders>
       </body>

@@ -119,6 +119,9 @@ export default function LoginPage() {
                     <a href="/terms" className="transition-colors hover:text-foreground">
                         Terms
                     </a>
+                    <a href="/support" className="transition-colors hover:text-foreground">
+                        Support
+                    </a>
                 </div>
             </footer>
         </div>
