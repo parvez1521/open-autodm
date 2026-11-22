@@ -2,6 +2,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { CaretLeft, PaperPlaneTilt, ChatCircle, Lightning, ChatCircleDots } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
+import { PostThumb } from "@/components/automations/PostThumb";
 import type { DMResponse } from "../NewAutomationModal";
 import { getTextLinkButtons } from "@/lib/automation/responseButtons";
 
@@ -53,11 +54,16 @@ export function CommentsPhone({
             </div>
 
             {postThumbnailUrl && (
-                <div className="relative w-full h-[72px] shrink-0 overflow-hidden bg-[#111]">
-                    <img src={postThumbnailUrl} alt="post" className="w-full h-full object-cover opacity-80" />
+                <PostThumb
+                    src={postThumbnailUrl}
+                    alt="post"
+                    className="relative w-full h-[72px] shrink-0 bg-[#111]"
+                    imgClassName="opacity-80"
+                    fallback={<div className="h-full w-full bg-[#111]" />}
+                >
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <span className="absolute bottom-1.5 left-3 text-[9px] font-semibold text-white/60 uppercase tracking-widest">Your post</span>
-                </div>
+                </PostThumb>
             )}
 
             <div className="flex-1 overflow-y-auto px-3 py-4 space-y-4 scrollbar-none">

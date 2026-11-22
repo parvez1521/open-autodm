@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { createPortal } from "react-dom";
 import { X, ArrowLeft, Check, Warning, CircleNotch } from "@/components/phosphor";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 import { SelectTypeStep } from "./steps/SelectTypeStep";
 import { SelectPostStep } from "./steps/SelectPostStep";
@@ -12,6 +12,7 @@ import { AUTOMATION_TEMPLATES, getAutomationTemplate, type AutomationTemplateId 
 import type { AiReplyLanguage } from "@/lib/types";
 import { useInstagramAccounts } from "@/hooks/useInstagramAccounts";
 import { useFacebookPages } from "@/hooks/useFacebookPages";
+import { usePostThumbnails, type ThumbnailRequestItem } from "@/hooks/usePostThumbnails";
 import { useCreateAutomation, useUpdateAutomation } from "@/hooks/useAutomations";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 
@@ -215,6 +216,22 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     // an fb_* type (create and edit alike — edit mode derives the type
     // from the stored row via automationToFlowData).
     const isFacebookFlow = flowData.type === "fb-comment-dm" || flowData.type === "fb-dm-reply";
+    // Fresh thumbnail for the editor (2026-11-22): the stored
+    // postThumbnailUrl snapshot expires within days (CDN signatures),
+    // so resolve a fresh URL for the selected post and hand it to
+    // ConfigureStep as a render-only prop. It never enters flowData
+    // (isDirty compares flowData to the saved snapshot — writing it
+    // there would mark the form dirty with no user change), and it is
+    // never sent in the save payload.
+    const thumbnailItems = useMemo<ThumbnailRequestItem[]>(() => {
+        if (!flowData.postId || flowData.postId === "all") return [];
+        const accountId = isFacebookFlow ? firstFacebookPageId : firstAccountId;
+        if (!accountId) return [];
+        return [{ postId: flowData.postId, channel: isFacebookFlow ? "facebook" : "instagram", accountId }];
+    }, [flowData.postId, isFacebookFlow, firstAccountId, firstFacebookPageId]);
+    const { thumbnails: freshThumbnails } = usePostThumbnails(thumbnailItems);
+    const freshThumbnailUrl =
+        flowData.postId && flowData.postId !== "all" ? (freshThumbnails[flowData.postId] ?? null) : null;
     // Silent-save fix (2026-11-09): in create mode with NO connected
     // Instagram account, saving used to do nothing a user could see —
     // the only feedback was a truncated 12px note in the header, and
@@ -615,6 +632,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                                             data={flowData}
                                             onUpdate={updateData}
                                             creatorProfilePicUrl={isFacebookFlow ? (activeFacebookPage?.profile_picture_url ?? null) : (activeAccount?.profile_picture_url ?? null)}
+                                            freshThumbnailUrl={freshThumbnailUrl}
                                             // The Selected post box's "Change post" button returns
                                             // to step 1 "Choose a post". The picker already
                                             // receives selectedPost={flowData.postId}, so the

@@ -6,6 +6,8 @@ import { EASE_OUT } from "@/lib/motion/presets";
 import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Stack, InstagramLogo, FacebookLogo, Warning, Trash, X, CursorClick, At, Link as LinkIcon } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
+import { usePostThumbnails, type ThumbnailRequestItem } from "@/hooks/usePostThumbnails";
+import { PostThumb } from "@/components/automations/PostThumb";
 
 const TYPE_CONFIG: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; className: string }> = {
     comment_dm: { label: "Comment → DM", icon: ChatCircle, className: "bg-[#F97316]/10 text-[#F97316]" },
@@ -54,6 +56,21 @@ interface AutomationsListProps {
 
 export function AutomationsList({ automations, isLoading, onToggle, onDelete, onEdit, deleteError, loadError, onRetry, emptyTitle, emptyMessage }: AutomationsListProps) {
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+    // Fresh thumbnails (2026-11-22): the stored post_thumbnail_url
+    // snapshot expires within days (CDN signatures), so resolve a
+    // fresh URL per post at render time. Items are memoised by content
+    // inside the hook's query key; while the refresh is pending the
+    // stored snapshot still shows, and PostThumb falls back to the
+    // platform icon if that is dead too.
+    const thumbnailItems: ThumbnailRequestItem[] = automations
+        .filter((a) => a.post_id)
+        .map((a) => ({
+            postId: a.post_id!,
+            channel: a.channel === "facebook" ? "facebook" : "instagram",
+            accountId: a.channel === "facebook" ? a.facebook_page_id ?? null : a.instagram_account_id,
+        }));
+    const { thumbnails: freshThumbnails } = usePostThumbnails(thumbnailItems);
 
     if (isLoading) {
         return (
@@ -128,7 +145,12 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                 const TypeIcon = typeConfig.icon;
                 const isConfirmingDelete = confirmDeleteId === automation.id;
                 const hasPost = !!automation.post_id;
-                const thumbUrl = automation.post_thumbnail_url;
+                // Fresh URL first, stored snapshot second (it may still
+                // work for recent automations); PostThumb's onError
+                // fallback covers a dead URL either way.
+                const thumbUrl = hasPost
+                    ? (freshThumbnails[automation.post_id!] ?? automation.post_thumbnail_url)
+                    : null;
 
                 return (
                     <motion.div
@@ -146,18 +168,21 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className="shrink-0">
                                     {(automation.type === "comment_dm" || automation.type === "reel_dm" || automation.type === "fb_comment_dm") ? (
-                                        hasPost && thumbUrl ? (
-                                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted">
-                                                <img src={thumbUrl} alt="Post" className="w-full h-full object-cover" />
-                                            </div>
-                                        ) : hasPost ? (
-                                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                                {automation.channel === "facebook" ? (
-                                                    <FacebookLogo className="w-4 h-4 text-muted-foreground/60" />
-                                                ) : (
-                                                    <InstagramLogo className="w-4 h-4 text-muted-foreground/60" />
-                                                )}
-                                            </div>
+                                        hasPost ? (
+                                            <PostThumb
+                                                src={thumbUrl}
+                                                alt="Post"
+                                                className="w-10 h-10 rounded-lg"
+                                                fallback={
+                                                    <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                                                        {automation.channel === "facebook" ? (
+                                                            <FacebookLogo className="w-4 h-4 text-muted-foreground/60" />
+                                                        ) : (
+                                                            <InstagramLogo className="w-4 h-4 text-muted-foreground/60" />
+                                                        )}
+                                                    </div>
+                                                }
+                                            />
                                         ) : (
                                             <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                                                 <Stack className="w-4 h-4 text-muted-foreground/60" />

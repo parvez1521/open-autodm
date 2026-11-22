@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { useInstagramPosts, useResolveInstagramPost } from "@/hooks/useInstagramPosts";
 import { useFacebookPosts, useResolveFacebookPost } from "@/hooks/useFacebookPosts";
 import { shouldShowLoadMore } from "./postPickerUtils";
+import { PostThumb } from "@/components/automations/PostThumb";
 
 interface SelectPostStepProps {
     onSelect: (postId: string, name: string, thumbnailUrl?: string | null, caption?: string) => void;
@@ -201,17 +202,16 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                             )}
                                         >
                                             <div className="aspect-[4/5] relative bg-muted w-full overflow-hidden">
-                                                {thumbUrl ? (
-                                                    <img
-                                                        src={thumbUrl}
-                                                        alt="Post thumbnail"
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                                                        <InstagramLogo className="w-6 h-6 text-muted-foreground/30" />
-                                                    </div>
-                                                )}
+                                                <PostThumb
+                                                    src={thumbUrl}
+                                                    alt="Post thumbnail"
+                                                    className="absolute inset-0"
+                                                    fallback={
+                                                        <div className="w-full h-full flex items-center justify-center bg-muted">
+                                                            <InstagramLogo className="w-6 h-6 text-muted-foreground/30" />
+                                                        </div>
+                                                    }
+                                                />
 
                                                 <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/55 flex items-center justify-center">
                                                     {post.type === "reel" ? <PlayCircle className="w-3 h-3 text-white" /> :

@@ -7,6 +7,7 @@ import {
     Lightning, Warning,
 } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
+import { PostThumb } from "@/components/automations/PostThumb";
 import { getEditorSections, type EditorSectionId } from "@/lib/automation/editorSections";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { AutomationFlowData, DMResponse, CardButton } from "../NewAutomationModal";
@@ -17,6 +18,12 @@ interface ConfigureStepProps {
     data: AutomationFlowData;
     onUpdate: (d: Partial<AutomationFlowData>) => void;
     creatorProfilePicUrl?: string | null;
+    // Fresh thumbnail (2026-11-22): the stored postThumbnailUrl
+    // snapshot expires within days (CDN signatures), so the modal
+    // resolves a fresh URL at render time and passes it here. It is
+    // deliberately a render-only prop — never written into flowData,
+    // or the form would look dirty with no user change.
+    freshThumbnailUrl?: string | null;
     // Takes the user back to step 1 "Choose a post" (the modal's
     // existing setStep(1) path). Without this the only way to change
     // the post was the header Back button, which users did not find.
@@ -625,7 +632,7 @@ function ResponseBlock({ res, idx, onUpdate, onDelete }: {
 }
 
 /* ═══════════════════════ Main ConfigureStep ═══════════════════════ */
-export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePost }: ConfigureStepProps) {
+export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePost, freshThumbnailUrl }: ConfigureStepProps) {
     const [phonePhase, setPhonePhase] = useState<"initial" | "clicked" | "followed">("initial");
     const [repliesSaved, setRepliesSaved] = useState(data.customReplies.length > 0);
     const [commentInput, setCommentInput] = useState("");
@@ -738,12 +745,25 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
 
     // Section 1 — Post. The selected-post box (with Change post) from
     // the old flat form. reel_dm keeps its "share is the trigger" note
-    // here, since it has no keyword section.
+    // here, since it has no keyword section. The thumbnail is the
+    // fresh URL when the modal resolved one (2026-11-22) — the stored
+    // snapshot expires within days, so a raw <img> of it shows a
+    // broken icon; PostThumb falls back to a clean muted box.
+    const postThumbUrl = freshThumbnailUrl ?? data.postThumbnailUrl;
     const postContent = (
         <>
-            {data.postThumbnailUrl ? (
+            {data.postId && data.postId !== "all" ? (
                 <div className="flex items-center gap-2.5 p-2.5 bg-muted/40 rounded-lg">
-                    <img src={data.postThumbnailUrl} alt="post" className="w-9 h-9 object-cover rounded-md shrink-0" />
+                    <PostThumb
+                        src={postThumbUrl}
+                        alt="post"
+                        className="w-9 h-9 rounded-md shrink-0"
+                        fallback={
+                            <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center shrink-0">
+                                <ImageIcon className="w-4 h-4 text-muted-foreground/60" />
+                            </div>
+                        }
+                    />
                     <div className="min-w-0 flex-1">
                         <p className="micro-label">Selected post</p>
                         <p className="text-[12px] text-foreground truncate">
@@ -764,7 +784,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                 <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 rounded-lg">
                     <Lightning className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className="text-[12px] font-medium text-muted-foreground">
-                        {data.postId && data.postId !== "all" ? "Specific post selected" : isReelDm ? "Triggers on any shared reel" : "Triggers on all posts"}
+                        {isReelDm ? "Triggers on any shared reel" : "Triggers on all posts"}
                     </span>
                 </div>
             )}
@@ -1335,7 +1355,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                 >
                     {isComment && (
                         <CommentsPhone
-                            postThumbnailUrl={data.postThumbnailUrl}
+                            postThumbnailUrl={postThumbUrl}
                             previewComments={previewKeywords}
                             anyMode={isAnyMode}
                             repliesSaved={repliesSaved || data.customReplies.length > 0}
