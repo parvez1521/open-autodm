@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { EASE_OUT } from "@/lib/motion/presets";
-import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Stack, InstagramLogo, FacebookLogo, Warning, Trash, X, CursorClick, At, Link as LinkIcon } from "@/components/phosphor";
+import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Copy, Stack, InstagramLogo, FacebookLogo, Warning, Trash, X, CursorClick, At, Link as LinkIcon } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 import { usePostThumbnails, type ThumbnailRequestItem } from "@/hooks/usePostThumbnails";
@@ -33,6 +33,14 @@ interface AutomationsListProps {
     onToggle: (id: string, currentlyActive: boolean) => void;
     onDelete: (id: string) => void;
     onEdit: (automation: AutomationFromDB) => void;
+    /**
+     * Duplicate (2026-11-22): copies the whole config under
+     * "Copy of <name>", always starting INACTIVE. Optional so older
+     * callers keep working; the page passes it.
+     */
+    onDuplicate?: (id: string) => void;
+    /** Id of the row whose duplicate is in flight (button disabled). */
+    duplicatingId?: string | null;
     deleteError?: string | null;
     /**
      * QA fix (2026-11-08): the list query's failure, surfaced by the
@@ -54,7 +62,7 @@ interface AutomationsListProps {
     emptyMessage?: string;
 }
 
-export function AutomationsList({ automations, isLoading, onToggle, onDelete, onEdit, deleteError, loadError, onRetry, emptyTitle, emptyMessage }: AutomationsListProps) {
+export function AutomationsList({ automations, isLoading, onToggle, onDelete, onEdit, onDuplicate, duplicatingId, deleteError, loadError, onRetry, emptyTitle, emptyMessage }: AutomationsListProps) {
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
     // Fresh thumbnails (2026-11-22): the stored post_thumbnail_url
@@ -282,6 +290,16 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                     >
                                         <Pencil className="w-3.5 h-3.5" />
                                     </button>
+                                    {onDuplicate && (
+                                        <button
+                                            onClick={() => onDuplicate(automation.id)}
+                                            disabled={duplicatingId === automation.id}
+                                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors disabled:opacity-50"
+                                            title="Duplicate automation — copies the whole config as an inactive automation"
+                                        >
+                                            <Copy className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => setConfirmDeleteId(automation.id)}
                                         className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"

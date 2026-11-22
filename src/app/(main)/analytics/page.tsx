@@ -9,17 +9,18 @@
  * every chart ships a legend, hover tooltips, and the table view below.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer,
 } from "recharts";
-import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Users, UserCheck, Warning, ChartBar } from "@/components/phosphor";
+import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Users, UserCheck, Warning, ChartBar, InstagramLogo, FacebookLogo } from "@/components/phosphor";
 import { BrandWave } from "@/components/ui/BrandWave";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
+import { useActiveFacebookPage } from "@/hooks/useActiveFacebookPage";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 
 /* Validated categorical palette - fixed slot order, per-mode steps */
@@ -85,6 +86,37 @@ export default function AnalyticsPage() {
     const colors = PALETTE.dark;
 
     const { account, accountId } = useActiveAccount();
+    const { page: activeFacebookPage, pageId: activeFacebookPageId } = useActiveFacebookPage();
+    // Channel tabs (2026-11-22): Instagram and Facebook analytics live
+    // in the same tables but the page shows one channel at a time — the
+    // same pill toggle as /automations (same style, same localStorage
+    // discipline, its own key, Instagram default). The channel travels
+    // to the API, which scopes every source (totals, charts, table) to
+    // that channel's rows; the automation dropdown resets to "all" on
+    // a channel switch so a stale pick from the other channel can
+    // never zero out the page.
+    type ChannelTab = "instagram" | "facebook";
+    const CHANNEL_STORAGE_KEY = "opendm-analytics-channel";
+    const [channelTab, setChannelTab] = useState<ChannelTab>(() => {
+        if (typeof window === "undefined") return "instagram";
+        try {
+            return window.localStorage.getItem(CHANNEL_STORAGE_KEY) === "facebook" ? "facebook" : "instagram";
+        } catch {
+            return "instagram";
+        }
+    });
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(CHANNEL_STORAGE_KEY, channelTab);
+        } catch {
+            // Storage unavailable (private mode) — the tab still
+            // works for this visit; nothing else depends on it.
+        }
+    }, [channelTab]);
+    const switchChannel = (channel: ChannelTab) => {
+        setChannelTab(channel);
+        setAutomationId("all");
+    };
     // No-workspace state (2026-11-09): with the workspace runtime on
     // and the provider's list loaded EMPTY (provisioning could not
     // create one, or the account belongs to none), the analytics
@@ -132,7 +164,16 @@ export default function AnalyticsPage() {
     // error panel below now renders only after a fetch has
     // actually failed (isError) — the same distinction the
     // dashboard plan card makes.
-    const { data, isPending, isError, error, refetch, isFetching } = useAnalytics({ from, to, automationId, accountId });
+    // The active account scopes the Instagram tab (same as today);
+    // the Facebook tab scopes to the selected Page instead — the API
+    // accepts either id as accountId.
+    const { data, isPending, isError, error, refetch, isFetching } = useAnalytics({
+        from,
+        to,
+        automationId,
+        accountId: channelTab === "facebook" ? activeFacebookPageId : accountId,
+        channel: channelTab,
+    });
 
     const gridStroke = "#2E2E2A";
     const axisTick = { fontSize: 10.5, fill: "#A9A99C" } as const;
@@ -168,10 +209,42 @@ export default function AnalyticsPage() {
                 <div>
                     <h1 className="text-xl font-heading font-semibold tracking-tight text-foreground">Analytics</h1>
                     <p className="text-[13px] text-muted-foreground mt-0.5">
-                        {account ? <>What <span className="font-medium text-foreground">@{account.username}</span>&apos;s automations actually did.</> : "What your automations actually did."}
+                        {channelTab === "facebook"
+                            ? activeFacebookPage
+                                ? <>What <span className="font-medium text-foreground">{activeFacebookPage.name}</span>&apos;s automations actually did.</>
+                                : "What your Facebook Page automations actually did."
+                            : account
+                                ? <>What <span className="font-medium text-foreground">@{account.username}</span>&apos;s automations actually did.</>
+                                : "What your automations actually did."}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Channel toggle (2026-11-22): same pill style as the
+                        /automations channel toggle. Pill radius rule
+                        (2026-11-22): buttons sit 2px inside the container
+                        (p-0.5), so their radius is the container's
+                        rounded-lg (8px) minus that padding = 6px. */}
+                    <div className="inline-flex items-center bg-muted rounded-lg p-0.5" role="tablist" aria-label="Analytics channel">
+                        {(["instagram", "facebook"] as const).map((channel) => {
+                            const Icon = channel === "instagram" ? InstagramLogo : FacebookLogo;
+                            return (
+                                <button
+                                    key={channel}
+                                    onClick={() => switchChannel(channel)}
+                                    aria-pressed={channelTab === channel}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[6px] text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                        channelTab === channel
+                                            ? "bg-card text-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    <Icon className="w-3.5 h-3.5" />
+                                    {channel === "instagram" ? "Instagram" : "Facebook"}
+                                </button>
+                            );
+                        })}
+                    </div>
                     <select
                         value={automationId}
                         onChange={(e) => setAutomationId(e.target.value)}
@@ -247,7 +320,9 @@ export default function AnalyticsPage() {
                     {totals && totals.triggers === 0 && data.perAutomation.length === 0 && (
                         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-[12px] font-medium text-muted-foreground">
                             <ChartBar className="w-3.5 h-3.5 shrink-0" />
-                            No activity in this range yet — once a connected account&apos;s automations start triggering, the numbers appear here.
+                            {channelTab === "facebook"
+                                ? "No Facebook activity in this range yet — once your Page automations start triggering, the numbers appear here."
+                                : "No activity in this range yet — once a connected account's automations start triggering, the numbers appear here."}
                         </div>
                     )}
 
@@ -357,7 +432,11 @@ export default function AnalyticsPage() {
                         {data.perAutomation.length === 0 ? (
                             <div className="p-10 text-center">
                                 <ChartBar className="w-6 h-6 mx-auto mb-2 text-muted-foreground/30" />
-                                <p className="text-[13px] text-muted-foreground">No automations yet - create one and the numbers start here.</p>
+                                <p className="text-[13px] text-muted-foreground">
+                                    {channelTab === "facebook"
+                                        ? "No Facebook automations yet - create one and the numbers start here."
+                                        : "No automations yet - create one and the numbers start here."}
+                                </p>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
@@ -375,7 +454,7 @@ export default function AnalyticsPage() {
                                     </thead>
                                     <tbody className="divide-y divide-border/60">
                                         {data.perAutomation.map((a) => {
-                                            const TypeIcon = a.type === "dm_reply" ? PaperPlaneTilt : a.type === "story_reply" ? ImageIcon : ChatCircle;
+                                            const TypeIcon = a.channel === "facebook" ? FacebookLogo : a.type === "dm_reply" ? PaperPlaneTilt : a.type === "story_reply" ? ImageIcon : ChatCircle;
                                             return (
                                                 <tr key={a.id} className="hover:bg-muted/30 transition-colors">
                                                     <td className="px-5 py-3">
@@ -387,7 +466,7 @@ export default function AnalyticsPage() {
                                                     <td className="px-5 py-3">
                                                         <span className="inline-flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
                                                             <TypeIcon className="w-3 h-3" />
-                                                            {a.type === "comment_dm" ? "Comment" : a.type === "dm_reply" ? "DM" : "Story"}
+                                                            {a.type === "comment_dm" || a.type === "fb_comment_dm" ? "Comment" : a.type === "dm_reply" || a.type === "fb_dm_reply" ? "DM" : "Story"}
                                                         </span>
                                                     </td>
                                                     <td className="px-5 py-3 text-right text-[13px] font-medium tabular-nums">{a.triggers.toLocaleString()}</td>

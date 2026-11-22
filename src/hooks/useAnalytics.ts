@@ -35,6 +35,8 @@ export interface AnalyticsPerAutomation {
   id: string;
   name: string;
   type: string;
+  /** 'instagram' | 'facebook' — which channel the automation belongs to. */
+  channel: string;
   isActive: boolean;
   triggers: number;
   delivered: number;
@@ -45,14 +47,15 @@ export interface AnalyticsPerAutomation {
 
 export interface AnalyticsPayload {
   range: { from: string; to: string };
+  channel: 'instagram' | 'facebook' | 'all';
   totals: AnalyticsTotals;
   daily: AnalyticsDaily[];
   perAutomation: AnalyticsPerAutomation[];
-  automations: { id: string; name: string; type: string }[];
+  automations: { id: string; name: string; type: string; channel: string }[];
   truncated: boolean;
 }
 
-export function useAnalytics(params: { from: string; to: string; automationId: string; accountId?: string | null }) {
+export function useAnalytics(params: { from: string; to: string; automationId: string; accountId?: string | null; channel?: 'instagram' | 'facebook' | 'all' }) {
   // Workspace-scope fix (2026-11-09): GET /api/analytics is a
   // workspace-aware route — in workspace mode routeContext requires
   // the x-workspace-id selector and fails closed with
@@ -79,17 +82,19 @@ export function useAnalytics(params: { from: string; to: string; automationId: s
     workspaceRuntimeEnabled,
     selectedWorkspaceId,
   });
+  const channel = params.channel ?? 'all';
   const search = new URLSearchParams({
     from: params.from,
     to: params.to,
     automationId: params.automationId,
+    channel,
   });
   if (params.accountId) search.set('accountId', params.accountId);
   return useQuery({
     queryKey:
       requestScope.kind === 'workspace'
-        ? ['analytics', params.from, params.to, params.automationId, params.accountId ?? 'all', requestScope.workspaceId]
-        : ['analytics', params.from, params.to, params.automationId, params.accountId ?? 'all'],
+        ? ['analytics', params.from, params.to, params.automationId, params.accountId ?? 'all', channel, requestScope.workspaceId]
+        : ['analytics', params.from, params.to, params.automationId, params.accountId ?? 'all', channel],
     queryFn: () => sendWorkspaceRequest<AnalyticsPayload>(requestScope, `/analytics?${search.toString()}`),
     enabled: requestScope.kind !== 'unavailable',
     staleTime: 60 * 1000,

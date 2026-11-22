@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { getAuthenticatedUser, unauthorized, type AuthenticatedUser } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createLogger } from '@/lib/logger';
-import { DMResponseSchema, MAX_DM_RESPONSES, MAX_DM_OPENING_VARIATIONS } from '@/lib/api/schemas';
+import { DMResponseSchema, MAX_DM_RESPONSES, MAX_DM_OPENING_VARIATIONS, CreateAutomationSchema } from '@/lib/api/schemas';
 import { validateFlowGraph } from '@/lib/automation/flowGraph';
 import type { FlowGraph } from '@/lib/types';
 import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
@@ -29,57 +29,6 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const logger = createLogger('api:automations');
-
-const CreateAutomationSchema = z.object({
-  instagramAccountId: z.string().uuid('instagramAccountId must be a UUID').nullable().optional(),
-  /** Facebook Page automations (2026-11-19): the facebook_pages row id.
-   *  Exactly one of instagramAccountId / facebookPageId must be set. */
-  facebookPageId: z.string().uuid('facebookPageId must be a UUID').nullable().optional(),
-  name: z.string().min(1, 'name is required').max(200),
-  type: z.enum(['comment_dm', 'dm_reply', 'story_reply', 'reel_dm', 'story_mention', 'fb_comment_dm', 'fb_dm_reply']),
-  isActive: z.boolean().default(true),
-  /** AI reply language (2026-11-17): 'en' or 'hinglish'. Defaults to English. */
-  aiReplyLanguage: z.enum(['en', 'hinglish']).default('en'),
-  postId: z.string().nullable().optional(),
-  postThumbnailUrl: z.string().nullable().optional(),
-  postCaption: z.string().nullable().optional(),
-  keywords: z.array(z.string()).nullable().optional(),
-  commentReplyOptions: z.array(z.string()).default([]),
-  dmOpeningMessageEnabled: z.boolean().default(true),
-  dmOpeningMessage: z.string().default(''),
-  dmOpeningMessageVariations: z.array(z.string()).max(MAX_DM_OPENING_VARIATIONS, `Max ${MAX_DM_OPENING_VARIATIONS} opening-message variations per automation`).default([]),
-  dmOpeningMessageButtonTitle: z.string().nullable().optional(),
-  dmOpeningMessageButtonLink: z.string().nullable().optional(),
-  askToFollowEnabled: z.boolean().default(false),
-  askToFollowMessage: z.string().default(''),
-  askToFollowVisitProfileButton: z.string().default('Visit Profile'),
-  askToFollowConfirmButton: z.string().default("I'm following ✅"),
-  dmResponses: z.array(DMResponseSchema).max(MAX_DM_RESPONSES, `Max ${MAX_DM_RESPONSES} responses per automation`).default([]),
-  // Public reply gate (Phase 5): when omitted, derived from whether any
-  // comment reply options were configured (preserves the builder's promise
-  // that configured replies are posted; the engine never posts when false).
-  publicReplyEnabled: z.boolean().optional(),
-  publicReplyOptions: z.array(z.string()).optional(),
-  // Scheduled follow-ups (Phase 5): stored message text only, no AI.
-  followUpEnabled: z.boolean().default(false),
-  followUpDelayMinutes: z.number().int().refine((v) => [10, 20, 60, 120].includes(v), 'followUpDelayMinutes must be one of 10, 20, 60, 120').default(60),
-  followUpMessage: z.string().default(''),
-  // Flow graph + trigger config (Phase 5, row 19): optional; a supplied
-  // graph is structurally validated before storage. The candidate's own
-  // builder does not send these yet — they exist so flow automations can be
-  // created/managed through the API without losing their graph.
-  triggerConfig: z.record(z.string(), z.unknown()).optional(),
-  flowGraph: z.unknown().optional(),
-}).refine(
-  (v) => Boolean(v.instagramAccountId) !== Boolean(v.facebookPageId),
-  { message: 'Exactly one of instagramAccountId / facebookPageId must be set' }
-).refine(
-  (v) => {
-    const isFbType = v.type === 'fb_comment_dm' || v.type === 'fb_dm_reply';
-    return isFbType === Boolean(v.facebookPageId);
-  },
-  { message: 'fb_* types require facebookPageId; Instagram types require instagramAccountId' }
-);
 
 export async function GET(request: Request): Promise<Response> {
   // Per-leg timing (flakiness fix, 2026-11-08, investigation

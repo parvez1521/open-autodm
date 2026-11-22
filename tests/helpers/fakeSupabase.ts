@@ -3,7 +3,7 @@
  * API that the code under test uses. NO real database, NO network.
  *
  * Supports: select / insert / update / delete / upsert chains with
- * eq / neq / in / filter / lte / order / limit, awaited directly (thenable)
+ * eq / neq / in / filter / lte / gte / order / limit, awaited directly (thenable)
  * or terminated with .maybeSingle() / .single(). Every executed statement
  * is recorded in `fake.calls` so tests can assert on the exact filters an
  * operation carried (tenant-scoping assertions).
@@ -37,7 +37,7 @@ export interface FakeDbError {
 
 export interface RecordedFilter {
   column: string;
-  op: 'eq' | 'neq' | 'in' | 'filter' | 'lte';
+  op: 'eq' | 'neq' | 'in' | 'filter' | 'lte' | 'gte';
   value: unknown;
 }
 
@@ -92,6 +92,9 @@ function matches(row: FakeRow, filters: RecordedFilter[]): boolean {
       case 'lte':
         // ISO timestamps / dates compare correctly as strings.
         return actual !== null && actual !== undefined && String(actual) <= String(f.value);
+      case 'gte':
+        // ISO timestamps / dates compare correctly as strings.
+        return actual !== null && actual !== undefined && String(actual) >= String(f.value);
     }
   });
 }
@@ -170,6 +173,14 @@ class FakeBuilder implements PromiseLike<QueryResult> {
 
   lte(column: string, value: unknown): this {
     this.filters.push({ column, op: 'lte', value });
+    return this;
+  }
+
+  // Added 2026-11-22 (analytics channel tests): the legacy analytics
+  // route filters its date range SQL-side with .gte/.lte; the fake
+  // only had lte until now.
+  gte(column: string, value: unknown): this {
+    this.filters.push({ column, op: 'gte', value });
     return this;
   }
 

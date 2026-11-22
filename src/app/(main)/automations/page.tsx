@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { AutomationsList } from "@/components/automations/AutomationsList";
 import { ContactsList } from "@/components/automations/ContactsList";
 import { NewAutomationModal } from "@/components/automations/new-flow/NewAutomationModal";
-import { useAutomations, useToggleAutomation, useDeleteAutomation } from "@/hooks/useAutomations";
+import { useAutomations, useToggleAutomation, useDeleteAutomation, useDuplicateAutomation } from "@/hooks/useAutomations";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useActiveFacebookPage } from "@/hooks/useActiveFacebookPage";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
@@ -119,6 +119,7 @@ function AutomationsContent() {
                 : { title: "No Instagram automations yet", message: "Create one to reply to comments, DMs, or story replies automatically." };
     const toggleMutation = useToggleAutomation();
     const deleteMutation = useDeleteAutomation();
+    const duplicateMutation = useDuplicateAutomation();
 
     const handleToggle = (id: string, currentlyActive: boolean) => {
         toggleMutation.mutate({ id, isActive: !currentlyActive });
@@ -126,6 +127,13 @@ function AutomationsContent() {
 
     const handleDelete = (id: string) => {
         deleteMutation.mutate(id);
+    };
+
+    // Duplicate (2026-11-22): the server copies the whole config
+    // under "Copy of <name>" starting INACTIVE; the list refetch
+    // shows the copy at once.
+    const handleDuplicate = (id: string) => {
+        duplicateMutation.mutate(id);
     };
 
     const handleEdit = (automation: AutomationFromDB) => {
@@ -212,7 +220,9 @@ function AutomationsContent() {
                             onToggle={handleToggle}
                             onDelete={handleDelete}
                             onEdit={handleEdit}
-                            deleteError={deleteMutation.error?.message ?? null}
+                            onDuplicate={handleDuplicate}
+                            duplicatingId={duplicateMutation.isPending ? (duplicateMutation.variables ?? null) : null}
+                            deleteError={deleteMutation.error?.message ?? duplicateMutation.error?.message ?? null}
                             loadError={automationsError?.message ?? null}
                             onRetry={() => void refetchAutomations()}
                             emptyTitle={channelEmptyCopy.title}

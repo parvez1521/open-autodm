@@ -1,5 +1,5 @@
 /**
- * GET /api/analytics?from=ISO&to=ISO&automationId=<uuid|all>
+ * GET /api/analytics?from=ISO&to=ISO&automationId=<uuid|all>&channel=<instagram|facebook|all>&accountId=<uuid>
  *
  * Aggregates the engine's own event trail into dashboard metrics:
  *  - dm_jobs            → triggers by type, deliveries, failures (time series)
@@ -8,9 +8,22 @@
  *                          completed means the follow re-check passed)
  *  - contacts           → new contacts captured + their follow status
  *
- * All scoping is by the authenticated user's Instagram accounts; the optional
- * automation filter narrows every source. Aggregation happens here in JS -
- * at self-hosted scale the row counts are small (guarded by hard limits).
+ * Channel (2026-11-22): Instagram and Facebook rows live in the same
+ * tables but under different account columns — Instagram rows key on
+ * instagram_account_id, Facebook rows on facebook_page_id (both
+ * instagram_account_id NULL on the FB side, see migration
+ * 20261119000001). The `channel` param scopes every source to one
+ * channel's rows; `all` (the default, for older callers) merges both.
+ * Before this, the route only ever read instagram_account_id, so
+ * Facebook activity was invisible here entirely — the Facebook tab
+ * of /analytics now shows the real Messenger numbers.
+ * The aggregation itself lives in src/lib/analytics/aggregate.ts and
+ * is shared by both branches, so the metric definitions cannot drift.
+ *
+ * All scoping is by the authenticated user's Instagram accounts and
+ * Facebook Pages; the optional automation filter narrows every source.
+ * Aggregation happens in JS over the channel-scoped rows — at
+ * self-hosted scale the row counts are small (guarded by hard limits).
  */
 
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
@@ -19,46 +32,48 @@ import { createLogger } from '@/lib/logger';
 import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
 import { resolveRouteWorkspaceContext } from '@/lib/tenancy/routeContext';
 import { createTenantRepository } from '@/lib/tenancy/repository';
+import {
+  aggregateAnalytics,
+  ANALYTICS_ROW_LIMIT,
+  type AnalyticsAutomationMeta,
+  type AnalyticsContactRow,
+  type AnalyticsJobRow,
+  type AnalyticsSessionRow,
+} from '@/lib/analytics/aggregate';
+import {
+  filterMetaByChannel,
+  parseAnalyticsChannel,
+  type AnalyticsChannel,
+} from '@/lib/analytics/channel';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const logger = createLogger('api:analytics');
 
-const ROW_LIMIT = 20000;
-const MAX_DAYS = 400;
-
-interface JobRow {
-  trigger_type: string;
-  status: string;
-  created_at: string;
-  sent_at: string | null;
-  automation_id: string;
+interface AnalyticsParams {
+  from: Date;
+  to: Date;
+  automationId: string;
+  requestedAccountId: string | null;
+  channel: AnalyticsChannel;
 }
 
-interface SessionRow {
-  automation_id: string;
-  current_step: number;
-  completed: boolean;
-  started_at: string;
-}
-
-interface ContactRow {
-  first_interaction_at: string;
-  follows_business: boolean | null;
-  last_automation_id: string | null;
-}
-
-interface AutomationMeta {
-  id: string;
-  name: string;
-  type: string;
-  is_active: boolean;
-  instagram_account_id: string;
-}
-
-function dayKey(iso: string): string {
-  return iso.slice(0, 10);
+function parseAnalyticsParams(url: URL): { params: AnalyticsParams | null; error: string | null } {
+  const toParam = url.searchParams.get('to');
+  const fromParam = url.searchParams.get('from');
+  const automationId = url.searchParams.get('automationId') ?? 'all';
+  const requestedAccountId = url.searchParams.get('accountId');
+  const channel = parseAnalyticsChannel(url.searchParams.get('channel'));
+  if (channel === null) {
+    return { params: null, error: 'Invalid channel — expected instagram, facebook or all' };
+  }
+  const to = toParam ? new Date(toParam) : new Date();
+  const from = fromParam ? new Date(fromParam) : new Date(Date.now() - 30 * 86400_000);
+  if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
+    return { params: null, error: 'Invalid date range' };
+  }
+  return { params: { from, to, automationId, requestedAccountId, channel }, error: null };
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -70,16 +85,9 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const url = new URL(request.url);
-  const toParam = url.searchParams.get('to');
-  const fromParam = url.searchParams.get('from');
-  const automationId = url.searchParams.get('automationId') ?? 'all';
-  const requestedAccountId = url.searchParams.get('accountId');
-
-  const to = toParam ? new Date(toParam) : new Date();
-  const from = fromParam ? new Date(fromParam) : new Date(Date.now() - 30 * 86400_000);
-  if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
-    return Response.json({ error: 'Invalid date range' }, { status: 400 });
-  }
+  const { params, error } = parseAnalyticsParams(url);
+  if (!params) return Response.json({ error }, { status: 400 });
+  const { from, to, automationId, requestedAccountId, channel } = params;
   const fromIso = from.toISOString();
   const toIso = to.toISOString();
 
@@ -95,139 +103,108 @@ export async function GET(request: Request): Promise<Response> {
   }
   const ownedIds = (accounts ?? []).map((a) => a.id as string);
 
+  // Facebook Pages owned by this user (channel scoping, 2026-11-22).
+  const { data: fbPages } = await db
+    .from('facebook_pages')
+    .select('id')
+    .eq('user_id', user.id);
+  const ownedFbPageIds = (fbPages ?? []).map((p) => p.id as string);
+
   // Optional per-account scoping. SECURITY: the id must be user-owned.
-  let accountIds = ownedIds;
+  // The id may be an Instagram account OR a Facebook Page row id
+  // (mirrors GET /api/automations).
+  let requestedIsFacebook = false;
   if (requestedAccountId) {
     if (!ownedIds.includes(requestedAccountId)) {
-      return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+      if (!ownedFbPageIds.includes(requestedAccountId)) {
+        return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+      }
+      requestedIsFacebook = true;
     }
-    accountIds = [requestedAccountId];
   }
+
+  // The account-column partition IS the channel partition: Instagram
+  // rows key on instagram_account_id, Facebook rows on facebook_page_id.
+  // A requested account narrows to that account alone; the channel
+  // param narrows to that channel's side.
+  let igScopeIds = requestedIsFacebook ? [] : requestedAccountId ? [requestedAccountId] : ownedIds;
+  let fbScopeIds = requestedIsFacebook ? [requestedAccountId!] : requestedAccountId ? [] : ownedFbPageIds;
+  if (channel === 'instagram') fbScopeIds = [];
+  if (channel === 'facebook') igScopeIds = [];
 
   const { data: automations } = await db
     .from('automations')
-    .select('id, name, type, is_active, instagram_account_id')
+    .select('id, name, type, is_active, instagram_account_id, channel, facebook_page_id')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true });
-  const automationMeta = ((automations ?? []) as AutomationMeta[]).filter(
-    (a) => !requestedAccountId || a.instagram_account_id === requestedAccountId
+  const automationMeta = filterMetaByChannel(
+    ((automations ?? []) as AnalyticsAutomationMeta[]).filter((a) =>
+      !requestedAccountId ||
+      (requestedIsFacebook ? a.facebook_page_id === requestedAccountId : a.instagram_account_id === requestedAccountId),
+    ),
+    channel,
   );
 
-  const empty = accountIds.length === 0;
+  const empty = igScopeIds.length === 0 && fbScopeIds.length === 0;
 
-  let jobsQ = db
-    .from('dm_jobs')
-    .select('trigger_type, status, created_at, sent_at, automation_id')
-    .in('instagram_account_id', accountIds)
-    .gte('created_at', fromIso)
-    .lte('created_at', toIso)
-    .limit(ROW_LIMIT);
-  if (automationId !== 'all') jobsQ = jobsQ.eq('automation_id', automationId);
-
-  let sessionsQ = db
-    .from('automation_sessions')
-    .select('automation_id, current_step, completed, started_at')
-    .in('instagram_account_id', accountIds)
-    .gte('started_at', fromIso)
-    .lte('started_at', toIso)
-    .limit(ROW_LIMIT);
-  if (automationId !== 'all') sessionsQ = sessionsQ.eq('automation_id', automationId);
-
-  let contactsQ = db
-    .from('contacts')
-    .select('first_interaction_at, follows_business, last_automation_id')
-    .in('instagram_account_id', accountIds)
-    .gte('first_interaction_at', fromIso)
-    .lte('first_interaction_at', toIso)
-    .limit(ROW_LIMIT);
-  if (automationId !== 'all') contactsQ = contactsQ.eq('last_automation_id', automationId);
+  // One query per account column per source table: PostgREST has no
+  // OR across columns here, and the two sides are disjoint by
+  // construction. Date filters stay SQL-side (the ROW_LIMIT /
+  // truncated semantics are unchanged: "first 20,000 events in range").
+  const buildQueries = <T>(table: 'dm_jobs' | 'automation_sessions' | 'contacts') => {
+    const queries: Array<PromiseLike<{ data: T[] | null; error: unknown }>> = [];
+    const columns =
+      table === 'dm_jobs'
+        ? 'trigger_type, status, created_at, sent_at, automation_id'
+        : table === 'automation_sessions'
+          ? 'automation_id, current_step, completed, started_at'
+          : 'first_interaction_at, follows_business, last_automation_id';
+    const dateColumn =
+      table === 'dm_jobs' ? 'created_at' : table === 'automation_sessions' ? 'started_at' : 'first_interaction_at';
+    if (igScopeIds.length > 0) {
+      let q = db
+        .from(table)
+        .select(columns)
+        .in('instagram_account_id', igScopeIds)
+        .gte(dateColumn, fromIso)
+        .lte(dateColumn, toIso)
+        .limit(ANALYTICS_ROW_LIMIT);
+      if (table === 'contacts' && automationId !== 'all') q = q.eq('last_automation_id', automationId);
+      else if (table !== 'contacts' && automationId !== 'all') q = q.eq('automation_id', automationId);
+      queries.push(q as unknown as PromiseLike<{ data: T[] | null; error: unknown }>);
+    }
+    if (fbScopeIds.length > 0) {
+      let q = db
+        .from(table)
+        .select(columns)
+        .in('facebook_page_id', fbScopeIds)
+        .gte(dateColumn, fromIso)
+        .lte(dateColumn, toIso)
+        .limit(ANALYTICS_ROW_LIMIT);
+      if (table === 'contacts' && automationId !== 'all') q = q.eq('last_automation_id', automationId);
+      else if (table !== 'contacts' && automationId !== 'all') q = q.eq('automation_id', automationId);
+      queries.push(q as unknown as PromiseLike<{ data: T[] | null; error: unknown }>);
+    }
+    return queries;
+  };
 
   const [jobsRes, sessionsRes, contactsRes] = empty
     ? [{ data: [] }, { data: [] }, { data: [] }]
-    : await Promise.all([jobsQ, sessionsQ, contactsQ]);
+    : await Promise.all([
+        Promise.all(buildQueries<AnalyticsJobRow>('dm_jobs')).then((rs) => ({ data: rs.flatMap((r) => r.data ?? []) })),
+        Promise.all(buildQueries<AnalyticsSessionRow>('automation_sessions')).then((rs) => ({ data: rs.flatMap((r) => r.data ?? []) })),
+        Promise.all(buildQueries<AnalyticsContactRow>('contacts')).then((rs) => ({ data: rs.flatMap((r) => r.data ?? []) })),
+      ]);
 
-  const jobs = ((jobsRes.data ?? []) as JobRow[]);
-  const sessions = ((sessionsRes.data ?? []) as SessionRow[]);
-  const contacts = ((contactsRes.data ?? []) as ContactRow[]);
+  const jobs = (jobsRes.data ?? []) as AnalyticsJobRow[];
+  const sessions = (sessionsRes.data ?? []) as AnalyticsSessionRow[];
+  const contacts = (contactsRes.data ?? []) as AnalyticsContactRow[];
 
-  // ── Totals ────────────────────────────────────────────────────────────────
-  const triggerTypes = ['comment', 'dm', 'story_reply'];
-  const totals = {
-    triggers: jobs.filter((j) => triggerTypes.includes(j.trigger_type)).length,
-    comments: jobs.filter((j) => j.trigger_type === 'comment').length,
-    dmKeywords: jobs.filter((j) => j.trigger_type === 'dm').length,
-    storyReplies: jobs.filter((j) => j.trigger_type === 'story_reply').length,
-    delivered: jobs.filter((j) => j.status === 'sent').length,
-    failed: jobs.filter((j) => j.status === 'failed').length,
-    flowsStarted: sessions.length,
-    flowsCompleted: sessions.filter((s) => s.completed).length,
-    askToFollowShown: sessions.filter((s) => s.current_step >= 2).length,
-    followsGained: sessions.filter((s) => s.current_step >= 2 && s.completed).length,
-    newContacts: contacts.length,
-    newContactFollowers: contacts.filter((c) => c.follows_business === true).length,
-  };
-
-  // ── Daily series (zero-filled across the range) ───────────────────────────
-  const days: Record<string, { date: string; comments: number; dms: number; stories: number; delivered: number; contacts: number }> = {};
-  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
-  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()));
-  let guard = 0;
-  while (cursor <= end && guard < MAX_DAYS) {
-    const key = cursor.toISOString().slice(0, 10);
-    days[key] = { date: key, comments: 0, dms: 0, stories: 0, delivered: 0, contacts: 0 };
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    guard += 1;
-  }
-  for (const j of jobs) {
-    const d = days[dayKey(j.created_at)];
-    if (!d) continue;
-    if (j.trigger_type === 'comment') d.comments += 1;
-    else if (j.trigger_type === 'dm') d.dms += 1;
-    else if (j.trigger_type === 'story_reply') d.stories += 1;
-    if (j.status === 'sent') {
-      const sd = days[dayKey(j.sent_at ?? j.created_at)];
-      if (sd) sd.delivered += 1;
-    }
-  }
-  for (const c of contacts) {
-    const d = days[dayKey(c.first_interaction_at)];
-    if (d) d.contacts += 1;
-  }
-
-  // ── Per-automation breakdown ──────────────────────────────────────────────
-  const byAutomation = new Map<string, { triggers: number; delivered: number; failed: number; flowsCompleted: number; follows: number }>();
-  for (const j of jobs) {
-    const row = byAutomation.get(j.automation_id) ?? { triggers: 0, delivered: 0, failed: 0, flowsCompleted: 0, follows: 0 };
-    if (triggerTypes.includes(j.trigger_type)) row.triggers += 1;
-    if (j.status === 'sent') row.delivered += 1;
-    if (j.status === 'failed') row.failed += 1;
-    byAutomation.set(j.automation_id, row);
-  }
-  for (const s of sessions) {
-    const row = byAutomation.get(s.automation_id) ?? { triggers: 0, delivered: 0, failed: 0, flowsCompleted: 0, follows: 0 };
-    if (s.completed) row.flowsCompleted += 1;
-    if (s.current_step >= 2 && s.completed) row.follows += 1;
-    byAutomation.set(s.automation_id, row);
-  }
-
-  const perAutomation = automationMeta
-    .filter((a) => automationId === 'all' || a.id === automationId)
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      type: a.type,
-      isActive: a.is_active,
-      ...(byAutomation.get(a.id) ?? { triggers: 0, delivered: 0, failed: 0, flowsCompleted: 0, follows: 0 }),
-    }))
-    .sort((a, b) => b.triggers - a.triggers);
-
+  const aggregated = aggregateAnalytics({ jobs, sessions, contacts, automationMeta, automationId, from, to });
   return Response.json({
     range: { from: fromIso, to: toIso },
-    totals,
-    daily: Object.values(days),
-    perAutomation,
-    automations: automationMeta.map((a) => ({ id: a.id, name: a.name, type: a.type })),
-    truncated: jobs.length >= ROW_LIMIT || sessions.length >= ROW_LIMIT || contacts.length >= ROW_LIMIT,
+    channel,
+    ...aggregated,
   });
 }
 
@@ -238,9 +215,9 @@ export async function GET(request: Request): Promise<Response> {
 //
 // Scoping order is load-bearing: FIRST the ctx workspace (repository
 // account/automation lists + a workspace_id filter on every aggregate
-// query), THEN the caller's accountId/automationId filters inside that
-// scope. A foreign automation/account id therefore can never widen the
-// result — it resolves to 404 before any aggregate runs.
+// query), THEN the caller's accountId/automationId/channel filters
+// inside that scope. A foreign automation/account id therefore can
+// never widen the result — it resolves to 404 before any aggregate runs.
 //
 // Repository-vs-direct justification: the tenant repository's list()
 // supports equality filters only, while analytics needs date-range
@@ -259,16 +236,9 @@ async function p18Analytics(
   user: { id: string },
 ): Promise<Response> {
   const url = new URL(request.url);
-  const toParam = url.searchParams.get('to');
-  const fromParam = url.searchParams.get('from');
-  const automationId = url.searchParams.get('automationId') ?? 'all';
-  const requestedAccountId = url.searchParams.get('accountId');
-
-  const to = toParam ? new Date(toParam) : new Date();
-  const from = fromParam ? new Date(fromParam) : new Date(Date.now() - 30 * 86400_000);
-  if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) {
-    return Response.json({ error: 'Invalid date range' }, { status: 400 });
-  }
+  const { params, error } = parseAnalyticsParams(url);
+  if (!params) return Response.json({ error }, { status: 400 });
+  const { from, to, automationId, requestedAccountId, channel } = params;
   const fromIso = from.toISOString();
   const toIso = to.toISOString();
 
@@ -294,12 +264,31 @@ async function p18Analytics(
   }
   const ownedIds = workspaceAccounts.map((a) => a['id'] as string);
 
-  let accountIds = ownedIds;
+  // Facebook Pages bound to this workspace (direct query — the tenant
+  // repository has no facebookPages accessor yet; same pattern as the
+  // automations list route).
+  const { data: fbPages } = await db
+    .from('facebook_pages')
+    .select('id')
+    .eq('workspace_id', ctx.workspaceId);
+  const ownedFbPageIds = (fbPages ?? []).map((p) => p['id'] as string);
+
+  // Optional per-account scoping: an Instagram account OR a Facebook
+  // Page row id bound to THIS workspace (mirrors p18ListAutomations).
+  let requestedIsFacebook = false;
   if (requestedAccountId) {
     if (!ownedIds.includes(requestedAccountId)) {
-      return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+      const { data: fbPage } = await db
+        .from('facebook_pages')
+        .select('id')
+        .eq('id', requestedAccountId)
+        .eq('workspace_id', ctx.workspaceId)
+        .maybeSingle();
+      if (!fbPage) {
+        return Response.json({ error: 'Instagram account not found' }, { status: 404 });
+      }
+      requestedIsFacebook = true;
     }
-    accountIds = [requestedAccountId];
   }
 
   // Direct ownership check for the automation filter (closes the legacy
@@ -317,125 +306,71 @@ async function p18Analytics(
     }
   }
 
-  const automationMeta = (workspaceAutomations as unknown as AutomationMeta[]).filter(
-    (a) => !requestedAccountId || a.instagram_account_id === requestedAccountId,
+  let igScopeIds = requestedIsFacebook ? [] : requestedAccountId ? [requestedAccountId] : ownedIds;
+  let fbScopeIds = requestedIsFacebook ? [requestedAccountId!] : requestedAccountId ? [] : ownedFbPageIds;
+  if (channel === 'instagram') fbScopeIds = [];
+  if (channel === 'facebook') igScopeIds = [];
+
+  const automationMeta = filterMetaByChannel(
+    (workspaceAutomations as unknown as AnalyticsAutomationMeta[]).filter((a) =>
+      !requestedAccountId ||
+      (requestedIsFacebook ? a.facebook_page_id === requestedAccountId : a.instagram_account_id === requestedAccountId),
+    ),
+    channel,
   );
 
   const inRange = (iso: unknown): boolean =>
     typeof iso === 'string' && iso >= fromIso && iso <= toIso;
-  const empty = accountIds.length === 0;
+  const empty = igScopeIds.length === 0 && fbScopeIds.length === 0;
 
-  let jobs: JobRow[] = [];
-  let sessions: SessionRow[] = [];
-  let contacts: ContactRow[] = [];
+  let jobs: AnalyticsJobRow[] = [];
+  let sessions: AnalyticsSessionRow[] = [];
+  let contacts: AnalyticsContactRow[] = [];
   if (!empty) {
-    const [jobsRes, sessionsRes, contactsRes] = await Promise.all([
-      db
-        .from('dm_jobs')
-        .select('trigger_type, status, created_at, sent_at, automation_id')
+    const fetchSide = async (
+      table: 'dm_jobs' | 'automation_sessions' | 'contacts',
+      accountColumn: 'instagram_account_id' | 'facebook_page_id',
+      accountIds: string[],
+    ) => {
+      const columns =
+        table === 'dm_jobs'
+          ? 'trigger_type, status, created_at, sent_at, automation_id'
+          : table === 'automation_sessions'
+            ? 'automation_id, current_step, completed, started_at'
+            : 'first_interaction_at, follows_business, last_automation_id';
+      const { data } = await db
+        .from(table)
+        .select(columns)
         .eq('workspace_id', ctx.workspaceId)
-        .in('instagram_account_id', accountIds)
-        .limit(ROW_LIMIT),
-      db
-        .from('automation_sessions')
-        .select('automation_id, current_step, completed, started_at')
-        .eq('workspace_id', ctx.workspaceId)
-        .in('instagram_account_id', accountIds)
-        .limit(ROW_LIMIT),
-      db
-        .from('contacts')
-        .select('first_interaction_at, follows_business, last_automation_id')
-        .eq('workspace_id', ctx.workspaceId)
-        .in('instagram_account_id', accountIds)
-        .limit(ROW_LIMIT),
+        .in(accountColumn, accountIds)
+        .limit(ANALYTICS_ROW_LIMIT);
+      return (data ?? []) as unknown as Array<Record<string, unknown>>;
+    };
+    const [jobsIg, jobsFb, sessionsIg, sessionsFb, contactsIg, contactsFb] = await Promise.all([
+      igScopeIds.length > 0 ? fetchSide('dm_jobs', 'instagram_account_id', igScopeIds) : Promise.resolve([]),
+      fbScopeIds.length > 0 ? fetchSide('dm_jobs', 'facebook_page_id', fbScopeIds) : Promise.resolve([]),
+      igScopeIds.length > 0 ? fetchSide('automation_sessions', 'instagram_account_id', igScopeIds) : Promise.resolve([]),
+      fbScopeIds.length > 0 ? fetchSide('automation_sessions', 'facebook_page_id', fbScopeIds) : Promise.resolve([]),
+      igScopeIds.length > 0 ? fetchSide('contacts', 'instagram_account_id', igScopeIds) : Promise.resolve([]),
+      fbScopeIds.length > 0 ? fetchSide('contacts', 'facebook_page_id', fbScopeIds) : Promise.resolve([]),
     ]);
-    jobs = ((jobsRes.data ?? []) as JobRow[]).filter(
-      (j) => inRange(j.created_at) && (automationId === 'all' || j.automation_id === automationId),
-    );
-    sessions = ((sessionsRes.data ?? []) as SessionRow[]).filter(
-      (s) => inRange(s.started_at) && (automationId === 'all' || s.automation_id === automationId),
-    );
-    contacts = ((contactsRes.data ?? []) as ContactRow[]).filter(
+    jobs = [...jobsIg, ...jobsFb].filter(
+      (j) => inRange(j['created_at']) && (automationId === 'all' || j['automation_id'] === automationId),
+    ) as unknown as AnalyticsJobRow[];
+    sessions = [...sessionsIg, ...sessionsFb].filter(
+      (s) => inRange(s['started_at']) && (automationId === 'all' || s['automation_id'] === automationId),
+    ) as unknown as AnalyticsSessionRow[];
+    contacts = [...contactsIg, ...contactsFb].filter(
       (c) =>
-        inRange(c.first_interaction_at) &&
-        (automationId === 'all' || c.last_automation_id === automationId),
-    );
+        inRange(c['first_interaction_at']) &&
+        (automationId === 'all' || c['last_automation_id'] === automationId),
+    ) as unknown as AnalyticsContactRow[];
   }
 
-  const triggerTypes = ['comment', 'dm', 'story_reply'];
-  const totals = {
-    triggers: jobs.filter((j) => triggerTypes.includes(j.trigger_type)).length,
-    comments: jobs.filter((j) => j.trigger_type === 'comment').length,
-    dmKeywords: jobs.filter((j) => j.trigger_type === 'dm').length,
-    storyReplies: jobs.filter((j) => j.trigger_type === 'story_reply').length,
-    delivered: jobs.filter((j) => j.status === 'sent').length,
-    failed: jobs.filter((j) => j.status === 'failed').length,
-    flowsStarted: sessions.length,
-    flowsCompleted: sessions.filter((s) => s.completed).length,
-    askToFollowShown: sessions.filter((s) => s.current_step >= 2).length,
-    followsGained: sessions.filter((s) => s.current_step >= 2 && s.completed).length,
-    newContacts: contacts.length,
-    newContactFollowers: contacts.filter((c) => c.follows_business === true).length,
-  };
-
-  const days: Record<string, { date: string; comments: number; dms: number; stories: number; delivered: number; contacts: number }> = {};
-  const cursor = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()));
-  const end = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()));
-  let guard = 0;
-  while (cursor <= end && guard < MAX_DAYS) {
-    const key = cursor.toISOString().slice(0, 10);
-    days[key] = { date: key, comments: 0, dms: 0, stories: 0, delivered: 0, contacts: 0 };
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
-    guard += 1;
-  }
-  for (const j of jobs) {
-    const d = days[dayKey(j.created_at)];
-    if (!d) continue;
-    if (j.trigger_type === 'comment') d.comments += 1;
-    else if (j.trigger_type === 'dm') d.dms += 1;
-    else if (j.trigger_type === 'story_reply') d.stories += 1;
-    if (j.status === 'sent') {
-      const sd = days[dayKey(j.sent_at ?? j.created_at)];
-      if (sd) sd.delivered += 1;
-    }
-  }
-  for (const c of contacts) {
-    const d = days[dayKey(c.first_interaction_at)];
-    if (d) d.contacts += 1;
-  }
-
-  const byAutomation = new Map<string, { triggers: number; delivered: number; failed: number; flowsCompleted: number; follows: number }>();
-  for (const j of jobs) {
-    const row = byAutomation.get(j.automation_id) ?? { triggers: 0, delivered: 0, failed: 0, flowsCompleted: 0, follows: 0 };
-    if (triggerTypes.includes(j.trigger_type)) row.triggers += 1;
-    if (j.status === 'sent') row.delivered += 1;
-    if (j.status === 'failed') row.failed += 1;
-    byAutomation.set(j.automation_id, row);
-  }
-  for (const s of sessions) {
-    const row = byAutomation.get(s.automation_id) ?? { triggers: 0, delivered: 0, failed: 0, flowsCompleted: 0, follows: 0 };
-    if (s.completed) row.flowsCompleted += 1;
-    if (s.current_step >= 2 && s.completed) row.follows += 1;
-    byAutomation.set(s.automation_id, row);
-  }
-
-  const perAutomation = automationMeta
-    .filter((a) => automationId === 'all' || a.id === automationId)
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      type: a.type,
-      isActive: a.is_active,
-      ...(byAutomation.get(a.id) ?? { triggers: 0, delivered: 0, failed: 0, flowsCompleted: 0, follows: 0 }),
-    }))
-    .sort((a, b) => b.triggers - a.triggers);
-
+  const aggregated = aggregateAnalytics({ jobs, sessions, contacts, automationMeta, automationId, from, to });
   return Response.json({
     range: { from: fromIso, to: toIso },
-    totals,
-    daily: Object.values(days),
-    perAutomation,
-    automations: automationMeta.map((a) => ({ id: a.id, name: a.name, type: a.type })),
-    truncated: jobs.length >= ROW_LIMIT || sessions.length >= ROW_LIMIT || contacts.length >= ROW_LIMIT,
+    channel,
+    ...aggregated,
   });
 }

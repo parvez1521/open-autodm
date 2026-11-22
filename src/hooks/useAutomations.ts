@@ -759,6 +759,27 @@ export function useDeleteAutomation() {
   });
 }
 
+/**
+ * Duplicate automation (2026-11-22): POST /automations/[id]/duplicate
+ * copies the whole config under "Copy of <name>" and always starts
+ * INACTIVE, so the copy can never double-send until the owner
+ * activates it. The list refetches, so the copy appears at once.
+ */
+export function useDuplicateAutomation() {
+  const queryClient = useQueryClient();
+  const requestScope = useWorkspaceRequestScope();
+
+  return useMutation({
+    mutationFn: (id: string) =>
+      sendWorkspaceRequest<{ automation: AutomationFromDB }>(requestScope, `/automations/${id}/duplicate`, {
+        method: 'POST',
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['automations'] });
+    },
+  });
+}
+
 export function useUpdateAutomation() {
   const queryClient = useQueryClient();
   // ONE captured workspace context for the whole attempt (P27).
