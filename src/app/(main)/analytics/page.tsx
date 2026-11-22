@@ -154,7 +154,9 @@ export default function AnalyticsPage() {
               { label: "Triggers", value: totals.triggers, sub: `${totals.comments} comments · ${totals.dmKeywords} DMs · ${totals.storyReplies} stories`, icon: ChatCircle },
               { label: "DMs delivered", value: totals.delivered, sub: totals.failed > 0 ? `${totals.failed} failed` : "no failures", icon: PaperPlaneTilt },
               { label: "Follows gained", value: totals.followsGained, sub: `${totals.askToFollowShown} asked to follow`, icon: UserCheck },
-              { label: "New contacts", value: totals.newContacts, sub: `${totals.newContactFollowers} already follow you`, icon: Users },
+              // Audit fix (2026-11-22): "1 already follow you" — the
+              // sub-line is singular/plural-aware now.
+              { label: "New contacts", value: totals.newContacts, sub: totals.newContactFollowers === 1 ? "1 already follows you" : `${totals.newContactFollowers} already follow you`, icon: Users },
           ]
         : [];
 

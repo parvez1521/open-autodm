@@ -12,6 +12,7 @@ import { useAnalytics } from "@/hooks/useAnalytics";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useSetupStatus } from "@/hooks/useSetup";
 import { useActivity } from "@/hooks/useActivity";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import { TrafficGuardCard } from "@/components/dashboard/TrafficGuardCard";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +63,16 @@ export default function DashboardClient({
     isAdmin?: boolean;
     planChoiceDone?: boolean;
 } = {}) {
-    const { account: connectedAccount, accountId } = useActiveAccount();
+    const { account: connectedAccount, accountId, isLoading: activeAccountLoading } = useActiveAccount();
+    // Audit fix (2026-11-22): the workspace loading flag is the
+    // authoritative "still resolving" signal. Every list query below
+    // is disabled while the scope is 'unavailable', and a disabled
+    // TanStack query reports isLoading false with no data — so the
+    // stats/system gates below read the workspace-resolving window
+    // as loaded and flashed literal 0s / unchecked steps / "Idle"
+    // before the real numbers landed (7 automations, 80 comments,
+    // 99 DMs, 80 contacts live). The flag joins every gate.
+    const { loading: workspaceLoading } = useWorkspace();
     const { data: automations, isLoading: automationsLoading } = useAutomations(accountId);
     const { data: setup, isLoading: setupLoading } = useSetupStatus();
     const { data: contacts, isLoading: contactsLoading } = useContacts(accountId);
@@ -76,7 +86,14 @@ export default function DashboardClient({
         };
     }, []);
     const { data: analytics, isLoading: analyticsLoading } = useAnalytics({ ...analyticsRange, automationId: "all", accountId });
-    const { data: activities, isLoading: isActivityLoading } = useActivity(accountId, 15);
+    // Activity feed (audit fix 2026-11-22, #12): useActivity now
+    // rides the workspace scope like its siblings, so the feed no
+    // longer 400s on the fail-closed workspace context and falls
+    // through to "No recent events". isPending (not isLoading)
+    // covers the disabled-pending window — same distinction the
+    // plan card below makes — and isError gets an honest retryable
+    // branch instead of the empty state.
+    const { data: activities, isPending: isActivityPending, isError: isActivityError, refetch: refetchActivity } = useActivity(accountId, 15);
     // Plan card (2026-11-09): read from the SAME billing-status
     // resolution /billing uses (hooks/useBillingStatus) for the
     // active workspace — the dashboard previously derived plan state
@@ -102,8 +119,14 @@ export default function DashboardClient({
     // Audit fix: while the numbers are in flight, the stats and the
     // System rows render neutral skeletons — never literal 0s or a
     // "Not connected" / "Idle" flash that reads as a dead engine.
-    const statsLoading = automationsLoading || contactsLoading || analyticsLoading;
-    const systemLoading = setupLoading || automationsLoading;
+    const statsLoading = workspaceLoading || automationsLoading || contactsLoading || analyticsLoading;
+    const systemLoading = workspaceLoading || setupLoading || automationsLoading;
+    // The checklist has no loading gate of its own: while the
+    // workspace / accounts / automations / billing reads resolve,
+    // its steps compute from empty data and render unchecked —
+    // a false "nothing is set up". While loading it renders neutral
+    // skeleton rows instead (same window as the stats above).
+    const checklistLoading = workspaceLoading || activeAccountLoading || automationsLoading || billingPending;
 
     const activeCount = automations?.filter(a => a.is_active).length ?? 0;
     const totalDms = automations?.reduce((sum, a) => sum + a.total_dms_sent, 0) ?? 0;
@@ -245,8 +268,21 @@ export default function DashboardClient({
                         <span className="text-[11px] text-muted-foreground font-medium">Real Event Trail</span>
                     </div>
 
-                    {isActivityLoading ? (
+                    {isActivityPending ? (
                         <div className="py-8 text-center text-[12.5px] text-muted-foreground">Loading activity…</div>
+                    ) : isActivityError ? (
+                        <div className="py-8 text-center space-y-2" role="alert">
+                            <p className="text-[12.5px] font-medium text-foreground">Activity couldn&apos;t be loaded.</p>
+                            <p className="text-[11px] text-muted-foreground">
+                                Your DMs and comments are unaffected — this list just failed to load.
+                            </p>
+                            <button
+                                onClick={() => void refetchActivity()}
+                                className="mt-1 inline-flex h-8 items-center rounded-lg border border-border px-3 text-[12px] font-semibold hover:bg-muted transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                            >
+                                Try again
+                            </button>
+                        </div>
                     ) : (activities?.length ?? 0) > 0 ? (
                         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                             {activities?.map((act, idx) => (
@@ -323,12 +359,18 @@ export default function DashboardClient({
                 <div className="lg:col-span-3 bg-card border border-border rounded-xl p-5">
                     <h2 className="text-[14px] font-heading font-semibold text-foreground">Getting started</h2>
                     <p className="text-[13px] text-muted-foreground mt-0.5 mb-4">
-                        {allDone
-                            ? "Everything is configured - your automations are live."
-                            : "Four steps between you and a working automation."}
+                        {checklistLoading
+                            ? "Loading your setup…"
+                            : allDone
+                              ? "Everything is configured - your automations are live."
+                              : "Four steps between you and a working automation."}
                     </p>
                     <div className="space-y-1.5">
-                        {checklist.map((item) => (
+                        {checklistLoading ? (
+                            [1, 2, 3, 4].map((i) => (
+                                <div key={i} className="h-10 rounded-lg bg-muted/40 animate-pulse" aria-label="Loading" />
+                            ))
+                        ) : checklist.map((item) => (
                             <Link key={item.label} href={item.href} className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-lg">
                                 <div className={cn(
                                     "flex items-center justify-between h-10 px-3 rounded-lg border transition-colors",

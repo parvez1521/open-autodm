@@ -13,6 +13,7 @@ import { apiClient, ApiError } from "@/lib/api/client";
 import { useInstagramAccounts, useRefreshInstagramToken, useResubscribeWebhook, useCheckSubscription } from "@/hooks/useInstagramAccounts";
 import { useFacebookPages, useDisconnectFacebookPage, useResubscribeFacebookPage } from "@/hooks/useFacebookPages";
 import { useSetupStatus } from "@/hooks/useSetup";
+import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppLoader } from "@/components/ui/AppLoader";
 
@@ -50,6 +51,16 @@ function SettingsContent() {
     // discarded — a failed fetch previously rendered the "No accounts
     // connected yet" empty state (a false claim) and an unsettled
     // fetch left the two pulse bars up indefinitely.
+    //
+    // Audit fix (2026-11-22): both list queries are disabled while
+    // the workspace scope is 'unavailable' (selection still
+    // resolving), and a disabled TanStack query reports isLoading
+    // false with no data — so on arrival the page flashed the "No
+    // accounts/Pages connected yet" empty states before the real
+    // accounts populated. The WorkspaceProvider loading flag is the
+    // authoritative signal (same gate as the automations-page flash
+    // fix): while it is true, both sections stay on their skeletons.
+    const { loading: workspaceLoading } = useWorkspace();
     const { data: accounts, isLoading, error: accountsError, refetch: refetchAccounts } = useInstagramAccounts();
     const { data: setup } = useSetupStatus();
     // Facebook Pages (2026-11-19) — same Settings page, its own section.
@@ -333,7 +344,7 @@ function SettingsContent() {
             {/* Instagram accounts */}
             <section className="bg-card border border-border rounded-xl p-5 space-y-4">
                 <div className="flex items-center justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                         <h2 className="text-[14px] font-heading font-semibold text-foreground">Instagram accounts</h2>
                         <p className="text-[13px] text-muted-foreground mt-0.5">
                             Business or Creator accounts only.
@@ -350,7 +361,7 @@ function SettingsContent() {
                 </div>
 
                 <div className="space-y-2">
-                    {isLoading ? (
+                    {isLoading || workspaceLoading ? (
                         <div className="space-y-2">
                             {[1, 2].map((i) => (
                                 <div key={i} className="h-16 rounded-lg bg-muted/50 animate-pulse" />
@@ -510,7 +521,7 @@ function SettingsContent() {
             {/* Facebook Pages (2026-11-19) */}
             <section className="bg-card border border-border rounded-xl p-5 space-y-4">
                 <div className="flex items-center justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                         <h2 className="text-[14px] font-heading font-semibold text-foreground">Facebook Pages</h2>
                         <p className="text-[13px] text-muted-foreground mt-0.5">
                             Pages you admin. Automations reply in Messenger when someone comments on a Page post or messages the Page.
@@ -527,7 +538,7 @@ function SettingsContent() {
                 </div>
 
                 <div className="space-y-2">
-                    {fbLoading ? (
+                    {fbLoading || workspaceLoading ? (
                         <div className="space-y-2">
                             {[1, 2].map((i) => (
                                 <div key={i} className="h-16 rounded-lg bg-muted/50 animate-pulse" />

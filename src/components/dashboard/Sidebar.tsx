@@ -12,6 +12,7 @@ import {
     FilmSlate,
     Receipt,
     Users,
+    User,
     CaretLeft,
     CaretRight,
     X,
@@ -29,6 +30,12 @@ const NAV = {
     Workspace: [
         { name: "Dashboard", href: "/dashboard", icon: House, external: false },
         { name: "Automations", href: "/automations", icon: Robot, external: false },
+        // Audit fix (2026-11-22): /contacts 404d and the sidebar had
+        // no Contacts entry, although the dashboard reports the
+        // captured audience — contacts only existed as a tab on
+        // /automations. First-class console destination now, pointing
+        // at the same ContactsList the tab renders.
+        { name: "Contacts", href: "/contacts", icon: User, external: false },
         { name: "Analytics", href: "/analytics", icon: ChartBar, external: false },
         { name: "Script Writer", href: "/script-writer", icon: PencilLine, external: false },
         // Creator Studio (Programme S1): in-app section under /studio.

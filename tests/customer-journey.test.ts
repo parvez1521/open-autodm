@@ -120,7 +120,7 @@ describe('prototype pages under default flags (all OFF)', () => {
     expect(html).not.toContain('signup-form-prototype');
   });
   it('billing page renders the inert state while BILLING_ENABLED is off', async () => {
-    const html = await renderPage('src/app/(saas)/billing/page.tsx');
+    const html = await renderPage('src/app/(main)/billing/page.tsx');
     expect(html).toContain('billing-inert');
     expect(html).toContain('Billing is not enabled');
   });

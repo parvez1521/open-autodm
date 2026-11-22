@@ -171,32 +171,42 @@ function AccordionSection({ index, title, summary, done, open, onToggle, onConti
                 </span>
                 <CaretDown className={cn("w-4 h-4 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
             </button>
-            <AnimatePresence>
-                {open && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.18 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="p-3 space-y-3">
-                            {children}
-                            {!isLast && (
-                                <div className="flex justify-end pt-1">
-                                    <button
-                                        type="button"
-                                        onClick={onContinue}
-                                        className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-colors"
-                                    >
-                                        Continue
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </motion.div>
+            {/* Audit fix (2026-11-22): the open/close animation used
+                to be a motion.div animating height 0 -> "auto" with
+                overflow-hidden — motion measures "auto" once, when
+                the animation starts, so content that appears AFTER
+                the section opens (the Any-mode DM warning, toggled on
+                later; the AI-reply note below it) was vertically
+                clipped by the stale measured height, cut off
+                mid-sentence with no ellipsis. The grid-rows technique
+                sizes intrinsically instead: the row is 1fr of the
+                content's own height, so later-appearing content
+                grows the section and is never clipped. Sections stay
+                mounted while closed (rows 0fr + invisible), so
+                in-progress input is kept, not reset, on reopen. */}
+            <div
+                className={cn(
+                    "grid transition-[grid-template-rows] duration-200 ease-out",
+                    open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                 )}
-            </AnimatePresence>
+            >
+                <div className={cn("overflow-hidden min-h-0 transition-opacity duration-200", open ? "opacity-100" : "opacity-0 invisible")} aria-hidden={!open}>
+                    <div className="p-3 space-y-3">
+                        {children}
+                        {!isLast && (
+                            <div className="flex justify-end pt-1">
+                                <button
+                                    type="button"
+                                    onClick={onContinue}
+                                    className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-primary/90 transition-colors"
+                                >
+                                    Continue
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

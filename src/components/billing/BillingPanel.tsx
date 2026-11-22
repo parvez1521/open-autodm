@@ -3,7 +3,7 @@
 /**
  * Billing panel — the customer-facing subscription UI (2026-11-08).
  *
- * Rendered by src/app/(saas)/billing/page.tsx when BILLING_ENABLED is
+ * Rendered by src/app/(main)/billing/page.tsx when BILLING_ENABLED is
  * on (the page keeps its inert state while the flag is off). All state
  * comes from GET /api/billing/status (the billing read model); actions
  * go to POST /api/billing/trial (15-day no-card trial) and

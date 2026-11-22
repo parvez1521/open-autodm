@@ -339,6 +339,26 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
         }
     };
 
+    // Audit fix (2026-11-22): Escape dismisses the dialog, like the
+    // header X and the backdrop click. There was no keydown listener
+    // at all, so Escape left the "What starts this automation?"
+    // picker open with only its X to close it. While the unsaved-
+    // changes confirm is up, Escape dismisses the confirm first
+    // (same as its Cancel path) instead of closing the editor.
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            if (showConfirm) {
+                setShowConfirm(false);
+            } else {
+                handleClose();
+            }
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [isOpen, showConfirm, isDirty, step]);
+
     const buildPayload = (isActive: boolean | null) => {
         const typeMap: Record<string, "comment_dm" | "dm_reply" | "story_reply" | "reel_dm" | "story_mention" | "fb_comment_dm" | "fb_dm_reply"> = {
             "comment-dm": "comment_dm",
@@ -499,11 +519,23 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
     // form column's left edge slid under the panel edge. At the body
     // root, `fixed` is always viewport-relative, immune to that.
     // React context (queries, theme) flows through portals unchanged.
+    //
+    // Audit fix (2026-11-22): the outer AnimatePresence child is a
+    // KEYED motion.div, and the inner step transition no longer uses
+    // mode="wait". Before, the outer child was a plain unkeyed div
+    // and the inner AnimatePresence waited on its exiting step child
+    // — closing the editor mid step-transition left the "Choose a
+    // post" picker mounted at full opacity over the list, its X a
+    // no-op (isOpen was already false) and Back only changing steps.
+    // A keyed motion child is tracked directly by the outer
+    // AnimatePresence, and the default (sync) step transition holds
+    // no exiting child for the close to wait on, so close now
+    // unmounts the whole dialog deterministically.
     if (!mounted) return null;
     return createPortal(
         <AnimatePresence>
             {isOpen && (
-                <div data-no-reveal className="fixed inset-0 z-[200] flex items-center justify-center p-3">
+                <motion.div key="editor" data-no-reveal className="fixed inset-0 z-[200] flex items-center justify-center p-3">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -587,9 +619,13 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                             </div>
                         )}
 
-                        {/* Content */}
+                        {/* Content — default (sync) step transition:
+                            mode="wait" held the exiting step mounted
+                            until its exit finished, which deadlocked
+                            the outer close (see the portal note above)
+                            and left the picker orphaned. */}
                         <div className="flex-1 overflow-hidden">
-                            <AnimatePresence mode="wait">
+                            <AnimatePresence>
                                 <motion.div
                                     key={step}
                                     initial={{ opacity: 0, x: 8 }}
@@ -691,7 +727,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                             )}
                         </AnimatePresence>
                     </motion.div>
-                </div>
+                </motion.div>
             )}
         </AnimatePresence>,
         document.body

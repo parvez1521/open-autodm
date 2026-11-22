@@ -32,7 +32,12 @@ export function IgAvatar({
     }, [pictureUrl]);
 
     const showImage = !!pictureUrl && !failed;
-    const initial = username?.trim().charAt(0).toUpperCase();
+    // Audit fix (2026-11-22): the initial is the first LETTER or
+    // digit, not the first character — @_caption.it starts with "_",
+    // so the tile showed a bare "_". A username with no letter or
+    // digit at all leaves initial "" and falls through to the
+    // InstagramLogo glyph below.
+    const initial = username?.trim().replace(/^[^a-zA-Z0-9]+/, "").charAt(0).toUpperCase();
 
     return (
         <div className={cn("relative rounded-full border border-border shrink-0", className)}>

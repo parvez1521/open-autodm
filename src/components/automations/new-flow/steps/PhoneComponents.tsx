@@ -216,7 +216,7 @@ export function DMConversationPhone({
                             <div className="flex items-end gap-1.5">
                                 <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-pink-500 to-orange-400 shrink-0" />
                                 <div className="bg-[#1e1e22] rounded-2xl rounded-bl-sm px-3 py-2 max-w-[80%]">
-                                    <p className="text-[12px] font-medium">{trigger.text || "DIET"}</p>
+                                    <p className="text-[12px] font-medium break-words">{trigger.text || "DIET"}</p>
                                 </div>
                             </div>
                         )}
@@ -231,7 +231,13 @@ export function DMConversationPhone({
                         className="flex justify-end items-end gap-1.5"
                     >
                         <div className="bg-[#3797f0] rounded-2xl rounded-br-sm overflow-hidden max-w-[85%]">
-                            <p className="text-[12px] leading-relaxed whitespace-pre-line px-3 py-2.5">{openingMessage}</p>
+                            {/* Audit fix (2026-11-22): break-words — the
+                                bubble is overflow-hidden for its rounded
+                                corners, so a long unbreakable run (a
+                                pasted URL, one long word) was hard-cut
+                                mid-word at the bubble edge with no
+                                ellipsis. It wraps instead now. */}
+                            <p className="text-[12px] leading-relaxed whitespace-pre-line break-words px-3 py-2.5">{openingMessage}</p>
                             {hasQuickReply && phase === "initial" && (
                                 <div className="border-t border-white/20">
                                     <button
@@ -269,7 +275,7 @@ export function DMConversationPhone({
                                     <div className="max-w-[85%] flex flex-col items-end gap-1">
                                         <p className="text-[8px] text-white/25 uppercase tracking-widest pr-1">If they don&apos;t follow you</p>
                                         <div className="bg-[#3797f0] rounded-2xl rounded-br-sm overflow-hidden">
-                                            <p className="text-[11px] leading-relaxed px-3 py-2.5">
+                                            <p className="text-[11px] leading-relaxed break-words px-3 py-2.5">
                                                 {askToFollowMessage || "Hey! It seems you're not following me yet 😊"}
                                             </p>
                                             <div className="border-t border-white/20 divide-y divide-white/10">
@@ -314,7 +320,7 @@ export function DMConversationPhone({
                                 className="flex justify-end items-end gap-1.5"
                             >
                                 <div className="bg-[#3797f0] rounded-2xl rounded-br-sm overflow-hidden max-w-[85%]">
-                                    <p className="text-[12px] leading-relaxed whitespace-pre-line px-3 py-2.5">{resp.content || "Your message here…"}</p>
+                                    <p className="text-[12px] leading-relaxed whitespace-pre-line break-words px-3 py-2.5">{resp.content || "Your message here…"}</p>
                                     {getTextLinkButtons(resp).map((btn, i) => (
                                         <div key={i} className="border-t border-white/20">
                                             <div className="w-full text-center text-[12px] font-semibold text-white/90 py-2">

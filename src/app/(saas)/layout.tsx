@@ -4,12 +4,19 @@ import { LogoWordmark } from "@/components/ui/Logo";
 import { PageTransition, ScrollProgress } from "@/components/motion/primitives";
 
 /**
- * SaaS shell for the public pages (pricing / billing / onboarding /
+ * SaaS shell for the public pages (pricing / onboarding /
  * get-started) served on opendm.in. This route group began as the
  * Phase 13 productization prototype; since the 2026-11-08 domain
  * move it IS the live product surface, so the old prototype banner
  * badge was removed (2026-11-09 cleanup). The capabilities behind
  * it stay flag-gated exactly as before.
+ *
+ * Billing is NOT a public page: /billing is a signed-in, workspace-
+ * bound console destination, so it moved to the (main) shell on
+ * 2026-11-22 (audit fix) — the app sidebar + middleware protection
+ * instead of this marketing header. The URL is unchanged, so the
+ * header's Billing link below still resolves; it now lands in the
+ * console shell.
  *
  * QA fix (2026-11-08): the last nav slot is session-aware
  * (SaasNavAccount) — signed-out visitors see the exact "Get started"

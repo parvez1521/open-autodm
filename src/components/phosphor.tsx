@@ -125,6 +125,7 @@ export {
   Trash,
   TrendUp,
   UploadSimple,
+  User,
   UserCheck,
   Users,
   Warning,
