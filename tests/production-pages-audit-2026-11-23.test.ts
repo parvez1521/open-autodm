@@ -86,6 +86,20 @@ describe('new legal/support routes exist and are wired into navigation', () => {
       expect(legalLayout).toContain(`href="${route}"`);
     }
   });
+
+  it('the support page footer links all seven legal/support pages', () => {
+    for (const route of [
+      '/privacy-policy',
+      '/terms',
+      '/data-deletion',
+      '/cookie-policy',
+      '/accessibility',
+      '/security',
+      '/support',
+    ]) {
+      expect(support).toContain(`href="${route}"`);
+    }
+  });
 });
 
 describe('cookie policy describes only the verified cookies and storage', () => {

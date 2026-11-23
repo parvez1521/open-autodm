@@ -127,6 +127,18 @@ export default function SupportPage() {
           <a href="/data-deletion" className="transition-colors hover:text-foreground">
             Data Deletion
           </a>
+          <a href="/cookie-policy" className="transition-colors hover:text-foreground">
+            Cookie Policy
+          </a>
+          <a href="/accessibility" className="transition-colors hover:text-foreground">
+            Accessibility
+          </a>
+          <a href="/security" className="transition-colors hover:text-foreground">
+            Security
+          </a>
+          <a href="/support" className="transition-colors hover:text-foreground">
+            Support
+          </a>
         </div>
       </footer>
     </div>
