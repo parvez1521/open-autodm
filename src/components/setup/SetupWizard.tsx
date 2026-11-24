@@ -101,6 +101,7 @@ export default function SetupWizard() {
     const saveMutation = useSaveSetup();
 
     const [appId, setAppId] = useState("");
+    const [igAppId, setIgAppId] = useState("");
     const [appSecret, setAppSecret] = useState("");
     const [fbAppSecret, setFbAppSecret] = useState("");
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -111,11 +112,12 @@ export default function SetupWizard() {
         saveMutation.mutate(
             {
                 metaAppId: appId.trim(),
+                ...(igAppId.trim() ? { metaInstagramAppId: igAppId.trim() } : {}),
                 metaAppSecret: appSecret.trim(),
                 ...(fbAppSecret.trim() ? { metaFbAppSecret: fbAppSecret.trim() } : {}),
             },
             {
-                onSuccess: () => { setJustSaved(true); setAppSecret(""); setFbAppSecret(""); },
+                onSuccess: () => { setJustSaved(true); setAppSecret(""); setFbAppSecret(""); setIgAppId(""); },
                 onError: (err) => setSaveError(err.message),
             }
         );
@@ -158,6 +160,7 @@ export default function SetupWizard() {
                     <>Use case <b>Other</b> → app type <b>Business</b>.</>,
                     <>In the app dashboard: <b>Instagram → Set up</b> (adds &ldquo;Instagram API with Instagram Login&rdquo;).</>,
                     <>Go to <b>Instagram → API setup with Instagram login → 3. Set up Instagram business login</b> and copy the <b>Instagram app ID</b> and <b>Instagram app secret</b> shown there. Not the pair under App settings → Basic - those belong to the parent Meta app and Instagram login rejects them with &ldquo;Invalid platform app&rdquo;.</>,
+                    <>Also copy the <b>Meta App ID</b> from <b>App settings → Basic</b> - that one is for Facebook Login only; Instagram login rejects it with &ldquo;Invalid platform app&rdquo;.</>,
                     <>Your Instagram must be a <b>Business or Creator</b> account (switch in the app: Settings → Account type).</>,
                 ]} />
                 <div className="mt-4 flex items-start gap-2 text-[12px] text-muted-foreground bg-muted/50 rounded-lg px-3 py-2.5">
@@ -180,13 +183,30 @@ export default function SetupWizard() {
                 )}
                 <div className="space-y-3">
                     <div>
-                        <label className="micro-label block mb-1">Instagram app ID</label>
+                        <label className="micro-label block mb-1">Meta app ID</label>
                         <input
                             value={appId}
                             onChange={(e) => setAppId(e.target.value)}
                             placeholder={setup?.metaAppId ?? "e.g. 1234567890123456"}
                             className={inputCls}
                         />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            From App settings → Basic. Used for Facebook Login only.
+                        </p>
+                    </div>
+                    <div>
+                        <label className="micro-label block mb-1">Instagram app ID</label>
+                        <input
+                            value={igAppId}
+                            onChange={(e) => setIgAppId(e.target.value)}
+                            placeholder={setup?.metaInstagramAppId ?? "e.g. 1234567890123456"}
+                            className={inputCls}
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                            {configured
+                                ? "Leave blank to keep the current ID. From Instagram → API setup with Instagram login → 3. Set up Instagram business login. Never the Meta app ID — Instagram login rejects it with “Invalid platform app”."
+                                : "From Instagram → API setup with Instagram login → 3. Set up Instagram business login. Never the Meta app ID — Instagram login rejects it with “Invalid platform app”."}
+                        </p>
                     </div>
                     <div>
                         <label className="micro-label block mb-1">Instagram app secret</label>
@@ -222,7 +242,7 @@ export default function SetupWizard() {
                     {justSaved && <p className="text-[12px] text-secondary font-medium">Saved. Continue with Step 3.</p>}
                     <button
                         onClick={handleSave}
-                        disabled={saveMutation.isPending || !appId.trim() || (!configured && !appSecret.trim())}
+                        disabled={saveMutation.isPending || !appId.trim() || (!configured && !appSecret.trim()) || (!configured && !igAppId.trim())}
                         className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-foreground text-background text-[13px] font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
                         {saveMutation.isPending ? <CircleNotch className="w-3.5 h-3.5 animate-spin" /> : <Key className="w-3.5 h-3.5" />}

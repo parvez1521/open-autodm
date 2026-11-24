@@ -34,6 +34,7 @@ const NEW_IG_ID = 'IG-E2E-NEW';
 vi.mock('@/lib/settings', () => ({
   getMetaSettings: async () => ({
     metaAppId: '1586956306036999',
+    instagramAppId: '1121249884134177',
     metaAppSecret: 'synthetic-app-secret',
     metaFbAppSecret: null,
     webhookVerifyToken: 'synthetic-verify-token',

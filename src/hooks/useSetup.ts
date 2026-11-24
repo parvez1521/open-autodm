@@ -8,6 +8,8 @@ export interface SetupStatus {
   /** Caller's own ADMIN_EMAILS membership (2026-11-10) — gates platform-admin affordances in client surfaces. */
   isAdmin?: boolean;
   metaAppId: string | null;
+  /** Instagram app ID (2026-11-24) — owner-only, same redaction as metaAppId. */
+  metaInstagramAppId: string | null;
   webhookVerifyToken: string | null;
   webhookUrl: string;
   oauthRedirectUri: string;
@@ -27,7 +29,7 @@ export function useSetupStatus() {
 export function useSaveSetup() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { metaAppId: string; metaAppSecret: string; metaFbAppSecret?: string }) =>
+    mutationFn: (payload: { metaAppId: string; metaInstagramAppId?: string; metaAppSecret: string; metaFbAppSecret?: string }) =>
       apiClient<{ success: boolean; webhookVerifyToken: string; webhookUrl: string; oauthRedirectUri: string }>('/setup', {
         method: 'POST',
         body: JSON.stringify(payload),

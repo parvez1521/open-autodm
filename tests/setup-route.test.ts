@@ -48,11 +48,12 @@ function postRequest(): Request {
   return postBody(VALID_BODY);
 }
 
-function seedSettings(setupCompleted: boolean, encryptedSecret?: string): void {
+function seedSettings(setupCompleted: boolean, encryptedSecret?: string, igAppId: string | null = '1121249884134177'): void {
   fake.replaceRows('app_settings', [
     {
       id: 1,
       meta_app_id: '123456789012',
+      ...(igAppId ? { meta_instagram_app_id: igAppId } : {}),
       ...(encryptedSecret ? { meta_app_secret_encrypted: encryptedSecret } : {}),
       webhook_verify_token: 'live-verify-token',
       setup_completed: setupCompleted,
@@ -76,6 +77,7 @@ beforeEach(() => {
   mockGetSettings.mockReset();
   mockGetSettings.mockResolvedValue({
     metaAppId: '123456789012',
+    instagramAppId: '1121249884134177',
     metaAppSecret: 'secret',
     metaFbAppSecret: null,
     webhookVerifyToken: 'live-verify-token',
@@ -198,6 +200,46 @@ describe('POST /api/setup', () => {
     expect(mockSaveSettings).not.toHaveBeenCalled();
   });
 
+  it('omitting metaInstagramAppId preserves the stored IG app ID (2026-11-24)', async () => {
+    // Same preserve discipline as the IG secret: a re-save that only
+    // changes the Meta App ID / FB secret must not wipe the backfilled
+    // Instagram app ID.
+    seedSettings(true, 'existing-encrypted-ig-secret');
+    process.env['OWNER_USER_ID'] = OWNER.id;
+    mockAuth.mockResolvedValue(OWNER);
+    const res = await POST(
+      postBody({ metaAppId: '1586956306036999', metaFbAppSecret: 'b'.repeat(32) })
+    );
+    expect(res.status).toBe(200);
+    expect(mockSaveSettings).toHaveBeenCalledTimes(1);
+    // No IG app ID is passed through on the preserve path — the stored
+    // value survives inside saveMetaSettings.
+    expect(mockSaveSettings.mock.calls[0]?.[0]?.metaInstagramAppId).toBeUndefined();
+  });
+
+  it('omitting metaInstagramAppId with no stored ID returns 400 (first setup still requires it)', async () => {
+    seedSettings(false, undefined, null);
+    mockAuth.mockResolvedValue(OTHER);
+    const res = await POST(postBody({ metaAppId: '123456789012', metaAppSecret: 'a'.repeat(32) }));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/Instagram App ID is required for first-time setup/);
+    expect(mockSaveSettings).not.toHaveBeenCalled();
+  });
+
+  it('providing metaInstagramAppId passes it through to the save', async () => {
+    seedSettings(true, 'existing-encrypted-ig-secret');
+    process.env['OWNER_USER_ID'] = OWNER.id;
+    mockAuth.mockResolvedValue(OWNER);
+    const res = await POST(
+      postBody({ metaAppId: '1586956306036999', metaInstagramAppId: '1121249884134177', metaAppSecret: 'a'.repeat(32) })
+    );
+    expect(res.status).toBe(200);
+    expect(mockSaveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ metaInstagramAppId: '1121249884134177' })
+    );
+  });
+
   it('providing metaAppSecret overwrites as before (no preserve passthrough)', async () => {
     seedSettings(true, 'existing-encrypted-ig-secret');
     process.env['OWNER_USER_ID'] = OWNER.id;
@@ -240,6 +282,19 @@ describe('GET /api/setup', () => {
     expect(body.webhookVerifyToken).toBe('live-verify-token');
     // Owner response unchanged by Phase B: the app ID stays visible.
     expect(body.metaAppId).toBe('123456789012');
+  });
+
+  it('returns metaInstagramAppId to the owner and redacts it for non-owners (2026-11-24)', async () => {
+    seedSettings(true);
+    process.env['OWNER_USER_ID'] = OWNER.id;
+    mockAuth.mockResolvedValue(OWNER);
+    const ownerRes = await GET(new Request('https://app.opendm.in/api/setup'));
+    const ownerBody = (await ownerRes.json()) as { metaInstagramAppId: string | null };
+    expect(ownerBody.metaInstagramAppId).toBe('1121249884134177');
+    mockAuth.mockResolvedValue(OTHER);
+    const otherRes = await GET(new Request('https://app.opendm.in/api/setup'));
+    const otherBody = (await otherRes.json()) as { metaInstagramAppId: string | null };
+    expect(otherBody.metaInstagramAppId).toBeNull();
   });
 
   it('returns the token during first run (wizard needs it before completion)', async () => {

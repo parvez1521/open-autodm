@@ -29,6 +29,7 @@ vi.mock('@/lib/supabase/service', () => ({ createServiceClient: () => fake }));
 vi.mock('@/lib/settings', () => ({
   getMetaSettings: vi.fn(async () => ({
     metaAppId: '123456789012',
+    instagramAppId: '1121249884134177',
     metaAppSecret: 'synthetic-secret',
     metaFbAppSecret: null,
     webhookVerifyToken: 'live-verify-token-synthetic',
@@ -83,7 +84,7 @@ beforeEach(() => {
   mockSaveSettings.mockClear();
   fake.calls.length = 0;
   fake.replaceRows('app_settings', [
-    { id: 1, meta_app_id: '123456789012', webhook_verify_token: 'live-verify-token-synthetic', setup_completed: true },
+    { id: 1, meta_app_id: '123456789012', meta_instagram_app_id: '1121249884134177', webhook_verify_token: 'live-verify-token-synthetic', setup_completed: true },
   ]);
   fake.replaceRows('ai_usage_log', []);
   delete (globalThis as any).__WORKERS_AI_BINDING;

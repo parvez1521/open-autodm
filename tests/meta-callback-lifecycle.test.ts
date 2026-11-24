@@ -84,6 +84,7 @@ beforeEach(() => {
   mocks.getMetaSettings.mockReset();
   mocks.getMetaSettings.mockResolvedValue({
     metaAppId: '1121249884134177',
+    instagramAppId: '1121249884134177',
     metaAppSecret: SYNTH_SECRET,
     metaFbAppSecret: null,
     webhookVerifyToken: 'synthetic-verify-token',

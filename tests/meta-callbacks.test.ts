@@ -18,6 +18,7 @@ vi.mock('@/lib/supabase/service', () => ({
 vi.mock('@/lib/settings', () => ({
   getMetaSettings: async () => ({
     metaAppId: '1586956306036999',
+    instagramAppId: '1121249884134177',
     metaAppSecret: IG_SECRET,
     metaFbAppSecret: FB_SECRET,
     webhookVerifyToken: 'verify-token',

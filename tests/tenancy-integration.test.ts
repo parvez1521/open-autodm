@@ -197,6 +197,7 @@ function seedAppSettings(appId = 'app-123', secret = 'app-secret-xyz'): void {
     {
       id: 1,
       meta_app_id: appId,
+      meta_instagram_app_id: '1121249884134177',
       meta_app_secret_encrypted: encrypt(secret, TOKEN_KEY),
       meta_fb_app_secret_encrypted: null,
       webhook_verify_token: 'verify-token',
@@ -210,6 +211,7 @@ function seedPlatformConfig(appId = 'platform-456', secret = 'platform-secret-xy
     {
       id: 1,
       meta_app_id: appId,
+      meta_instagram_app_id: '1121249884134177',
       meta_app_secret_encrypted: encrypt(secret, TOKEN_KEY),
       meta_fb_app_secret_encrypted: null,
       webhook_verify_token: 'verify-token',

@@ -98,11 +98,18 @@ export async function GET(request: Request): Promise<Response> {
     return settingsRedirect('instagram_error=setup_required');
   }
 
+  // Separate Instagram app ID (2026-11-24): the token exchange sends
+  // client_id too, so it needs the Instagram app ID like the authorize
+  // URL — never the Meta app ID ("Invalid platform app").
+  if (!settings.instagramAppId) {
+    return settingsRedirect('instagram_error=setup_required');
+  }
+
   try {
     const redirectUri = `${appUrl}/api/instagram/callback`;
 
     debugLog('oauth', 'info', 'oauth_exchange', 'processing', 'Exchanging authorization code for tokens', { userId });
-    const shortLived = await exchangeCodeForToken(code, settings.metaAppId, settings.metaAppSecret, redirectUri);
+    const shortLived = await exchangeCodeForToken(code, settings.instagramAppId, settings.metaAppSecret, redirectUri);
     const longLived = await exchangeForLongLivedToken(shortLived.access_token, settings.metaAppSecret);
     const profile = await getInstagramProfile(longLived.access_token);
 

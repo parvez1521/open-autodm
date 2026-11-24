@@ -73,6 +73,7 @@ vi.mock('@/lib/auth', () => ({
 vi.mock('@/lib/settings', () => ({
   getMetaSettings: async () => ({
     metaAppId: '1586956306036999',
+    instagramAppId: '1121249884134177',
     metaAppSecret: IG_SECRET,
     metaFbAppSecret: FB_SECRET,
     webhookVerifyToken: 'synthetic-verify-token',

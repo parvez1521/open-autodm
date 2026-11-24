@@ -57,6 +57,22 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: 'setup_required', message }, { status: 409 });
   }
 
+  // Separate Instagram app ID (2026-11-24): Instagram Business Login
+  // rejects the Meta app ID with "Invalid platform app", so the
+  // authorize URL must carry the Instagram app ID — never
+  // settings.metaAppId (that is the Facebook Login ID). Fail closed
+  // when it was never saved instead of sending the wrong ID.
+  if (!settings.instagramAppId) {
+    return Response.json(
+      {
+        error: 'setup_required',
+        message:
+          'Instagram App ID is not configured - save it in the Setup Wizard. The Meta App ID is for Facebook Login and Instagram rejects it.',
+      },
+      { status: 409 }
+    );
+  }
+
   const workspaceParam = new URL(request.url).searchParams.get('workspace');
   let workspaceId: string | undefined;
   if (workspaceParam) {
@@ -99,7 +115,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const state = await signOAuthState(user.id, workspaceId);
   const redirectUri = `${getAppUrl(request)}/api/instagram/callback`;
-  const url = buildOAuthUrl(settings.metaAppId, redirectUri, state);
+  const url = buildOAuthUrl(settings.instagramAppId, redirectUri, state);
 
   return Response.json({ url });
 }

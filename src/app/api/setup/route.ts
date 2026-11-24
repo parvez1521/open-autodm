@@ -30,6 +30,15 @@ export const dynamic = 'force-dynamic';
 
 const SaveSetupSchema = z.object({
   metaAppId: z.string().regex(/^\d{5,25}$/, 'Meta App ID must be numeric'),
+  // Instagram app ID (2026-11-24) — the ID under the Meta app's Instagram
+  // product, NOT the Meta app ID. Optional on re-save (blank keeps the
+  // stored value); required on first setup — the handler 400s when no
+  // value exists to preserve, mirroring the secret rule.
+  metaInstagramAppId: z
+    .string()
+    .regex(/^\d{5,25}$/, 'Instagram App ID must be numeric')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   // Optional on re-save: the stored IG secret is never shown again, so a
   // save that only changes the App ID / Facebook secret leaves this blank
   // and the handler preserves the existing encrypted secret byte-identical
@@ -80,7 +89,7 @@ export async function GET(request: Request): Promise<Response> {
   const db = createServiceClient();
   const { data: row } = await db
     .from('app_settings')
-    .select('meta_app_id, webhook_verify_token, setup_completed')
+    .select('meta_app_id, meta_instagram_app_id, webhook_verify_token, setup_completed')
     .eq('id', 1)
     .maybeSingle();
 
@@ -107,6 +116,8 @@ export async function GET(request: Request): Promise<Response> {
     // serialized, only the caller's own boolean.
     isAdmin: isAdminEmail(user.email, process.env),
     metaAppId: maySeeMetaAppId ? ((row?.meta_app_id as string | null) ?? null) : null,
+    // Same owner-only redaction as the Meta App ID above.
+    metaInstagramAppId: maySeeMetaAppId ? ((row?.meta_instagram_app_id as string | null) ?? null) : null,
     webhookVerifyToken: maySeeToken ? ((row?.webhook_verify_token as string | null) ?? null) : null,
     webhookUrl: `${appUrl}/api/webhook`,
     oauthRedirectUri: `${appUrl}/api/instagram/callback`,
@@ -143,7 +154,7 @@ export async function POST(request: Request): Promise<Response> {
     const db = createServiceClient();
     const { data: existing } = await db
       .from('app_settings')
-      .select('meta_app_secret_encrypted, webhook_verify_token, setup_completed')
+      .select('meta_app_secret_encrypted, meta_instagram_app_id, webhook_verify_token, setup_completed')
       .eq('id', 1)
       .maybeSingle();
 
@@ -180,8 +191,24 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
+    // Preserve the stored Instagram app ID when the wizard left it blank,
+    // mirroring the secret rule above. On first setup there is nothing to
+    // preserve, so a missing ID is a 400.
+    const existingIgAppId = existing?.meta_instagram_app_id as string | null | undefined;
+    if (parsed.data.metaInstagramAppId === undefined && !existingIgAppId) {
+      return Response.json(
+        {
+          error:
+            'Instagram App ID is required for first-time setup - no existing ID to keep. ' +
+            'Copy it from Instagram → API setup with Instagram login → 3. Set up Instagram business login.',
+        },
+        { status: 400 }
+      );
+    }
+
     await saveMetaSettings({
       metaAppId: parsed.data.metaAppId,
+      metaInstagramAppId: parsed.data.metaInstagramAppId,
       metaAppSecret: parsed.data.metaAppSecret,
       metaAppSecretEncrypted:
         parsed.data.metaAppSecret === undefined ? (existingEncryptedSecret ?? undefined) : undefined,

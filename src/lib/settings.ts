@@ -15,6 +15,18 @@ import { getEnv } from '@/lib/env';
 
 export interface MetaSettings {
   metaAppId: string;
+  /**
+   * Instagram app ID (2026-11-24) — the ID under the Meta app's Instagram
+   * product ("API setup with Instagram login"), NOT the Meta app ID.
+   * Instagram Business Login (instagram.com/oauth/authorize + the
+   * api.instagram.com token exchange) rejects the Meta app ID with
+   * "Invalid platform app", while Facebook Login for Business needs the
+   * Meta app ID. One stored value cannot serve both flows, so the IG
+   * flow uses this field and the FB flow keeps metaAppId. Null when the
+   * column was never filled (pre-migration rows): IG connect fails
+   * closed in that case; FB and webhook paths do not need this field.
+   */
+  instagramAppId: string | null;
   metaAppSecret: string; // decrypted - never log
   /**
    * Optional Facebook App Secret. Meta signs webhooks with the Instagram app
@@ -28,6 +40,8 @@ export interface MetaSettings {
 
 interface SettingsRow {
   meta_app_id: string | null;
+  /** Separate Instagram app ID (2026-11-24) — see MetaSettings. */
+  meta_instagram_app_id: string | null;
   meta_app_secret_encrypted: string | null;
   meta_fb_app_secret_encrypted: string | null;
   webhook_verify_token: string | null;
@@ -37,7 +51,7 @@ interface SettingsRow {
 }
 
 const SETTINGS_COLUMNS =
-  'meta_app_id, meta_app_secret_encrypted, meta_fb_app_secret_encrypted, webhook_verify_token, setup_completed';
+  'meta_app_id, meta_instagram_app_id, meta_app_secret_encrypted, meta_fb_app_secret_encrypted, webhook_verify_token, setup_completed';
 const PLATFORM_CONFIG_COLUMNS = `${SETTINGS_COLUMNS}, secret_key_version`;
 
 const CACHE_TTL_MS = 60_000;
@@ -66,6 +80,7 @@ function rowToSettings(data: SettingsRow): MetaSettings | null {
   }
   return {
     metaAppId: data.meta_app_id,
+    instagramAppId: data.meta_instagram_app_id ?? null,
     metaAppSecret: secret,
     metaFbAppSecret: fbSecret,
     webhookVerifyToken: data.webhook_verify_token,
@@ -123,6 +138,12 @@ export async function getMetaSettings(): Promise<MetaSettings | null> {
 
 export async function saveMetaSettings(input: {
   metaAppId: string;
+  /**
+   * Instagram app ID (2026-11-24). Omit to preserve the stored value —
+   * a save that only changes the Meta App ID / secrets must not wipe it
+   * (same discipline as the IG secret preserve path).
+   */
+  metaInstagramAppId?: string;
   /** Plaintext IG secret to encrypt + store. Omit when preserving the stored secret. */
   metaAppSecret?: string;
   /**
@@ -144,6 +165,7 @@ export async function saveMetaSettings(input: {
   const env = getEnv();
   const db = createServiceClient();
   const fbSecret = input.metaFbAppSecret?.trim();
+  const igAppId = input.metaInstagramAppId?.trim();
   const encryptedSecret =
     input.metaAppSecretEncrypted ??
     (input.metaAppSecret ? encrypt(input.metaAppSecret.trim(), env.TOKEN_ENCRYPTION_KEY) : undefined);
@@ -156,6 +178,12 @@ export async function saveMetaSettings(input: {
       {
         id: 1,
         meta_app_id: input.metaAppId.trim(),
+        // Preserve-when-omitted (2026-11-24): only include the Instagram
+        // app ID when the caller supplied one. An upsert updates only the
+        // columns present in the payload, so omitting it leaves a stored
+        // (e.g. migration-backfilled) value untouched — a wizard re-save
+        // can never blank it.
+        ...(igAppId ? { meta_instagram_app_id: igAppId } : {}),
         meta_app_secret_encrypted: encryptedSecret,
         meta_fb_app_secret_encrypted: fbSecret ? encrypt(fbSecret, env.TOKEN_ENCRYPTION_KEY) : null,
         webhook_verify_token: input.webhookVerifyToken,

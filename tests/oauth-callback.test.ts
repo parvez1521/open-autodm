@@ -18,14 +18,20 @@ const TOKEN_KEY = 'ab'.repeat(32); // 64 hex chars = 32-byte test key
 const CALLER_ID = 'caller-user-id';
 const IG_ID = 'IG-100';
 
+// Mutable settings override for the fail-closed tests below (vitest mock
+// factories may only reference top-level variables prefixed with `mock`).
+let mockSettingsOverride: Record<string, unknown> | null = null;
+
 vi.mock('@/lib/settings', () => ({
-  getMetaSettings: async () => ({
-    metaAppId: '1586956306036999',
-    metaAppSecret: 'app-secret',
-    metaFbAppSecret: null,
-    webhookVerifyToken: 'token',
-    setupCompleted: true,
-  }),
+  getMetaSettings: async () =>
+    mockSettingsOverride ?? {
+      metaAppId: '1586956306036999',
+      instagramAppId: '1121249884134177',
+      metaAppSecret: 'app-secret',
+      metaFbAppSecret: null,
+      webhookVerifyToken: 'token',
+      setupCompleted: true,
+    },
 }));
 vi.mock('@/lib/supabase/service', () => ({ createServiceClient: vi.fn() }));
 vi.mock('@/lib/instagram/oauth', () => ({
@@ -71,6 +77,25 @@ beforeEach(() => {
   mockVerifyState.mockReset();
   mockVerifyState.mockResolvedValue({ userId: CALLER_ID });
   mockSubscribe.mockClear();
+  mockSettingsOverride = null;
+});
+
+describe('GET /api/instagram/callback — separate Instagram app ID (2026-11-24)', () => {
+  it('missing Instagram app ID fails closed with setup_required before any token exchange', async () => {
+    mockSettingsOverride = {
+      metaAppId: '1586956306036999',
+      instagramAppId: null,
+      metaAppSecret: 'app-secret',
+      metaFbAppSecret: null,
+      webhookVerifyToken: 'token',
+      setupCompleted: true,
+    };
+    const res = await GET(callbackRequest());
+    expect(res.status).toBe(302);
+    expect(location(res)).toContain('instagram_error=setup_required');
+    // Nothing was written: the guard runs before the exchange.
+    expect(fake.rows('instagram_accounts')).toHaveLength(0);
+  });
 });
 
 describe('GET /api/instagram/callback ownership guard', () => {

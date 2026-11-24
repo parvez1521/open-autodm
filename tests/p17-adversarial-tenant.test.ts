@@ -76,7 +76,7 @@ vi.mock('@/lib/instagram/oauth', () => ({
   verifyOAuthState: vi.fn(async () => ({ userId: 'x' })),
 }));
 vi.mock('@/lib/settings', () => ({
-  getMetaSettings: vi.fn(async () => ({ metaAppId: 'app-1', metaAppSecret: 's' })),
+  getMetaSettings: vi.fn(async () => ({ metaAppId: 'app-1', instagramAppId: 'ig-app-1', metaAppSecret: 's' })),
   invalidateSettingsCache: vi.fn(),
 }));
 vi.mock('next/server', () => ({
