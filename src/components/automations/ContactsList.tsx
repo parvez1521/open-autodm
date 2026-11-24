@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { motion } from "motion/react";
-import { EASE_OUT } from "@/lib/motion/presets";
 import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise, Warning, At, Envelope, DownloadSimple } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
 import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
@@ -266,18 +264,15 @@ export function ContactsList() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border/30">
-                        {filtered.map((contact, i) => {
+                        {filtered.map((contact) => {
                             const trigger = contact.last_trigger_type ? TRIGGER_CONFIG[contact.last_trigger_type] : null;
                             const TriggerIcon = trigger?.icon ?? ChatCircle;
                             const display = contact.username ? `@${contact.username}` : `IG user ${contact.audience_ig_user_id.slice(-6)}`;
                             const initial = (contact.username ?? contact.audience_ig_user_id).charAt(0).toUpperCase();
 
                             return (
-                                <motion.tr
+                                <tr
                                     key={contact.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: Math.min(i * 0.04, 0.4), duration: 0.45, ease: EASE_OUT }}
                                     className="group hover:bg-muted/30 transition-colors"
                                 >
                                     <td className="px-5 py-3">
@@ -309,7 +304,7 @@ export function ContactsList() {
                                         <span className="font-bold font-heading">{contact.total_triggers}</span>
                                     </td>
                                     <td className="px-5 py-3 text-muted-foreground">{formatDate(contact.last_interaction_at)}</td>
-                                </motion.tr>
+                                </tr>
                             );
                         })}
                     </tbody>

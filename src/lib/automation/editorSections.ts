@@ -1,3 +1,5 @@
+import { truncateWithEllipsis } from '@/lib/utils';
+
 /**
  * Stepped editor sections (2026-11-22, owner).
  *
@@ -19,6 +21,13 @@ export interface EditorSection {
   title: string;
   /** Short summary of what is set, shown in the collapsed header. */
   summary: string;
+  /**
+   * Full text behind a truncated summary, shown as the header tooltip
+   * (title attribute). Only set where the summary cuts longer text —
+   * today the Post section, whose summary is the caption cut to 70
+   * chars. Falls back to `summary` when absent.
+   */
+  summaryTitle?: string;
   /** Whether the section is configured (shows a done check). */
   done: boolean;
 }
@@ -52,7 +61,7 @@ const ANY_MODE_LABEL: Record<string, string> = {
 
 function postSummary(data: EditorSectionData): string {
   if (data.postThumbnailUrl) {
-    return data.postCaption ? data.postCaption.slice(0, 70) : "No caption";
+    return data.postCaption ? truncateWithEllipsis(data.postCaption, 70) : "No caption";
   }
   if (data.postId && data.postId !== "all") return "Specific post selected";
   if (data.type === "reel-dm") return "Any shared reel";
@@ -104,6 +113,7 @@ export function getEditorSections(data: EditorSectionData): EditorSection[] {
       id: "post",
       title: "Post",
       summary: postSummary(data),
+      summaryTitle: data.postCaption ?? undefined,
       done: !!data.postId,
     });
   }
@@ -120,7 +130,11 @@ export function getEditorSections(data: EditorSectionData): EditorSection[] {
       id: "follow",
       title: "Follow required",
       summary: data.askToFollowEnabled ? "On — must follow first" : "Off",
-      done: data.askToFollowEnabled,
+      // Follow is done whenever the section renders: On and Off are both
+      // complete binary choices, not a missing configuration. Showing
+      // the grey step number for Off made it look unfinished next to
+      // the other steps' checks.
+      done: true,
     });
   }
   sections.push({

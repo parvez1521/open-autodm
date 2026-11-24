@@ -131,10 +131,12 @@ describe('getEditorSections: header summaries', () => {
 });
 
 describe('getEditorSections: done states', () => {
-  it('follow is done only when enabled; DM is done only when Auto DM is on with content', () => {
+  it('follow is done whether On or Off; DM is done only when Auto DM is on with content', () => {
     const done = (data: EditorSectionData) =>
       Object.fromEntries(getEditorSections(data).map((s) => [s.id, s.done]));
-    expect(done(baseData)).toEqual({ post: true, keyword: true, follow: false, dm: true });
+    // Round 2 (2026-11-24): Follow Off is a complete binary choice, not
+    // an unfinished step — the section shows its check in both states.
+    expect(done(baseData)).toEqual({ post: true, keyword: true, follow: true, dm: true });
     expect(done({ ...baseData, askToFollowEnabled: true }).follow).toBe(true);
     expect(done({ ...baseData, isAutoDmEnabled: false }).dm).toBe(false);
     expect(

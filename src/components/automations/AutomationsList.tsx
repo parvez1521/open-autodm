@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { EASE_OUT } from "@/lib/motion/presets";
 import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Clock, Lightning, Pencil, Copy, Stack, InstagramLogo, FacebookLogo, Warning, Trash, X, CursorClick, At, Link as LinkIcon } from "@/components/phosphor";
-import { cn } from "@/lib/utils";
+import { cn, truncateWithEllipsis } from "@/lib/utils";
 import type { AutomationFromDB } from "@/hooks/useAutomations";
 import { usePostThumbnails, type ThumbnailRequestItem } from "@/hooks/usePostThumbnails";
 import { PostThumb } from "@/components/automations/PostThumb";
@@ -231,8 +231,8 @@ export function AutomationsList({ automations, isLoading, onToggle, onDelete, on
                                             {triggerDescription(automation)}
                                         </span>
                                         {(automation.type === "comment_dm" || automation.type === "reel_dm" || automation.type === "fb_comment_dm") && (
-                                            <span className="truncate hidden sm:inline">
-                                                {hasPost ? (automation.post_caption ? automation.post_caption.slice(0, 44) : "Specific post") : automation.type === "reel_dm" ? "Any shared reel" : "All posts"}
+                                            <span className="truncate hidden sm:inline" title={hasPost ? (automation.post_caption ?? undefined) : undefined}>
+                                                {hasPost ? (automation.post_caption ? truncateWithEllipsis(automation.post_caption, 44) : "Specific post") : automation.type === "reel_dm" ? "Any shared reel" : "All posts"}
                                             </span>
                                         )}
                                         <span className="items-center gap-1 hidden md:flex shrink-0">

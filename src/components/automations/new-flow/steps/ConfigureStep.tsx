@@ -6,7 +6,7 @@ import {
     Image as ImageIcon, CaretDown, Chat, SquaresFour,
     Lightning, Warning,
 } from "@/components/phosphor";
-import { cn } from "@/lib/utils";
+import { cn, truncateWithEllipsis } from "@/lib/utils";
 import { PostThumb } from "@/components/automations/PostThumb";
 import { getEditorSections, type EditorSectionId } from "@/lib/automation/editorSections";
 import { apiClient, ApiError } from "@/lib/api/client";
@@ -44,7 +44,7 @@ const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
 // vertical scroll. Belt-and-braces with the `min-w-0` on the flex-row
 // inputs below, the real fix for rows that could force the column wider.
 const inputCls = "w-full min-w-0 text-[13px] bg-background border border-border rounded-lg px-3 py-2 outline-none focus:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors";
-const textareaCls = "w-full text-[13px] bg-background border border-border rounded-lg px-3 py-2 outline-none focus:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors resize-none";
+const textareaCls = "w-full text-[13px] bg-background border border-border rounded-lg px-3 pt-2 pb-6 outline-none focus:border-foreground/30 focus-visible:ring-2 focus-visible:ring-ring/30 transition-colors resize-none field-sizing-content";
 
 /* Per-type copy - the builder speaks the trigger's language */
 const TYPE_COPY: Record<string, {
@@ -140,10 +140,12 @@ function SectionHeader({ title, action }: { title: string; action?: React.ReactN
  * is visible at a glance without opening the section. "Continue" only
  * opens the next section — it never validates or saves; validation
  * still happens at Save in the modal footer, exactly as before. */
-function AccordionSection({ index, title, summary, done, open, onToggle, onContinue, isLast, children }: {
+function AccordionSection({ index, title, summary, summaryTitle, done, open, onToggle, onContinue, isLast, children }: {
     index: number;
     title: string;
     summary: string;
+    /** Full text behind a truncated summary — header tooltip. Falls back to the summary itself. */
+    summaryTitle?: string;
     done: boolean;
     open: boolean;
     onToggle: () => void;
@@ -167,7 +169,7 @@ function AccordionSection({ index, title, summary, done, open, onToggle, onConti
                 </span>
                 <span className="min-w-0 flex-1">
                     <span className="block text-[13px] font-semibold text-foreground">{title}</span>
-                    <span className="block text-[11px] text-muted-foreground truncate">{summary}</span>
+                    <span className="block text-[11px] text-muted-foreground truncate" title={summaryTitle ?? summary}>{summary}</span>
                 </span>
                 <CaretDown className={cn("w-4 h-4 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
             </button>
@@ -262,14 +264,15 @@ function AiDraftControl({ action, label, placeholder, defaultPrompt, automationN
 
     return (
         <div className="space-y-1.5">
-            <div className="flex gap-1.5">
-                <input
+            <div className="flex items-start gap-1.5">
+                <textarea
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); generate(); } }}
                     placeholder={placeholder}
                     disabled={disabled}
-                    className={inputCls}
+                    rows={2}
+                    className={cn(inputCls, "resize-none")}
                 />
                 <button
                     onClick={generate}
@@ -776,8 +779,8 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                     />
                     <div className="min-w-0 flex-1">
                         <p className="micro-label">Selected post</p>
-                        <p className="text-[12px] text-foreground truncate">
-                            {data.postCaption ? data.postCaption.slice(0, 70) : "No caption"}
+                        <p className="text-[12px] text-foreground truncate" title={data.postCaption ?? undefined}>
+                            {data.postCaption ? truncateWithEllipsis(data.postCaption, 70) : "No caption"}
                         </p>
                     </div>
                     {onChangePost && (
@@ -1342,6 +1345,7 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                             index={i + 1}
                             title={section.title}
                             summary={section.summary}
+                            summaryTitle={section.summaryTitle}
                             done={section.done}
                             open={openSection === section.id}
                             onToggle={() => setOpenSection(section.id)}

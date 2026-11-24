@@ -551,7 +551,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.98, y: 12 }}
                         transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                        className="relative w-full h-full max-w-[96vw] lg:max-w-6xl max-h-[92vh] bg-background border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden z-10"
+                        className={`relative w-full ${step === 2 ? "h-full" : ""} max-w-[96vw] lg:max-w-6xl max-h-[92vh] bg-background border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden z-10`}
                     >
                         {/* Header */}
                         <div className="h-12 shrink-0 border-b border-border flex items-center justify-between px-4 gap-3">
@@ -624,7 +624,7 @@ export function NewAutomationModal({ isOpen, onClose, editAutomation, accountId,
                             until its exit finished, which deadlocked
                             the outer close (see the portal note above)
                             and left the picker orphaned. */}
-                        <div className="flex-1 overflow-hidden">
+                        <div className="flex-auto min-h-0 overflow-hidden">
                             <AnimatePresence>
                                 <motion.div
                                     key={step}

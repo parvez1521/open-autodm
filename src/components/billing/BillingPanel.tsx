@@ -619,6 +619,14 @@ export default function BillingPanel() {
         {PLANS.map((plan) => {
           const figure = plan.prices[currency].monthlyMinor;
           const isCurrent = plan.id === currentPlanId && (paidActive || trialing || plan.id === "free");
+          // Owner comp: the owner's forever-free account runs on effective
+          // (unlimited) limits, not the Free catalogue's. The current-plan
+          // card above already renders status.entitlement.limits; the plan
+          // card below must agree with it when it IS the current plan,
+          // or the page contradicts itself ("Unlimited Instagram accounts"
+          // above, "1 Instagram account(s)" below). Other plans and
+          // non-owner workspaces keep the catalogue limits.
+          const shownLimits = status.entitlement.ownerFree && isCurrent ? status.entitlement.limits : plan.limits;
           return (
             <motion.div layout variants={staggerChild} key={plan.id} className="border border-border p-6" data-testid={`billing-plan-${plan.id}`}>
               <div className="flex flex-wrap items-start justify-between gap-4">
@@ -643,8 +651,8 @@ export default function BillingPanel() {
                       <>Custom accounts, seats and volumes · </>
                     ) : (
                       <>
-                        {plan.limits.instagramAccounts} Instagram account(s) ·{" "}
-                        {plan.limits.dmsPerMonth === null ? "Unlimited" : plan.limits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month ·{" "}
+                        {shownLimits.instagramAccounts === null ? "Unlimited" : shownLimits.instagramAccounts} Instagram account(s) ·{" "}
+                        {shownLimits.dmsPerMonth === null ? "Unlimited" : shownLimits.dmsPerMonth.toLocaleString("en-IN")} auto DMs / month ·{" "}
                       </>
                     )}
                     {plan.id === "free" ? "Creator Studio (limited)" : "Creator Studio included"}

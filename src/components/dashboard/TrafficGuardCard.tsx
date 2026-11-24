@@ -34,14 +34,11 @@ export function TrafficGuardCard({ accountId }: TrafficGuardCardProps) {
 
   const [actionError, setActionError] = useState<string | null>(null);
 
-  if (!accountId || isLoading) {
-    return (
-      <div className="bg-card border border-border rounded-xl p-5 animate-pulse">
-        <div className="h-5 w-44 bg-muted rounded mb-3" />
-        <div className="h-16 bg-muted/60 rounded" />
-      </div>
-    );
-  }
+  // No account selected, or the guard is still loading: render nothing.
+  // The old two-bar skeleton lingered and then vanished when the fetch
+  // resolved with no data (no incident, nothing to guard) — a phantom
+  // card that looked like content and then disappeared.
+  if (!accountId || isLoading) return null;
 
   if (!guard) return null;
 

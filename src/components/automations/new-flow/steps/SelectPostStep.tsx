@@ -140,7 +140,7 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
             </div>
 
             {/* Grid */}
-            <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
+            <div className="flex-auto min-h-0 overflow-y-auto p-5 custom-scrollbar">
                 <div className="max-w-5xl mx-auto">
                     {!instagramAccountId && !isFacebook ? (
                         <div className="flex flex-col items-center justify-center p-12 text-center border border-border border-dashed rounded-xl">
@@ -219,8 +219,8 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                                      <span className="w-2.5 h-2.5 bg-white rounded-[2px] opacity-80" />}
                                                 </div>
 
-                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-8">
-                                                    <p className="text-[11px] text-white/95 font-medium line-clamp-2 leading-snug mb-1">
+                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-2.5 pt-12">
+                                                    <p className="text-[11px] text-white/95 font-medium line-clamp-2 leading-snug mb-1 [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
                                                         {post.caption || <span className="text-white/50 italic">No caption</span>}
                                                     </p>
                                                     <div className="flex items-center justify-between text-white/70 text-[10px] font-medium tabular-nums">
