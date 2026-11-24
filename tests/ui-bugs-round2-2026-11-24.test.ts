@@ -105,19 +105,18 @@ describe('#2 + #6 — getEditorSections summaries and follow done-state', () => 
   });
 });
 
-describe('#1 — picker scrim is strong enough to read captions over', () => {
+describe('#1 — picker text lives below the image (scrim removed 2026-11-25)', () => {
   const picker = readSrc('components/automations/new-flow/steps/SelectPostStep.tsx');
 
-  it('uses a near-opaque scrim with a taller top pad', () => {
-    // Padding changed in the 2026-11-25 stats-row fix (p-2.5 ->
-    // px-2.5 pb-3) to lift the stats row off the tile bottom edge;
-    // the gradient itself is unchanged.
-    expect(picker).toContain('from-black/95 via-black/70 to-transparent px-2.5 pb-3 pt-12');
+  it('has NO scrim: caption + stats moved below the thumbnail', () => {
+    // SUPERSEDED 2026-11-25: the strong scrim (black/95 via black/70)
+    // and the dark stat chips both failed live — creators burn text
+    // into the image's bottom band, so no overlay can win. Caption +
+    // stats now render below the thumbnail on the solid card surface.
+    expect(picker).not.toContain('from-black/95 via-black/70');
     expect(picker).not.toContain('from-black/85 via-black/40');
-  });
-
-  it('gives the caption a text shadow', () => {
-    expect(picker).toContain('[text-shadow:0_1px_3px_rgba(0,0,0,0.9)]');
+    expect(picker).not.toContain('[text-shadow:0_1px_3px_rgba(0,0,0,0.9)]');
+    expect(picker).toContain('px-2.5 py-2 bg-card');
   });
 
   it('tile click behaviour is untouched', () => {

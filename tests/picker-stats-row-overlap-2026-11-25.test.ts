@@ -1,16 +1,16 @@
 /**
- * Picker stats-row overlap fix (2026-11-25).
+ * Picker stats-row overlap — SUPERSEDED by the below-image restructure
+ * (2026-11-25, tests/picker-tiles-below-image-2026-11-25.test.ts).
  *
- * Residual from UI-bugs round 2 (commit 2814628): the stronger scrim
- * made the tile caption readable, but the stats row (likes / comments /
- * date) at the very bottom edge of each picker tile still collided with
- * the thumbnails' own burned-in text — creators put lines like
- * "WATCH TILL END" or "DOWNLOAD ANY VIDEO FROM THE INTERNET" right at
- * the bottom edge, and a bright or red line still showed through the
- * black/95 gradient and fought the 10px stats. Each stat now sits on
- * its own near-solid dark chip, so it reads no matter what is behind
- * it. Caption-then-stats order, tile click behaviour, and the thumbnail
- * refresh logic are all untouched.
+ * This file originally pinned the 2026-11-25 stats-row fix: each stat on
+ * its own near-solid dark chip over the image. That fix FAILED live the
+ * same night — the pills made the numbers legible, but they do not mask
+ * the thumbnails' own burned-in text on the same bottom band, so the row
+ * still visually merged with it ("Higgsfield is dead" read as
+ * "♡1dea 💬0ow, Nov 12"). Both overlay treatments (strong scrim, then
+ * dark chips) are now gone: caption + stats render BELOW the thumbnail
+ * on the solid card surface. The pins below assert the replacement, not
+ * the overlay.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -23,37 +23,39 @@ const readSrc = (rel: string): string =>
 const picker = () =>
   readSrc('components/automations/new-flow/steps/SelectPostStep.tsx');
 
-describe('picker tile stats row — legible over burned-in image text', () => {
-  it('puts every stat (likes, comments, date) on its own dark chip', () => {
+describe('picker tile stats row — plain text below the image, no overlay', () => {
+  it('stats are plain muted text on the solid card surface, not dark chips', () => {
     const src = picker();
-    // Three stats, three chips: likes (Heart), comments (ChatCircle),
-    // date. The chip is a near-solid dark pill, not a gradient.
-    const chips = src.match(/rounded-full bg-black\/70 px-1\.5 py-0\.5/g) ?? [];
-    expect(chips.length).toBe(3);
+    // The chips died with the overlay — on a solid surface they are
+    // unnecessary, and they were the thing that still merged with
+    // burned-in text.
+    expect(src).not.toContain('rounded-full bg-black/70');
+    expect(src).toContain('flex items-center justify-between text-muted-foreground text-[10px]');
     expect(src).toContain('<Heart className="w-2.5 h-2.5" />');
     expect(src).toContain('<ChatCircle className="w-2.5 h-2.5" />');
     expect(src).not.toContain('from-purple');
   });
 
-  it('raises the overlay off the tile bottom edge', () => {
+  it('the text area sits below the image, lifted off its bottom edge', () => {
     const src = picker();
-    // pb-3 instead of the old uniform p-2.5, so the stats row no
-    // longer sits flush on the very bottom edge of the image.
-    expect(src).toContain('px-2.5 pb-3 pt-12');
+    // No absolute bottom overlay at all; the text block is a normal
+    // sibling below the image container.
+    expect(src).not.toContain('absolute bottom-0');
+    expect(src).toContain('px-2.5 py-2 bg-card');
   });
 
   it('keeps caption above stats and the tile click unchanged', () => {
     const src = picker();
-    const captionIdx = src.indexOf('line-clamp-2 leading-snug mb-1');
-    const statsIdx = src.indexOf('flex items-center justify-between text-white/85');
+    const captionIdx = src.indexOf('truncateWithEllipsis(post.caption, 70)');
+    const statsIdx = src.indexOf('flex items-center justify-between text-muted-foreground');
     expect(captionIdx).toBeGreaterThan(-1);
     expect(statsIdx).toBeGreaterThan(captionIdx);
     expect(src).toContain('onClick={() => onSelect(post.id, flowName, thumbUrl ?? null, post.caption ?? "")}');
   });
 
-  it('keeps the strong scrim and caption text-shadow from round 2', () => {
+  it('the scrim and text-shadows are gone — the overlay approach is over', () => {
     const src = picker();
-    expect(src).toContain('bg-gradient-to-t from-black/95 via-black/70 to-transparent');
-    expect(src).toContain('[text-shadow:0_1px_3px_rgba(0,0,0,0.9)]');
+    expect(src).not.toContain('bg-gradient-to-t from-black/95');
+    expect(src).not.toContain('[text-shadow:');
   });
 });

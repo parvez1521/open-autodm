@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { ChatCircle, PlayCircle, Stack, MagnifyingGlass, InstagramLogo, FacebookLogo, Heart } from "@/components/phosphor";
-import { cn } from "@/lib/utils";
+import { cn, truncateWithEllipsis } from "@/lib/utils";
 import { useState, type FormEvent } from "react";
 import { useInstagramPosts, useResolveInstagramPost } from "@/hooks/useInstagramPosts";
 import { useFacebookPosts, useResolveFacebookPost } from "@/hooks/useFacebookPosts";
@@ -161,12 +161,16 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                     ) : isLoading ? (
                         <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
                             {Array.from({ length: 10 }).map((_, i) => (
-                                <div key={i} className="aspect-[4/5] rounded-lg overflow-hidden">
-                                    <div className="w-full h-full bg-muted/50 relative overflow-hidden">
+                                <div key={i} className="rounded-lg overflow-hidden ring-1 ring-border bg-card">
+                                    <div className="aspect-[4/5] w-full bg-muted/50 relative overflow-hidden">
                                         <div
                                             className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite]"
                                             style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)" }}
                                         />
+                                    </div>
+                                    <div className="px-2.5 py-2 space-y-1.5">
+                                        <div className="h-3 w-4/5 rounded bg-muted/60" />
+                                        <div className="h-2.5 w-3/5 rounded bg-muted/60" />
                                     </div>
                                 </div>
                             ))}
@@ -195,12 +199,23 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                             transition={{ delay: Math.min(idx * 0.03, 0.3) }}
                                             onClick={() => onSelect(post.id, flowName, thumbUrl ?? null, post.caption ?? "")}
                                             className={cn(
-                                                "group relative rounded-lg overflow-hidden cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                                "group relative rounded-lg overflow-hidden cursor-pointer text-left bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
                                                 isSelected
                                                     ? "ring-2 ring-foreground ring-offset-2 ring-offset-background"
                                                     : "ring-1 ring-border hover:ring-foreground/30"
                                             )}
                                         >
+                                            {/* Thumbnail — clean image. Two overlay treatments
+                                                failed here in a row (round 2 strong scrim, then
+                                                dark stat chips): creators burn text into arbitrary
+                                                parts of the image, including the exact bottom
+                                                band, so no overlay can ever fully win. NO text
+                                                sits on the image anymore — caption + stats live
+                                                in the solid card area below. The only things
+                                                still on the image are icon-only badges (media
+                                                type, selection check) on solid dark circles;
+                                                they carry no text and cannot merge with
+                                                burned-in text. */}
                                             <div className="aspect-[4/5] relative bg-muted w-full overflow-hidden">
                                                 <PostThumb
                                                     src={thumbUrl}
@@ -218,26 +233,25 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                                      post.type === "carousel" ? <Stack className="w-3 h-3 text-white" /> :
                                                      <span className="w-2.5 h-2.5 bg-white rounded-[2px] opacity-80" />}
                                                 </div>
+                                            </div>
 
-                                                {/* Picker tile overlay (2026-11-24 round 2 + 2026-11-25
-                                                    stats-row fix): the gradient alone was not enough for
-                                                    the bottom stats row — creators burn their own text
-                                                    into the very bottom edge of the image, and a bright
-                                                    or red burned-in line still showed through the
-                                                    black/95 gradient and fought the 10px stats. Each
-                                                    stat therefore sits on its own near-solid dark chip,
-                                                    so it reads no matter what is behind it. Caption
-                                                    stays above the stats; nothing here changes what a
-                                                    tile click does. */}
-                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-2.5 pb-3 pt-12">
-                                                    <p className="text-[11px] text-white/95 font-medium line-clamp-2 leading-snug mb-1 [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
-                                                        {post.caption || <span className="text-white/50 italic">No caption</span>}
-                                                    </p>
-                                                    <div className="flex items-center justify-between text-white/85 text-[10px] font-medium tabular-nums [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
-                                                        <span className="flex items-center gap-1 rounded-full bg-black/70 px-1.5 py-0.5"><Heart className="w-2.5 h-2.5" />{post.like_count.toLocaleString()}</span>
-                                                        <span className="flex items-center gap-1 rounded-full bg-black/70 px-1.5 py-0.5"><ChatCircle className="w-2.5 h-2.5" />{post.comments_count.toLocaleString()}</span>
-                                                        <span className="rounded-full bg-black/70 px-1.5 py-0.5">{new Date(post.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
-                                                    </div>
+                                            {/* Caption + stats BELOW the thumbnail, on the solid
+                                                card surface — nothing behind them can fight
+                                                them. Caption keeps the round-2 truncation
+                                                (70 chars + "…", full text on hover) and its
+                                                2-line clamp; stats are plain muted text now,
+                                                the dark chips died with the overlay. */}
+                                            <div className="px-2.5 py-2 bg-card">
+                                                <p
+                                                    title={post.caption || undefined}
+                                                    className="text-[11px] text-foreground font-medium line-clamp-2 leading-snug mb-1"
+                                                >
+                                                    {post.caption ? truncateWithEllipsis(post.caption, 70) : <span className="text-muted-foreground italic">No caption</span>}
+                                                </p>
+                                                <div className="flex items-center justify-between text-muted-foreground text-[10px] font-medium tabular-nums">
+                                                    <span className="flex items-center gap-1"><Heart className="w-2.5 h-2.5" />{post.like_count.toLocaleString()}</span>
+                                                    <span className="flex items-center gap-1"><ChatCircle className="w-2.5 h-2.5" />{post.comments_count.toLocaleString()}</span>
+                                                    <span>{new Date(post.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                                                 </div>
                                             </div>
 
