@@ -219,14 +219,24 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                                                      <span className="w-2.5 h-2.5 bg-white rounded-[2px] opacity-80" />}
                                                 </div>
 
-                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-2.5 pt-12">
+                                                {/* Picker tile overlay (2026-11-24 round 2 + 2026-11-25
+                                                    stats-row fix): the gradient alone was not enough for
+                                                    the bottom stats row — creators burn their own text
+                                                    into the very bottom edge of the image, and a bright
+                                                    or red burned-in line still showed through the
+                                                    black/95 gradient and fought the 10px stats. Each
+                                                    stat therefore sits on its own near-solid dark chip,
+                                                    so it reads no matter what is behind it. Caption
+                                                    stays above the stats; nothing here changes what a
+                                                    tile click does. */}
+                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-2.5 pb-3 pt-12">
                                                     <p className="text-[11px] text-white/95 font-medium line-clamp-2 leading-snug mb-1 [text-shadow:0_1px_3px_rgba(0,0,0,0.9)]">
                                                         {post.caption || <span className="text-white/50 italic">No caption</span>}
                                                     </p>
-                                                    <div className="flex items-center justify-between text-white/70 text-[10px] font-medium tabular-nums">
-                                                        <span className="flex items-center gap-1"><Heart className="w-2.5 h-2.5" />{post.like_count.toLocaleString()}</span>
-                                                        <span className="flex items-center gap-1"><ChatCircle className="w-2.5 h-2.5" />{post.comments_count.toLocaleString()}</span>
-                                                        <span>{new Date(post.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                                                    <div className="flex items-center justify-between text-white/85 text-[10px] font-medium tabular-nums [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
+                                                        <span className="flex items-center gap-1 rounded-full bg-black/70 px-1.5 py-0.5"><Heart className="w-2.5 h-2.5" />{post.like_count.toLocaleString()}</span>
+                                                        <span className="flex items-center gap-1 rounded-full bg-black/70 px-1.5 py-0.5"><ChatCircle className="w-2.5 h-2.5" />{post.comments_count.toLocaleString()}</span>
+                                                        <span className="rounded-full bg-black/70 px-1.5 py-0.5">{new Date(post.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
                                                     </div>
                                                 </div>
                                             </div>

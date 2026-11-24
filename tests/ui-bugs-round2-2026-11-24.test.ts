@@ -109,7 +109,10 @@ describe('#1 — picker scrim is strong enough to read captions over', () => {
   const picker = readSrc('components/automations/new-flow/steps/SelectPostStep.tsx');
 
   it('uses a near-opaque scrim with a taller top pad', () => {
-    expect(picker).toContain('from-black/95 via-black/70 to-transparent p-2.5 pt-12');
+    // Padding changed in the 2026-11-25 stats-row fix (p-2.5 ->
+    // px-2.5 pb-3) to lift the stats row off the tile bottom edge;
+    // the gradient itself is unchanged.
+    expect(picker).toContain('from-black/95 via-black/70 to-transparent px-2.5 pb-3 pt-12');
     expect(picker).not.toContain('from-black/85 via-black/40');
   });
 
