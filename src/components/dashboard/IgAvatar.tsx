@@ -4,8 +4,16 @@
  * Instagram account avatar with a graceful fallback (functional
  * audit fix, 2026-11-08). Connected-account profile URLs are Meta
  * CDN links that expire; when the image fails (or none exists) the
- * tile shows the account's initial instead of a broken-image glyph.
- * Shared by the sidebar account switcher and Settings.
+ * tile shows the Instagram glyph on a solid brand-tinted tile
+ * instead of a broken-image glyph.
+ *
+ * UI polish (2026-11-25): the fallback used to be the account's
+ * first letter — so the switcher showed one real photo next to
+ * plain "C" / "B" tiles, which looks unfinished. A platform glyph
+ * on a tinted tile is one consistent, deliberate fallback for every
+ * account (the Facebook fallback already worked this way). The
+ * fresh picture is resolved at render time by useProfilePictures,
+ * so the glyph only shows when Meta cannot serve a photo at all.
  */
 
 import { useEffect, useState } from "react";
@@ -32,12 +40,6 @@ export function IgAvatar({
     }, [pictureUrl]);
 
     const showImage = !!pictureUrl && !failed;
-    // Audit fix (2026-11-22): the initial is the first LETTER or
-    // digit, not the first character — @_caption.it starts with "_",
-    // so the tile showed a bare "_". A username with no letter or
-    // digit at all leaves initial "" and falls through to the
-    // InstagramLogo glyph below.
-    const initial = username?.trim().replace(/^[^a-zA-Z0-9]+/, "").charAt(0).toUpperCase();
 
     return (
         <div className={cn("relative rounded-full border border-border shrink-0", className)}>
@@ -49,12 +51,10 @@ export function IgAvatar({
                         className="w-full h-full object-cover rounded-full"
                         onError={() => setFailed(true)}
                     />
-                ) : initial ? (
-                    <span className="text-[11px] font-semibold text-muted-foreground select-none">
-                        {initial}
-                    </span>
                 ) : (
-                    <InstagramLogo className={cn("w-3 h-3 text-muted-foreground", iconClassName)} />
+                    <span className="w-full h-full rounded-full bg-[#E1306C]/10 flex items-center justify-center">
+                        <InstagramLogo className={cn("w-3 h-3 text-[#E1306C]", iconClassName)} weight="fill" />
+                    </span>
                 )}
             </div>
         </div>

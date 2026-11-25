@@ -12,6 +12,7 @@ import { IgAvatar } from "@/components/dashboard/IgAvatar";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { useInstagramAccounts, useRefreshInstagramToken, useResubscribeWebhook, useCheckSubscription } from "@/hooks/useInstagramAccounts";
 import { useFacebookPages, useDisconnectFacebookPage, useResubscribeFacebookPage } from "@/hooks/useFacebookPages";
+import { useProfilePictures } from "@/hooks/useProfilePictures";
 import { useSetupStatus } from "@/hooks/useSetup";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,7 +40,7 @@ function FacebookPageAvatar({ page }: { page: { name: string; profile_picture_ur
     }
     return (
         <span className="w-9 h-9 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0">
-            <FacebookLogo className="w-4 h-4 text-[#1877F2]" />
+            <FacebookLogo className="w-4 h-4 text-[#1877F2]" weight="fill" />
         </span>
     );
 }
@@ -65,6 +66,13 @@ function SettingsContent() {
     const { data: setup } = useSetupStatus();
     // Facebook Pages (2026-11-19) — same Settings page, its own section.
     const { data: fbPages, isLoading: fbLoading, error: fbError, refetch: refetchFbPages } = useFacebookPages();
+    // Fresh profile pictures (UI polish, 2026-11-25): the stored
+    // snapshots expire within days (Meta CDN signatures) — same fix
+    // as the account switcher, fail-open to the stored URL.
+    const { pictures } = useProfilePictures([
+        ...(accounts ?? []).map((a) => ({ channel: "instagram" as const, accountId: a.id })),
+        ...(fbPages ?? []).map((p) => ({ channel: "facebook" as const, accountId: p.id })),
+    ]);
     const fbDisconnectMutation = useDisconnectFacebookPage();
     const fbResubscribeMutation = useResubscribeFacebookPage();
 
@@ -434,7 +442,7 @@ function SettingsContent() {
 
                                 <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <IgAvatar username={account.username} pictureUrl={account.profile_picture_url} className="w-9 h-9" iconClassName="w-4 h-4" />
+                                        <IgAvatar username={account.username} pictureUrl={pictures[account.id] ?? account.profile_picture_url} className="w-9 h-9" iconClassName="w-4 h-4" />
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[13px] font-semibold text-foreground truncate">@{account.username}</span>
@@ -575,7 +583,7 @@ function SettingsContent() {
 
                                 <div className="flex items-center justify-between p-3 rounded-lg border border-border">
                                     <div className="flex items-center gap-3 min-w-0">
-                                        <FacebookPageAvatar page={page} />
+                                        <FacebookPageAvatar page={{ ...page, profile_picture_url: pictures[page.id] ?? page.profile_picture_url }} />
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[13px] font-semibold text-foreground truncate">{page.name}</span>
@@ -635,7 +643,9 @@ function SettingsContent() {
             <section className="bg-card border border-border rounded-xl p-5 flex items-center justify-between gap-4">
                 <div className="min-w-0">
                     <h2 className="text-[14px] font-heading font-semibold text-foreground">Session</h2>
-                    <p className="text-[13px] text-muted-foreground mt-0.5 truncate">
+                    {/* Full email, wrapped — never truncated mid-string
+                        (2026-11-25, same fix as the sidebar footer). */}
+                    <p className="text-[13px] text-muted-foreground mt-0.5 break-all">
                         {userEmail ? (
                             <>Signed in as <span className="text-foreground/80 font-medium">{userEmail}</span></>
                         ) : (

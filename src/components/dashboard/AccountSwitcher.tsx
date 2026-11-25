@@ -9,12 +9,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, CaretUpDown, Plus, CircleNotch, SignOut, FacebookLogo, InstagramLogo } from "@/components/phosphor";
+import { Check, CaretUpDown, Plus, CircleNotch, SignOut, FacebookLogo } from "@/components/phosphor";
+import { PillToggle, InstagramGlyph, FacebookGlyph } from "@/components/ui/PillToggle";
 import { cn } from "@/lib/utils";
 import { apiClient, ApiError } from "@/lib/api/client";
 import { createBrowserClient } from "@/lib/supabase";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
 import { useActiveFacebookPage } from "@/hooks/useActiveFacebookPage";
+import { useProfilePictures } from "@/hooks/useProfilePictures";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import type { FacebookPage } from "@/hooks/useFacebookPages";
 import { IgAvatar } from "@/components/dashboard/IgAvatar";
@@ -29,11 +31,11 @@ type SwitcherChannel = "instagram" | "facebook";
  *  tab switch silently flip the automations list filter. */
 const SWITCHER_CHANNEL_STORAGE_KEY = "opendm-switcher-channel";
 
-function AccountAvatar({ account, size = 7 }: { account: InstagramAccount | null; size?: 6 | 7 }) {
+function AccountAvatar({ account, size = 7, pictureUrl }: { account: InstagramAccount | null; size?: 6 | 7; pictureUrl?: string | null }) {
     return (
         <IgAvatar
             username={account?.username}
-            pictureUrl={account?.profile_picture_url}
+            pictureUrl={pictureUrl ?? account?.profile_picture_url}
             className={size === 6 ? "w-6 h-6" : "w-7 h-7"}
         />
     );
@@ -52,7 +54,7 @@ function FacebookPageAvatar({ page, size = 7 }: { page: FacebookPage | null; siz
     }
     return (
         <span className={size === 6 ? "w-6 h-6 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0" : "w-7 h-7 rounded-full bg-[#1877F2]/10 flex items-center justify-center shrink-0"}>
-            <FacebookLogo className={size === 6 ? "w-3.5 h-3.5 text-[#1877F2]" : "w-4 h-4 text-[#1877F2]"} />
+            <FacebookLogo className={size === 6 ? "w-3.5 h-3.5 text-[#1877F2]" : "w-4 h-4 text-[#1877F2]"} weight="fill" />
         </span>
     );
 }
@@ -64,6 +66,16 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
     // the two consoles coexist, and the automations page shows the
     // funnels for both selections.
     const { page: fbPage, pages: fbPages, isLoading: facebookPagesLoading, setActiveFacebookPage } = useActiveFacebookPage();
+    // Fresh profile pictures (UI polish, 2026-11-25): the stored
+    // profile_picture_url snapshots expire within days (Meta CDN
+    // signatures), so older accounts fell back to letter tiles while
+    // the newest still showed a photo. Resolved at render time,
+    // fail-open — a missing/failed fresh URL falls back to the
+    // stored one, then to the glyph tile.
+    const { pictures } = useProfilePictures([
+        ...(accounts ?? []).map((a) => ({ channel: "instagram" as const, accountId: a.id })),
+        ...(fbPages ?? []).map((p) => ({ channel: "facebook" as const, accountId: p.id })),
+    ]);
     // Loading-flash fix v2 (2026-11-22): the selection queries are
     // DISABLED until the WorkspaceProvider resolves a selection, and
     // a disabled TanStack query reports isLoading === false with
@@ -186,7 +198,7 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                     {igLoading ? (
                         <span className="w-7 h-7 rounded-full bg-muted animate-pulse shrink-0" />
                     ) : (
-                        <AccountAvatar account={account} />
+                        <AccountAvatar account={account} pictureUrl={account ? (pictures[account.id] ?? account.profile_picture_url) : null} />
                     )}
                     {!isCollapsed && (
                         <>
@@ -198,7 +210,7 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                                     </>
                                 ) : account ? (
                                     <>
-                                        <span className="text-[12px] font-medium text-foreground truncate leading-tight">@{account.username}</span>
+                                        <span title={`@${account.username}`} className="text-[12px] font-medium text-foreground truncate leading-tight">@{account.username}</span>
                                         <span className="text-[10px] text-muted-foreground leading-tight">
                                             {accounts.length > 1 ? `${accounts.length} accounts` : "Connected"}
                                         </span>
@@ -227,7 +239,7 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                     {fbLoading ? (
                         <span className="w-7 h-7 rounded-full bg-muted animate-pulse shrink-0" />
                     ) : (
-                        <FacebookPageAvatar page={fbPage} />
+                        <FacebookPageAvatar page={fbPage ? { ...fbPage, profile_picture_url: pictures[fbPage.id] ?? fbPage.profile_picture_url } : fbPage} />
                     )}
                     {!isCollapsed && (
                         <>
@@ -239,7 +251,7 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                                     </>
                                 ) : fbPage ? (
                                     <>
-                                        <span className="text-[12px] font-medium text-foreground truncate leading-tight">{fbPage.name}</span>
+                                        <span title={fbPage.name} className="text-[12px] font-medium text-foreground truncate leading-tight">{fbPage.name}</span>
                                         <span className="text-[10px] text-muted-foreground leading-tight">
                                             {fbPage.is_paused ? "Safety pause" : "Active"}
                                         </span>
@@ -271,31 +283,20 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                             isCollapsed ? "left-0" : "left-0 right-0 w-auto min-w-[210px]"
                         )}
                     >
-                        {/* Channel toggle (2026-11-20) — same pill style
-                            as the /automations channel tabs; only the
-                            selected channel's list + Add button show. */}
+                        {/* Channel toggle (2026-11-20) — shared PillToggle
+                            treatment (2026-11-25); only the selected
+                            channel's list + Add button show. */}
                         <div className="px-3 pt-2.5 pb-1">
-                            <div className="flex items-center bg-muted rounded-lg p-0.5" role="tablist" aria-label="Account channel">
-                                {(["instagram", "facebook"] as const).map((channel) => {
-                                    const Icon = channel === "instagram" ? InstagramLogo : FacebookLogo;
-                                    return (
-                                        <button
-                                            key={channel}
-                                            onClick={() => setSwitcherChannel(channel)}
-                                            aria-pressed={switcherChannel === channel}
-                                            className={cn(
-                                                "inline-flex flex-1 items-center justify-center gap-1.5 h-8 px-3.5 rounded-[7px] text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                                                switcherChannel === channel
-                                                    ? "bg-card text-foreground shadow-sm"
-                                                    : "text-muted-foreground hover:text-foreground"
-                                            )}
-                                        >
-                                            <Icon className="w-3.5 h-3.5" />
-                                            {channel === "instagram" ? "Instagram" : "Facebook"}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            <PillToggle
+                                stretch
+                                value={switcherChannel}
+                                onChange={setSwitcherChannel}
+                                ariaLabel="Account channel"
+                                options={[
+                                    { value: "instagram", label: "Instagram", icon: InstagramGlyph },
+                                    { value: "facebook", label: "Facebook", icon: FacebookGlyph },
+                                ]}
+                            />
                         </div>
                         {switcherChannel === "instagram" && (
                         <>
@@ -323,14 +324,25 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                                             isActive ? "bg-muted" : "hover:bg-muted/60"
                                         )}
                                     >
-                                        <AccountAvatar account={a} size={6} />
+                                        <AccountAvatar account={a} size={6} pictureUrl={pictures[a.id] ?? a.profile_picture_url} />
                                         <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="text-[12.5px] font-medium text-foreground truncate leading-tight">@{a.username}</span>
+                                            <span title={`@${a.username}`} className="text-[12.5px] font-medium text-foreground truncate leading-tight">@{a.username}</span>
                                             <span className="text-[10px] text-muted-foreground leading-tight">
                                                 {a.is_paused ? "Safety pause" : a.token_status === "expired" ? "Token expired" : "Active"}
                                             </span>
                                         </div>
-                                        {isActive && <Check className="w-3.5 h-3.5 text-foreground shrink-0" />}
+                                        {/* Active marker (2026-11-25): a fixed
+                                            slot, vertically centred on the
+                                            whole row, in the brand accent —
+                                            the bare check used to float at
+                                            the far edge and read as
+                                            misaligned against the two-line
+                                            row. */}
+                                        {isActive && (
+                                            <span className="w-5 h-5 shrink-0 flex items-center justify-center" aria-hidden="true">
+                                                <Check className="w-4 h-4 text-primary" />
+                                            </span>
+                                        )}
                                     </button>
                                 );
                             })}
@@ -375,14 +387,21 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                                             isActive ? "bg-muted" : "hover:bg-muted/60"
                                         )}
                                     >
-                                        <FacebookPageAvatar page={p} size={6} />
+                                        <FacebookPageAvatar page={{ ...p, profile_picture_url: pictures[p.id] ?? p.profile_picture_url }} size={6} />
                                         <div className="flex flex-col min-w-0 flex-1">
-                                            <span className="text-[12.5px] font-medium text-foreground truncate leading-tight">{p.name}</span>
+                                            <span title={p.name} className="text-[12.5px] font-medium text-foreground truncate leading-tight">{p.name}</span>
                                             <span className="text-[10px] text-muted-foreground leading-tight">
                                                 {p.is_paused ? "Safety pause" : "Active"}
                                             </span>
                                         </div>
-                                        {isActive && <Check className="w-3.5 h-3.5 text-foreground shrink-0" />}
+                                        {/* Active marker — same fixed-slot
+                                            treatment as the Instagram rows
+                                            (2026-11-25). */}
+                                        {isActive && (
+                                            <span className="w-5 h-5 shrink-0 flex items-center justify-center" aria-hidden="true">
+                                                <Check className="w-4 h-4 text-primary" />
+                                            </span>
+                                        )}
                                     </button>
                                 );
                             })}
@@ -402,10 +421,15 @@ export function AccountSwitcher({ isCollapsed, userEmail = null }: { isCollapsed
                         {/* Session — the signed-in user (functional audit fix:
                             identity + sign-out inside the account menu too) */}
                         <div className="border-t border-border p-1.5">
+                            {/* Session — the signed-in user. The full email
+                                renders on its own line (2026-11-25): the
+                                old single-line cut hid the end of the
+                                address ("parvezsiddiqui018…"). */}
                             {userEmail && (
-                                <p className="px-2 pt-1 pb-1.5 text-[11px] text-muted-foreground truncate" title={userEmail}>
-                                    Signed in as <span className="text-foreground/80 font-medium">{userEmail}</span>
-                                </p>
+                                <div className="px-2 pt-1 pb-1.5">
+                                    <p className="text-[11px] text-muted-foreground">Signed in as</p>
+                                    <p className="text-[11px] text-foreground/80 font-medium break-all">{userEmail}</p>
+                                </div>
                             )}
                             <button
                                 onClick={() => void handleSignOut()}

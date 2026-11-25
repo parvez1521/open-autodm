@@ -7,6 +7,7 @@ import {
     Lightning, Warning,
 } from "@/components/phosphor";
 import { cn, truncateWithEllipsis } from "@/lib/utils";
+import { PillToggle } from "@/components/ui/PillToggle";
 import { PostThumb } from "@/components/automations/PostThumb";
 import { getEditorSections, type EditorSectionId } from "@/lib/automation/editorSections";
 import { apiClient, ApiError } from "@/lib/api/client";
@@ -317,25 +318,17 @@ function KeywordInput({ keywords, onChange, anyMode, onAnyModeChange, copy }: {
 
     return (
         <div className="space-y-2.5">
-            <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                {[
-                    { label: copy.keywordModeSpecific, value: false },
-                    { label: copy.keywordModeAny, value: true },
-                ].map(opt => (
-                    <button
-                        key={String(opt.value)}
-                        onClick={() => onAnyModeChange(opt.value)}
-                        className={cn(
-                            "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
-                            anyMode === opt.value
-                                ? "bg-card text-foreground shadow-sm"
-                                : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        {opt.label}
-                    </button>
-                ))}
-            </div>
+            {/* Shared PillToggle treatment (2026-11-25). */}
+            <PillToggle
+                size="sm"
+                value={anyMode}
+                onChange={onAnyModeChange}
+                ariaLabel="Keyword mode"
+                options={[
+                    { value: false, label: copy.keywordModeSpecific },
+                    { value: true, label: copy.keywordModeAny },
+                ]}
+            />
 
             {anyMode && copy.anyModeHint && (
                 <div className="flex items-start gap-2 text-[12px] text-amber-600 bg-amber-500/10 rounded-lg px-3 py-2">
@@ -829,24 +822,17 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                 <p className="text-[12px] text-muted-foreground">
                     Language for AI-drafted replies in this automation. Hinglish is Hindi in Roman script, for an audience that speaks it.
                 </p>
-                <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                    {(["en", "hinglish"] as const).map((lang) => (
-                        <button
-                            key={lang}
-                            type="button"
-                            onClick={() => onUpdate({ aiReplyLanguage: lang })}
-                            aria-pressed={data.aiReplyLanguage === lang}
-                            className={cn(
-                                "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
-                                data.aiReplyLanguage === lang
-                                    ? "bg-card text-foreground shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            {lang === "en" ? "English" : "Hinglish"}
-                        </button>
-                    ))}
-                </div>
+                {/* Shared PillToggle treatment (2026-11-25). */}
+                <PillToggle
+                    size="sm"
+                    value={data.aiReplyLanguage}
+                    onChange={(lang) => onUpdate({ aiReplyLanguage: lang })}
+                    ariaLabel="AI reply language"
+                    options={[
+                        { value: "en", label: "English" },
+                        { value: "hinglish", label: "Hinglish" },
+                    ]}
+                />
             </section>
 
             {/* Public comment replies - comment automations only */}
@@ -1036,22 +1022,18 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                                                 single message and the "3 variations" were
                                                 nowhere to be found. */}
                                             <div className="flex items-center gap-1 flex-wrap">
-                                                <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                                                    {variations.map((_, i) => (
-                                                        <button
-                                                            key={i}
-                                                            onClick={() => setActiveVariationTab(i)}
-                                                            className={cn(
-                                                                "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
-                                                                safeVariationTab === i
-                                                                    ? "bg-card text-foreground shadow-sm"
-                                                                    : "text-muted-foreground hover:text-foreground"
-                                                            )}
-                                                        >
-                                                            Variation {i + 1}
-                                                        </button>
-                                                    ))}
-                                                </div>
+                                                {/* Shared PillToggle treatment
+                                                    (2026-11-25). */}
+                                                <PillToggle
+                                                    size="sm"
+                                                    value={safeVariationTab}
+                                                    onChange={setActiveVariationTab}
+                                                    ariaLabel="Opening message variation"
+                                                    options={variations.map((_, i) => ({
+                                                        value: i,
+                                                        label: `Variation ${i + 1}`,
+                                                    }))}
+                                                />
                                                 {variations.length < MAX_DM_OPENING_VARIATIONS && (
                                                     <button
                                                         onClick={addVariation}
@@ -1304,22 +1286,18 @@ export function ConfigureStep({ data, onUpdate, creatorProfilePicUrl, onChangePo
                 phone preview used to be unreachable (hidden xl:flex with
                 no way to see it); xl still shows both side by side. */}
             <div className="flex xl:hidden items-center gap-1 px-3 pt-3 shrink-0">
-                <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                    {(["form", "preview"] as const).map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setMobileTab(tab)}
-                            className={cn(
-                                "h-7 px-3 rounded-[7px] text-[12px] font-medium capitalize transition-colors",
-                                mobileTab === tab
-                                    ? "bg-card text-foreground shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            {tab === "form" ? "Edit" : "Preview"}
-                        </button>
-                    ))}
-                </div>
+                {/* Shared PillToggle treatment (2026-11-25). */}
+                <PillToggle
+                    size="sm"
+                    value={mobileTab}
+                    onChange={setMobileTab}
+                    capitalize
+                    ariaLabel="Edit or preview"
+                    options={[
+                        { value: "form", label: "Edit" },
+                        { value: "preview", label: "Preview" },
+                    ]}
+                />
             </div>
 
             <div className="flex flex-1 min-h-0 overflow-hidden">

@@ -253,7 +253,9 @@ describe('oEmbed fallback is gone + avatars fall back on error (2026-11-22)', ()
     expect(switcher).toContain('onError={() => setFailed(true)}');
     const settings = readSrc('app/(main)/settings/page.tsx');
     expect(settings).toContain('function FacebookPageAvatar');
-    expect(settings).toContain('<FacebookPageAvatar page={page} />');
+    // Settings passes the fresh render-time picture (UI polish
+    // 2026-11-25) into the same avatar with its onError fallback.
+    expect(settings).toContain('<FacebookPageAvatar page={{ ...page, profile_picture_url: pictures[page.id] ?? page.profile_picture_url }} />');
     expect(settings).toContain('onError={() => setFailed(true)}');
   });
 });

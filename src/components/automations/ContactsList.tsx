@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon, CursorClick, ArrowsClockwise, Warning, At, Envelope, DownloadSimple } from "@/components/phosphor";
 import { cn } from "@/lib/utils";
+import { PillToggle } from "@/components/ui/PillToggle";
 import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
 import { useLeads, type LeadFromDB } from "@/hooks/useLeads";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
@@ -178,22 +179,20 @@ export function ContactsList() {
 
     return (
         <div className="flex flex-col space-y-4 w-full animate-in fade-in duration-500">
-            {/* Tabs: Contacts / Leads (2026-11-17) */}
-            <div className="inline-flex items-center bg-muted rounded-lg p-0.5 self-start">
-                {(["contacts", "leads"] as const).map((t) => (
-                    <button
-                        key={t}
-                        onClick={() => setTab(t)}
-                        className={cn(
-                            "h-7 px-3 rounded-[7px] text-[12px] font-medium capitalize transition-colors",
-                            tab === t ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                        )}
-                    >
-                        {t === "contacts"
-                            ? `Contacts${contacts?.length ? ` (${contacts.length})` : ""}`
-                            : `Leads${leads?.length ? ` (${leads.length})` : ""}`}
-                    </button>
-                ))}
+            {/* Tabs: Contacts / Leads (2026-11-17). Shared PillToggle
+                treatment (2026-11-25). */}
+            <div className="self-start">
+                <PillToggle
+                    size="sm"
+                    value={tab}
+                    onChange={setTab}
+                    capitalize
+                    ariaLabel="Contacts or leads"
+                    options={[
+                        { value: "contacts", label: `Contacts${contacts?.length ? ` (${contacts.length})` : ""}` },
+                        { value: "leads", label: `Leads${leads?.length ? ` (${leads.length})` : ""}` },
+                    ]}
+                />
             </div>
 
             {tab === "leads" ? (

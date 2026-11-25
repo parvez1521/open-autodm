@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
 import { ChatCircle, PlayCircle, Stack, MagnifyingGlass, InstagramLogo, FacebookLogo, Heart } from "@/components/phosphor";
 import { cn, truncateWithEllipsis } from "@/lib/utils";
+import { PillToggle } from "@/components/ui/PillToggle";
 import { useState, type FormEvent } from "react";
 import { useInstagramPosts, useResolveInstagramPost } from "@/hooks/useInstagramPosts";
 import { useFacebookPosts, useResolveFacebookPost } from "@/hooks/useFacebookPosts";
@@ -89,22 +90,18 @@ export function SelectPostStep({ onSelect, selectedPost, flowName, instagramAcco
                             every post maps to 'image' — no Reels/Photos
                             split for Facebook. */}
                         {!isFacebook && (
-                            <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                                {(["all", "reels", "posts"] as const).map((f) => (
-                                    <button
-                                        key={f}
-                                        onClick={() => setFilter(f)}
-                                        className={cn(
-                                            "h-7 px-3 rounded-[7px] text-[12px] font-medium capitalize transition-colors",
-                                            filter === f
-                                                ? "bg-card text-foreground shadow-sm"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        {f === "all" ? "All media" : f === "reels" ? "Reels" : "Photos"}
-                                    </button>
-                                ))}
-                            </div>
+                            <PillToggle
+                                size="sm"
+                                value={filter}
+                                onChange={setFilter}
+                                capitalize
+                                ariaLabel="Media filter"
+                                options={[
+                                    { value: "all", label: "All media" },
+                                    { value: "reels", label: "Reels" },
+                                    { value: "posts", label: "Photos" },
+                                ]}
+                            />
                         )}
                         {allowAllPosts && (
                             <button

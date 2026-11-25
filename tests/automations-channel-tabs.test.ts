@@ -22,12 +22,16 @@ describe('channel toggle on the automations page', () => {
   const page = readSrc('app/(main)/automations/page.tsx');
 
   it('renders an Instagram / Facebook toggle in the same pill style as the tabs', () => {
-    expect(page).toContain('aria-label="Automation channel"');
-    expect(page).toContain('InstagramLogo');
-    expect(page).toContain('FacebookLogo');
+    expect(page).toContain('ariaLabel="Automation channel"');
+    // Shared PillToggle treatment (UI polish 2026-11-25): the pill
+    // classes now live in the component, not inline in the page.
+    expect(page).toContain('PillToggle');
+    // md is the component default — the page relies on it.
+    expect(readSrc('components/ui/PillToggle.tsx')).toContain('size = "md"');
+    expect(page).toContain('InstagramGlyph');
+    expect(page).toContain('FacebookGlyph');
     expect(page).toContain('"Instagram"');
     expect(page).toContain('"Facebook"');
-    expect(page).toContain('bg-muted rounded-lg p-0.5');
   });
 
   it('defaults to Instagram and persists the choice in localStorage', () => {

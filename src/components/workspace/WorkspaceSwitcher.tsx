@@ -192,7 +192,14 @@ export function WorkspaceSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
                                             {w.role}
                                         </span>
                                     </div>
-                                    {isActive && <Check className="w-3.5 h-3.5 shrink-0" />}
+                                    {/* Active marker — fixed slot, brand
+                                        accent (2026-11-25, same as the
+                                        account switcher rows). */}
+                                    {isActive && (
+                                        <span className="w-5 h-5 shrink-0 flex items-center justify-center" aria-hidden="true">
+                                            <Check className="w-4 h-4 text-primary" />
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}

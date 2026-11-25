@@ -17,6 +17,7 @@ import {
 } from "recharts";
 import { ChatCircle, PaperPlaneTilt, Image as ImageIcon, Users, UserCheck, Warning, ChartBar, InstagramLogo, FacebookLogo } from "@/components/phosphor";
 import { BrandWave } from "@/components/ui/BrandWave";
+import { PillToggle, InstagramGlyph, FacebookGlyph } from "@/components/ui/PillToggle";
 import { cn } from "@/lib/utils";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { useActiveAccount } from "@/hooks/useActiveAccount";
@@ -220,31 +221,17 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     {/* Channel toggle (2026-11-22): same pill style as the
-                        /automations channel toggle. Pill radius rule
-                        (2026-11-22): buttons sit 2px inside the container
-                        (p-0.5), so their radius is the container's
-                        rounded-lg (8px) minus that padding = 6px. */}
-                    <div className="inline-flex items-center bg-muted rounded-lg p-0.5" role="tablist" aria-label="Analytics channel">
-                        {(["instagram", "facebook"] as const).map((channel) => {
-                            const Icon = channel === "instagram" ? InstagramLogo : FacebookLogo;
-                            return (
-                                <button
-                                    key={channel}
-                                    onClick={() => switchChannel(channel)}
-                                    aria-pressed={channelTab === channel}
-                                    className={cn(
-                                        "inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[6px] text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                                        channelTab === channel
-                                            ? "bg-card text-foreground shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    <Icon className="w-3.5 h-3.5" />
-                                    {channel === "instagram" ? "Instagram" : "Facebook"}
-                                </button>
-                            );
-                        })}
-                    </div>
+                        /automations channel toggle. Shared PillToggle
+                        treatment (2026-11-25). */}
+                    <PillToggle
+                        value={channelTab}
+                        onChange={switchChannel}
+                        ariaLabel="Analytics channel"
+                        options={[
+                            { value: "instagram", label: "Instagram", icon: InstagramGlyph },
+                            { value: "facebook", label: "Facebook", icon: FacebookGlyph },
+                        ]}
+                    />
                     <select
                         value={automationId}
                         onChange={(e) => setAutomationId(e.target.value)}
@@ -255,22 +242,13 @@ export default function AnalyticsPage() {
                             <option key={a.id} value={a.id}>{a.name}</option>
                         ))}
                     </select>
-                    <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                        {RANGES.map((r) => (
-                            <button
-                                key={r.label}
-                                onClick={() => setRangeDays(r.days)}
-                                className={cn(
-                                    "h-7 px-3 rounded-[7px] text-[12px] font-medium transition-colors",
-                                    rangeDays === r.days
-                                        ? "bg-card text-foreground shadow-sm"
-                                        : "text-muted-foreground hover:text-foreground"
-                                )}
-                            >
-                                {r.label}
-                            </button>
-                        ))}
-                    </div>
+                    <PillToggle
+                        size="sm"
+                        value={rangeDays}
+                        onChange={setRangeDays}
+                        ariaLabel="Analytics range"
+                        options={RANGES.map((r) => ({ value: r.days, label: r.label }))}
+                    />
                 </div>
             </div>
 

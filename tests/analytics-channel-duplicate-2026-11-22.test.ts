@@ -431,13 +431,19 @@ describe('analytics channel tabs — page wiring (source pins)', () => {
 
   it('renders an Instagram / Facebook toggle in the same pill style as /automations', () => {
     const page = readSrc('app/(main)/analytics/page.tsx');
-    expect(page).toContain('aria-label="Analytics channel"');
-    expect(page).toContain('InstagramLogo');
-    expect(page).toContain('FacebookLogo');
+    expect(page).toContain('ariaLabel="Analytics channel"');
+    // Shared PillToggle treatment (UI polish 2026-11-25): the pill
+    // classes now live in the component, not inline in the page.
+    expect(page).toContain('PillToggle');
+    // md is the component default — the page relies on it.
+    const toggle = readSrc('components/ui/PillToggle.tsx');
+    expect(toggle).toContain('size = "md"');
+    expect(page).toContain('InstagramGlyph');
+    expect(page).toContain('FacebookGlyph');
     expect(page).toContain('"Instagram"');
     expect(page).toContain('"Facebook"');
-    expect(page).toContain('bg-muted rounded-lg p-0.5');
-    expect(page).toContain('h-8 px-3.5 rounded-[6px]');
+    expect(toggle).toContain('bg-muted rounded-lg p-0.5');
+    expect(toggle).toContain('h-8 px-3.5 rounded-[6px]');
   });
 
   it('defaults to Instagram and persists the choice in localStorage', () => {

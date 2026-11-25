@@ -50,11 +50,19 @@ describe('switcher popover channel toggle', () => {
   const switcher = readSrc('components/dashboard/AccountSwitcher.tsx');
 
   it('renders an Instagram / Facebook toggle in the same pill style as the automations tabs', () => {
-    expect(switcher).toContain('aria-label="Account channel"');
-    expect(switcher).toContain('InstagramLogo');
+    expect(switcher).toContain('ariaLabel="Account channel"');
+    // The switcher uses the matched fill-weight glyphs for the
+    // toggle; FacebookLogo survives for the Page fallback tile.
+    expect(switcher).toContain('InstagramGlyph');
     expect(switcher).toContain('FacebookLogo');
-    expect(switcher).toContain('bg-muted rounded-lg p-0.5');
-    expect(switcher).toContain('aria-pressed={switcherChannel === channel}');
+    // Shared PillToggle treatment (UI polish 2026-11-25): the pill
+    // classes now live in the component, not inline in the switcher.
+    expect(switcher).toContain('PillToggle');
+    // md is the component default — the switcher relies on it.
+    const toggle = readSrc('components/ui/PillToggle.tsx');
+    expect(toggle).toContain('size = "md"');
+    expect(toggle).toContain('bg-muted rounded-lg p-0.5');
+    expect(toggle).toContain('aria-pressed={isActive}');
   });
 
   it('shows only the selected channel’s list + Add button', () => {

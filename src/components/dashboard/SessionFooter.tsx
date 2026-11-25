@@ -54,10 +54,13 @@ export function SessionFooter({
 
     return (
         <div className="pt-2.5 px-1">
+            {/* Full email on its own line (2026-11-25): the old
+                single-line cut hid the end of the address. */}
             {email && (
-                <p className="px-2 text-[11px] text-muted-foreground truncate" title={email}>
-                    Signed in as <span className="text-foreground/80 font-medium">{email}</span>
-                </p>
+                <div className="px-2 pb-1">
+                    <p className="text-[11px] text-muted-foreground">Signed in as</p>
+                    <p className="text-[11px] text-foreground/80 font-medium break-all">{email}</p>
+                </div>
             )}
             <div className="mt-1 flex items-center gap-1 px-2 text-[11px] text-muted-foreground">
                 <a

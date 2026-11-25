@@ -2,9 +2,9 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, InstagramLogo, FacebookLogo } from "@/components/phosphor";
+import { Plus } from "@/components/phosphor";
+import { PillToggle, InstagramGlyph, FacebookGlyph } from "@/components/ui/PillToggle";
 import { BrandWave } from "@/components/ui/BrandWave";
-import { cn } from "@/lib/utils";
 import { AutomationsList } from "@/components/automations/AutomationsList";
 import { ContactsList } from "@/components/automations/ContactsList";
 import { NewAutomationModal } from "@/components/automations/new-flow/NewAutomationModal";
@@ -150,30 +150,21 @@ function AutomationsContent() {
     return (
         <div data-no-reveal className="w-full max-w-5xl mx-auto space-y-6 pb-16">
 
-            {/* Tabs + new */}
             <div className="flex items-center justify-between gap-4">
-                {/* Pill radius (2026-11-22): the buttons sit 2px inside the
-                    container (p-0.5), so their radius must be the
-                    container's rounded-lg (8px) minus that padding = 6px.
-                    7px made the active pill's corner arc overhang the
-                    container's rounded outer corners. Same rule on the
-                    channel toggle below. */}
-                <div className="inline-flex items-center bg-muted rounded-lg p-0.5">
-                    {(["automations", "contacts"] as const).map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={cn(
-                                "h-8 px-3.5 rounded-[6px] text-[13px] font-medium capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                                activeTab === tab
-                                    ? "bg-card text-foreground shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            {tab}
-                        </button>
-                    ))}
-                </div>
+                {/* Tabs + new — shared PillToggle treatment (2026-11-25):
+                    one component owns the pill styling across the app,
+                    so the two groups on this page can no longer drift
+                    apart. Behaviour unchanged (same values/onChange). */}
+                <PillToggle
+                    value={activeTab}
+                    onChange={setActiveTab}
+                    capitalize
+                    ariaLabel="Automations or contacts"
+                    options={[
+                        { value: "automations", label: "Automations" },
+                        { value: "contacts", label: "Contacts" },
+                    ]}
+                />
 
                 <button
                     onClick={() => { setEditingAutomation(null); setIsModalOpen(true); }}
@@ -190,29 +181,18 @@ function AutomationsContent() {
                     <>
                         {/* Channel toggle (2026-11-20): Instagram and
                             Facebook automations live in one table, but
-                            the list shows one channel at a time. Same
-                            pill style as the Automations/Contacts tabs
-                            above. */}
-                        <div className="inline-flex items-center bg-muted rounded-lg p-0.5 mb-4" role="tablist" aria-label="Automation channel">
-                            {(["instagram", "facebook"] as const).map((channel) => {
-                                const Icon = channel === "instagram" ? InstagramLogo : FacebookLogo;
-                                return (
-                                    <button
-                                        key={channel}
-                                        onClick={() => setChannelTab(channel)}
-                                        aria-pressed={channelTab === channel}
-                                        className={cn(
-                                            "inline-flex items-center gap-1.5 h-8 px-3.5 rounded-[6px] text-[13px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-                                            channelTab === channel
-                                                ? "bg-card text-foreground shadow-sm"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        <Icon className="w-3.5 h-3.5" />
-                                        {channel === "instagram" ? "Instagram" : "Facebook"}
-                                    </button>
-                                );
-                            })}
+                            the list shows one channel at a time. Shared
+                            PillToggle treatment (2026-11-25). */}
+                        <div className="mb-4">
+                            <PillToggle
+                                value={channelTab}
+                                onChange={setChannelTab}
+                                ariaLabel="Automation channel"
+                                options={[
+                                    { value: "instagram", label: "Instagram", icon: InstagramGlyph },
+                                    { value: "facebook", label: "Facebook", icon: FacebookGlyph },
+                                ]}
+                            />
                         </div>
                         <AutomationsList
                             automations={automations ?? []}

@@ -165,20 +165,24 @@ describe('#8 — DM preview bubbles wrap instead of cutting mid-word', () => {
   });
 });
 
-describe('#10 — IgAvatar initial is a letter/digit, never "_"', () => {
-  it('strips leading non-alphanumerics before taking the initial', () => {
+describe('#10 — IgAvatar fallback is one glyph tile, never a bare letter (superseded 2026-11-25)', () => {
+  it('no letter initial is computed any more; the fallback is the platform glyph tile', () => {
     const avatar = readSrc('components/dashboard/IgAvatar.tsx');
-    expect(avatar).toContain('.replace(/^[^a-zA-Z0-9]+/, "")');
-    expect(avatar).not.toContain('username?.trim().charAt(0).toUpperCase()');
+    // UI polish 2026-11-25 (owner complaint): the switcher showed one
+    // real photo next to plain "C" / "B" letter tiles, which looks
+    // unfinished. The fallback is now the same Instagram glyph on a
+    // brand-tinted tile for every account — the 2026-11-22
+    // letter-initial rule it replaces is gone with it.
+    expect(avatar).not.toContain('charAt(0)');
+    expect(avatar).not.toContain('initial');
+    expect(avatar).toContain('bg-[#E1306C]/10');
+    expect(avatar).toContain('weight="fill"');
   });
 
-  it('the rule maps _caption.it to C and a punctuation-only name to the glyph fallback', () => {
-    const initial = (username: string | null | undefined) =>
-      username?.trim().replace(/^[^a-zA-Z0-9]+/, '').charAt(0).toUpperCase();
-    expect(initial('_caption.it')).toBe('C');
-    expect(initial('@beyond_the.feed')).toBe('B');
-    expect(initial('___')).toBe('');
-    expect(initial(null)).toBeUndefined();
+  it('every username maps to the same glyph fallback (no per-letter tiles)', () => {
+    const avatar = readSrc('components/dashboard/IgAvatar.tsx');
+    expect(avatar).toContain('InstagramLogo');
+    expect(avatar).not.toContain('.replace(/^[^a-zA-Z0-9]+/, "")');
   });
 });
 
