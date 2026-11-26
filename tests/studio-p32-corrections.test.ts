@@ -191,7 +191,10 @@ describe('Programme 32 §1 — Studio pages surface save failures (source pins)'
     'src/app/(main)/studio/niche/page.tsx',
     'src/app/(main)/studio/seo/page.tsx',
     'src/app/(main)/studio/script/page.tsx',
-    'src/app/(main)/studio/voiceover/page.tsx',
+    // Voiceover: page.tsx is a thin ssr:false wrapper (kokoro-js must stay
+    // out of the server bundle — see page.tsx); the save-failure UI lives
+    // in voiceoverClient.tsx.
+    'src/app/(main)/studio/voiceover/voiceoverClient.tsx',
     'src/app/(main)/studio/transcript/page.tsx',
     'src/app/(main)/studio/thumbnail/page.tsx',
     'src/app/(main)/studio/presentations/page.tsx',
