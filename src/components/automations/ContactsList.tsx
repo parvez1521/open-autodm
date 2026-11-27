@@ -60,6 +60,11 @@ function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+/** "DM sent" column (owner request, 2026-11-27): date + time in the viewer's locale. */
+function formatDateTime(iso: string): string {
+    return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
 export function ContactsList() {
     // isPending (not isLoading): while the WorkspaceProvider scope is
     // 'unavailable' the query is DISABLED and TanStack reports
@@ -260,6 +265,7 @@ export function ContactsList() {
                             <th className="px-5 py-3">Automation</th>
                             <th className="px-5 py-3">Interactions</th>
                             <th className="px-5 py-3">Last Active</th>
+                            <th className="px-5 py-3">DM sent</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border/30">
@@ -303,6 +309,7 @@ export function ContactsList() {
                                         <span className="font-bold font-heading">{contact.total_triggers}</span>
                                     </td>
                                     <td className="px-5 py-3 text-muted-foreground">{formatDate(contact.last_interaction_at)}</td>
+                                    <td className="px-5 py-3 text-muted-foreground">{contact.last_dm_sent_at ? formatDateTime(contact.last_dm_sent_at) : "—"}</td>
                                 </tr>
                             );
                         })}

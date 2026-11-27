@@ -17,6 +17,8 @@ export interface ContactFromDB {
   last_interaction_at: string;
   last_trigger_type: 'comment' | 'dm' | 'story_reply' | 'story_mention' | 'button' | null;
   total_triggers: number;
+  /** Latest dm_jobs.sent_at for this contact (null when no DM was ever sent). */
+  last_dm_sent_at: string | null;
   automations: { id: string; name: string } | null;
 }
 

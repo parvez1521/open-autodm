@@ -186,3 +186,69 @@ export function updateFacebookContactProfile(params: {
     }
   })();
 }
+
+/* ─── "DM sent" time for the Contacts list (owner request, 2026-11-27) ───
+ * The contacts table has no "last DM sent" column, and none is added:
+ * dm_jobs.sent_at is the moment a DM actually went out, keyed by the
+ * same (instagram_account_id, trigger_user_id) pair as a contact's
+ * (instagram_account_id, audience_ig_user_id). The list route runs one
+ * extra bounded query over dm_jobs and attaches the latest sent_at per
+ * contact as last_dm_sent_at (null when no DM was ever sent). The
+ * engine is untouched. */
+
+export interface DmSentRow {
+  instagram_account_id: string;
+  trigger_user_id: string;
+  sent_at: string | null;
+}
+
+/** Latest sent_at per (account, audience) — order-independent, nulls skipped. */
+export function buildLastDmSentAtMap(rows: DmSentRow[]): Map<string, string> {
+  const latest = new Map<string, string>();
+  for (const row of rows) {
+    if (!row.sent_at) continue;
+    const key = `${row.instagram_account_id}\n${row.trigger_user_id}`;
+    const prev = latest.get(key);
+    if (!prev || row.sent_at > prev) latest.set(key, row.sent_at);
+  }
+  return latest;
+}
+
+export type ContactWithDmSent<T extends { instagram_account_id: string; audience_ig_user_id: string }> =
+  T & { last_dm_sent_at: string | null };
+
+/** Attaches last_dm_sent_at (null when the contact never got a DM). */
+export function attachLastDmSentAt<T extends { instagram_account_id: string; audience_ig_user_id: string }>(
+  contacts: T[],
+  latestByKey: Map<string, string>,
+): ContactWithDmSent<T>[] {
+  return contacts.map((c) => ({
+    ...c,
+    last_dm_sent_at: latestByKey.get(`${c.instagram_account_id}\n${c.audience_ig_user_id}`) ?? null,
+  }));
+}
+
+/**
+ * One bounded query for the latest sent DM per contact in the list.
+ * Scoped to exactly the accounts + audience IDs on the page (never a
+ * full-table scan), only rows whose DM actually sent (status 'sent'),
+ * newest first. Callers treat a throw as enrichment-unavailable and
+ * return the contacts with nulls — the list must never fail because
+ * this leg did.
+ */
+export async function fetchLatestDmSentAt(
+  db: SupabaseClient,
+  accountIds: string[],
+  audienceIds: string[],
+): Promise<Map<string, string>> {
+  const { data, error } = await db
+    .from('dm_jobs')
+    .select('instagram_account_id, trigger_user_id, sent_at')
+    .in('instagram_account_id', accountIds)
+    .in('trigger_user_id', audienceIds)
+    .eq('status', 'sent')
+    .order('sent_at', { ascending: false })
+    .limit(5000);
+  if (error) throw error;
+  return buildLastDmSentAtMap((data ?? []) as DmSentRow[]);
+}

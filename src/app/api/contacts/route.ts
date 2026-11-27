@@ -6,6 +6,7 @@
 import { getAuthenticatedUser, unauthorized } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createLogger } from '@/lib/logger';
+import { attachLastDmSentAt, fetchLatestDmSentAt } from '@/lib/automation/contacts';
 import { readWorkspaceFlags } from '@/lib/tenancy/workspaceFlags';
 import { resolveRouteWorkspaceContext } from '@/lib/tenancy/routeContext';
 import { createTenantRepository } from '@/lib/tenancy/repository';
@@ -99,7 +100,27 @@ export async function GET(request: Request): Promise<Response> {
     'Listed contacts',
   );
 
-  return Response.json({ contacts: data ?? [] });
+  // "DM sent" column (owner request, 2026-11-27): the latest sent_at
+  // per contact, from dm_jobs — no migration, no engine change. This
+  // leg is enrichment only: if it fails, the list still returns with
+  // last_dm_sent_at null (the column shows a dash) instead of a 500.
+  const rows = (data ?? []) as { instagram_account_id: string; audience_ig_user_id: string }[];
+  let lastDmSent = new Map<string, string>();
+  if (rows.length > 0) {
+    const audienceIds = [...new Set(rows.map((r) => r.audience_ig_user_id))];
+    try {
+      lastDmSent = await withTransientQueryRetry('api:contacts:dm-sent', () =>
+        fetchLatestDmSentAt(db, scopedIds, audienceIds),
+      );
+    } catch (dmSentError) {
+      logger.warn(
+        { err: dmSentError, userId: user.id },
+        'Failed to fetch last DM sent times; contacts returned without them',
+      );
+    }
+  }
+
+  return Response.json({ contacts: attachLastDmSentAt(rows, lastDmSent) });
 }
 
 // ── Programme 18 Phase D — workspace mode ───────────────────────────────
