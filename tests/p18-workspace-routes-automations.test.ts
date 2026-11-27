@@ -33,6 +33,9 @@ const WS_A = '11111111-1111-4111-8111-111111111111';
 const WS_B = '22222222-2222-4222-8222-222222222222';
 const ACCT_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ACCT_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const ACCT_NULL = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+const PAGE_A = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+const PAGE_NULL = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
 const OWNER_A = { id: 'user-owner-a', email: 'oa@example.com' };
 const MEMBER_A = { id: 'user-member-a', email: 'ma@example.com' };
@@ -403,5 +406,78 @@ describe('Bug 2 enforcement — automations (2026-11-09)', () => {
       const inactive = await postAuto('Legacy draft', { isActive: false }, false);
       expect(inactive.status).toBe(201);
     });
+  });
+});
+
+describe('legacy create stamps the bound account/page workspace_id (2026-11-27 Klout fix)', () => {
+  // Regression: POST /api/automations with the workspace flag OFF used
+  // to insert workspace_id NULL for every new automation, because the
+  // insert never stamped it. The DM engines resolve the workspace from
+  // the account/page binding and the dm_sent_log claim FK
+  // (fk_dm_sent_log_workspace_automation) requires the
+  // (workspace_id, automation_id) pair to exist in automations — so
+  // every DM job for such an automation failed at the claim step
+  // ("Failed to claim comment for private reply", Postgres 23503).
+  // Proven live 2026-11-27: "Klout AI studio" (FB, created 14:41 UTC)
+  // had workspace_id NULL while the 9 older FB automations all carry
+  // 18867ab0-4b61-407a-83fb-d8c3c6232ef9; all 10 of its jobs failed.
+  beforeEach(() => {
+    setFlag(false);
+    // seedAll() (outer beforeEach) covers instagram_accounts ACCT_A
+    // (WS_A) / ACCT_B (WS_B); add an unbound IG account and the FB
+    // pages (one bound, one unbound) for the create cases below.
+    fake.seed('instagram_accounts', [
+      { id: ACCT_NULL, user_id: OWNER_A.id, workspace_id: null, username: 'acct-null', is_active: true },
+    ]);
+    fake.replaceRows('facebook_pages', [
+      { id: PAGE_A, user_id: OWNER_A.id, workspace_id: WS_A, name: 'Page A', is_active: true },
+      { id: PAGE_NULL, user_id: OWNER_A.id, workspace_id: null, name: 'Page Null', is_active: true },
+    ]);
+  });
+
+  const postIg = (name: string, accountId: string) =>
+    POST(
+      new Request('https://app.opendm.in/api/automations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instagramAccountId: accountId, name, type: 'comment_dm' }),
+      }),
+    );
+  const postFb = (name: string, pageId: string) =>
+    POST(
+      new Request('https://app.opendm.in/api/automations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ facebookPageId: pageId, name, type: 'fb_comment_dm' }),
+      }),
+    );
+  const stored = (name: string) => fake.rows('automations').find((r) => r['name'] === name);
+
+  it('IG create stamps the bound account workspace_id', async () => {
+    mockAuth.mockResolvedValue(OWNER_A);
+    const res = await postIg('IG bound', ACCT_A);
+    expect(res.status).toBe(201);
+    expect(stored('IG bound')!['workspace_id']).toBe(WS_A);
+  });
+
+  it('FB create stamps the bound Page workspace_id', async () => {
+    mockAuth.mockResolvedValue(OWNER_A);
+    const res = await postFb('FB bound', PAGE_A);
+    expect(res.status).toBe(201);
+    expect(stored('FB bound')!['workspace_id']).toBe(WS_A);
+  });
+
+  it('unbound Page creates with workspace_id NULL (legacy behaviour, nothing invented)', async () => {
+    mockAuth.mockResolvedValue(OWNER_A);
+    const res = await postFb('FB unbound', PAGE_NULL);
+    expect(res.status).toBe(201);
+    expect(stored('FB unbound')!['workspace_id']).toBeNull();
+  });
+
+  it('unbound IG account creates with workspace_id NULL', async () => {
+    mockAuth.mockResolvedValue(OWNER_A);
+    const res = await postIg('IG unbound', ACCT_NULL);
+    expect(res.status).toBe(201);
+    expect(stored('IG unbound')!['workspace_id']).toBeNull();
   });
 });

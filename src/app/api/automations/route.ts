@@ -185,10 +185,21 @@ export async function POST(request: Request): Promise<Response> {
 
   // Ownership: the account being attached must belong to this user
   // (Instagram account OR Facebook Page, by the payload's channel).
+  // 2026-11-27 (Klout fix): the bound account/page's workspace_id is
+  // stamped onto the new automation row below. The DM engines resolve
+  // the workspace from this same binding and the dm_sent_log claim FK
+  // (fk_dm_sent_log_workspace_automation) requires the
+  // (workspace_id, automation_id) pair to exist in automations — a NULL
+  // here fails every later DM job at the claim step ("Failed to claim
+  // comment for private reply"). An account/page with no workspace
+  // binding keeps NULL (legacy behaviour; nothing is invented).
+  let boundWorkspaceId: string | null = null;
+  const workspaceIdOf = (row: { workspace_id?: unknown } | null): string | null =>
+    typeof row?.workspace_id === 'string' && row.workspace_id.length > 0 ? row.workspace_id : null;
   if (isFacebook) {
     const { data: fbPage, error: fbError } = await db
       .from('facebook_pages')
-      .select('id')
+      .select('id, workspace_id')
       .eq('id', data.facebookPageId)
       .eq('user_id', user.id)
       .eq('is_active', true)
@@ -196,10 +207,11 @@ export async function POST(request: Request): Promise<Response> {
     if (fbError || !fbPage) {
       return Response.json({ error: 'Facebook Page not found or not yours' }, { status: 403 });
     }
+    boundWorkspaceId = workspaceIdOf(fbPage);
   } else {
     const { data: igAccount, error: igError } = await db
       .from('instagram_accounts')
-      .select('id')
+      .select('id, workspace_id')
       .eq('id', data.instagramAccountId)
       .eq('user_id', user.id)
       .eq('is_active', true)
@@ -207,6 +219,7 @@ export async function POST(request: Request): Promise<Response> {
     if (igError || !igAccount) {
       return Response.json({ error: 'Instagram account not found or not yours' }, { status: 403 });
     }
+    boundWorkspaceId = workspaceIdOf(igAccount);
   }
 
   // Bug 2 enforcement (2026-11-09): creating an automation that
@@ -268,6 +281,9 @@ export async function POST(request: Request): Promise<Response> {
       is_active: data.isActive,
       ai_reply_language: data.aiReplyLanguage,
       total_dms_sent: 0,
+      // 2026-11-27 (Klout fix): workspace from the bound account/page
+      // (see the ownership check above); NULL when unbound.
+      workspace_id: boundWorkspaceId,
     })
     .select('id, name, type, is_active, total_dms_sent, created_at')
     .single();

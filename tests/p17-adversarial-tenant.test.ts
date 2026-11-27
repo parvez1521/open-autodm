@@ -370,7 +370,7 @@ describe('§C request bodies cannot smuggle role/ownership fields', () => {
     expect('role' in row).toBe(false);
   });
 
-  it('POST /api/automations with smuggled user_id/workspace_id: created row is owned by the AUTHENTICATED user, workspace field absent', async () => {
+  it('POST /api/automations with smuggled user_id/workspace_id: created row is owned by the AUTHENTICATED user, workspace is the BOUND one (not the smuggled value)', async () => {
     // The create schema requires a UUID account id; seed one owned by A.
     const UUID_ACCT = '00000000-0000-4000-8000-0000000000a1';
     fake.seed('instagram_accounts', [accountRow({ id: UUID_ACCT })]);
@@ -392,7 +392,10 @@ describe('§C request bodies cannot smuggle role/ownership fields', () => {
     expect(res.status).toBe(201);
     const created = fake.rows('automations').find((r) => r['name'] === 'Created by A')!;
     expect(created['user_id']).toBe(OWNER_A);
-    expect('workspace_id' in created).toBe(false);
+    // 2026-11-27 (Klout fix): the server stamps workspace_id from the
+    // BOUND account row — the smuggled WS_B must NOT land on the row.
+    // The seeded account is bound to WS_A, so the row carries WS_A.
+    expect(created['workspace_id']).toBe(WS_A);
     expect('role' in created).toBe(false);
   });
 
