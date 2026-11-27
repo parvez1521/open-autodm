@@ -90,7 +90,7 @@ export async function GET(request: Request): Promise<Response> {
           ask_to_follow_visit_profile_button, ask_to_follow_confirm_button,
           dm_responses, trigger_config, flow_graph, total_dms_sent, ai_reply_language, created_at, updated_at,
           instagram_account_id, channel, facebook_page_id,
-          instagram_accounts ( id, username, profile_picture_url ),
+          instagram_accounts!automations_instagram_account_id_fkey ( id, username, profile_picture_url ),
           facebook_pages ( id, name, username, profile_picture_url )
         `)
         .eq('user_id', user.id);
