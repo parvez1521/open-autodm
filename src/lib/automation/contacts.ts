@@ -27,6 +27,48 @@ const logger = createLogger('contacts');
 
 export type ContactTriggerType = 'comment' | 'dm' | 'story_reply' | 'story_mention' | 'button';
 
+/* ─── "Save contacts" toggle (owner request, 2026-11-27) ───────────────
+ * The Contacts page has an ON/OFF switch for whether people who
+ * trigger an automation are saved as contacts. The setting lives on
+ * profiles.save_contacts (migration …20261127000001, DEFAULT true).
+ * The gate lives HERE, inside the two record functions — the single
+ * choke point for all capture call sites (6 IG sites in
+ * processWebhook.ts, 2 FB sites in processFacebookJob.ts) — so no
+ * call site can forget it. The DM itself is unaffected: the gate
+ * only skips the contact RPC. Fail-open by design: any read failure,
+ * missing parent row, missing profile, or NULL value means ON
+ * (save contacts), so a settings/read blip can never silently stop
+ * capture — only an explicit OFF does. */
+
+export async function shouldSaveContacts(
+  db: SupabaseClient,
+  parent: { instagramAccountId: string } | { facebookPageId: string },
+): Promise<boolean> {
+  try {
+    const isIg = 'instagramAccountId' in parent;
+    const parentTable = isIg ? 'instagram_accounts' : 'facebook_pages';
+    const parentId = isIg ? parent.instagramAccountId : parent.facebookPageId;
+    const { data: account, error: accountError } = await db
+      .from(parentTable)
+      .select('user_id')
+      .eq('id', parentId)
+      .maybeSingle();
+    if (accountError || !account) return true;
+    const userId = (account as { user_id?: string | null }).user_id;
+    if (!userId) return true;
+    const { data: profile, error: profileError } = await db
+      .from('profiles')
+      .select('save_contacts')
+      .eq('id', userId)
+      .maybeSingle();
+    if (profileError || !profile) return true;
+    const value = (profile as { save_contacts?: boolean | null }).save_contacts;
+    return value !== false; // NULL ⇒ ON (column is NOT NULL, but be safe)
+  } catch {
+    return true;
+  }
+}
+
 /** Records (or increments) a contact interaction. Fire-and-forget. */
 export function recordContactInteraction(params: {
   instagramAccountId: string;
@@ -38,6 +80,8 @@ export function recordContactInteraction(params: {
   void (async (): Promise<void> => {
     try {
       const db = createServiceClient();
+      // "Save contacts" toggle OFF ⇒ skip capture entirely (DM unaffected).
+      if (!(await shouldSaveContacts(db as unknown as SupabaseClient, { instagramAccountId: params.instagramAccountId }))) return;
       const { error } = await db.rpc('record_contact_interaction', {
         p_account_id: params.instagramAccountId,
         p_audience_id: params.audienceIgUserId,
@@ -116,6 +160,8 @@ export function recordFacebookContactInteraction(params: {
   void (async (): Promise<void> => {
     try {
       const db = createServiceClient();
+      // "Save contacts" toggle OFF ⇒ skip capture entirely (DM unaffected).
+      if (!(await shouldSaveContacts(db as unknown as SupabaseClient, { facebookPageId: params.facebookPageId }))) return;
       const { error } = await db.rpc('record_fb_contact_interaction', {
         p_page_id: params.facebookPageId,
         p_audience_id: params.audienceIgUserId,

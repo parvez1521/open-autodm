@@ -5,6 +5,7 @@ import { MagnifyingGlass, Users, ChatCircle, PaperPlaneTilt, Image as ImageIcon,
 import { cn } from "@/lib/utils";
 import { PillToggle } from "@/components/ui/PillToggle";
 import { useContacts, type ContactFromDB } from "@/hooks/useContacts";
+import { useContactSettings, useSaveContactSettings } from "@/hooks/useContactSettings";
 import { useLeads, type LeadFromDB } from "@/hooks/useLeads";
 import { useWorkspace } from "@/components/workspace/WorkspaceProvider";
 import {
@@ -83,6 +84,24 @@ export function ContactsList() {
     const [exporting, setExporting] = useState(false);
     const [exportError, setExportError] = useState<string | null>(null);
     const { workspaceRuntimeEnabled, selectedWorkspaceId } = useWorkspace();
+    // "Save contacts" toggle (owner request, 2026-11-27): when off,
+    // people who trigger an automation still get their DM — they just
+    // aren't added to Contacts. The switch updates optimistically and
+    // rolls back on a failed save (see useContactSettings).
+    const { data: saveContacts, isPending: settingsPending, error: settingsError } = useContactSettings();
+    const saveSettingsMutation = useSaveContactSettings();
+    const [settingsSaveError, setSettingsSaveError] = useState<string | null>(null);
+
+    async function handleSaveContactsToggle() {
+        if (settingsPending || saveSettingsMutation.isPending) return;
+        const next = !(saveContacts ?? true);
+        setSettingsSaveError(null);
+        try {
+            await saveSettingsMutation.mutateAsync(next);
+        } catch (err) {
+            setSettingsSaveError(err instanceof Error ? err.message : "Could not save the setting.");
+        }
+    }
 
     // CSV export (owner decision, 2026-11-17): downloads every
     // captured contact as a dated CSV — backup/list only, no
@@ -184,6 +203,44 @@ export function ContactsList() {
 
     return (
         <div className="flex flex-col space-y-4 w-full animate-in fade-in duration-500">
+            {/* "Save contacts" toggle (owner request, 2026-11-27). */}
+            <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border">
+                <div>
+                    <p className="text-sm font-semibold text-foreground">Save contacts</p>
+                    <p className="text-[13px] text-muted-foreground mt-0.5">
+                        When on, everyone who triggers an automation is saved here as a contact.
+                        When off, DMs still send — new people just won&apos;t be added.
+                    </p>
+                    {settingsError && (
+                        <p className="text-[13px] text-muted-foreground mt-1">Couldn&apos;t load the setting — showing it as on.</p>
+                    )}
+                    {settingsSaveError && (
+                        <p role="alert" className="text-[13px] text-destructive mt-1">
+                            {settingsSaveError} Your contacts were not changed.
+                        </p>
+                    )}
+                </div>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={saveContacts ?? true}
+                    aria-label="Save contacts"
+                    disabled={settingsPending || saveSettingsMutation.isPending}
+                    onClick={() => void handleSaveContactsToggle()}
+                    className={cn(
+                        "relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60",
+                        (saveContacts ?? true) ? "bg-[#F97316]" : "bg-muted",
+                    )}
+                >
+                    <span
+                        className={cn(
+                            "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all",
+                            (saveContacts ?? true) ? "left-[22px]" : "left-0.5",
+                        )}
+                    />
+                </button>
+            </div>
+
             {/* Tabs: Contacts / Leads (2026-11-17). Shared PillToggle
                 treatment (2026-11-25). */}
             <div className="self-start">

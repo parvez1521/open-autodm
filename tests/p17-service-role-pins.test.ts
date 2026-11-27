@@ -130,6 +130,13 @@ const CLASSIFIED: Record<string, Classified> = {
     kind: 'user-session+owner-check',
     tokens: ["eq('user_id', user.id)", 'accountIds.includes(requestedAccountId)'],
   },
+  // "Save contacts" toggle (2026-11-27): caller-scoped profiles read
+  // (GET) + upsert-by-id (PATCH) — the row key is always the
+  // authenticated user's own id, never a client-supplied id.
+  'app/api/contacts/settings/route.ts': {
+    kind: 'user-session+owner-check',
+    tokens: ["eq('id', user.id)"],
+  },
   'app/api/debug/events/route.ts': {
     kind: 'user-session+owner-check',
     tokens: ["eq('user_id', user.id)"],
@@ -563,9 +570,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     expect(stale).toEqual([]);
   });
 
-  it('counts reconcile with the audit: 64 importing files, 122 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site; workspace-mode connect default 2026-11-11: instagram/connect route gains one service-client call to resolve the single membership of the caller for the default-workspace binding (file already classified) — +1 call site; post-picker paste-link 2026-11-15: instagram/posts resolve route classified user-session+owner-check (caller-scoped account read, same guard as the list route; legacy + workspace branches) — +1 file, +2 call sites; six-feature batch 2026-11-17: leads route classified user-session+owner-check (caller-scoped automations boundary; legacy + workspace branches) — +1 file, +2 call sites; link-click redirect route classified code-as-credential (unguessable short code is the credential; redirect-only, exposes no data) — +1 file, +1 call site; link-click tracking in the DM engine adds one service-client call in deliverResponsesBestEffort (file already classified); contacts CSV export 2026-11-17: contacts/export route classified user-session+owner-check (caller-scoped account read, same guard as the list route; legacy + workspace branches) — +1 file, +2 call sites; Facebook Page automation 2026-11-19: seven FB API routes (connect/callback/accounts/disconnect/posts/resolve/resubscribe) + processFacebookWebhook + processFacebookJob classified — +9 files, +15 call sites; contacts.ts gains two FB-twin service-client calls (recordFacebookContactInteraction / stampFacebookContactWorkspace — file already classified) — +2 call sites; post thumbnails 2026-11-22: instagram/posts + facebook/posts thumbnails routes classified user-session+owner-check (caller-scoped account/Page read, same guard as the list routes; legacy + workspace branches) — +2 files, +2 call sites; duplicate automation 2026-11-22: automations/[id]/duplicate route classified user-session+owner-check (caller-scoped automation read + copy insert, same guard as the [id] route; legacy + workspace branches) — +1 file, +2 call sites; profile pictures (UI polish 2026-11-25): instagram/accounts + facebook/pages pictures routes classified user-session+owner-check (caller-scoped account/Page read, same guard as the thumbnails routes; legacy + workspace branches) — +2 files, +2 call sites)', () => {
+  it('counts reconcile with the audit: 65 importing files, 124 executable call sites (P19: accept route declassified, workspaces POST service call removed; P30/AA-6: workspaces GET + members GET + members/[userId] declassified, 4 read call sites removed; launch prep 2026-11-07: waitlist route classified as a platform-singleton exception, +1 file, +1 call site; subscription wiring 2026-11-08: four billing routes classified — checkout/trial/status user-session+owner-check, webhook webhook-hmac — +4 files, +4 call sites; owner admin panel 2026-11-09: /admin page classified as a platform-singleton exception — +1 file, +1 call site; customer fixes 2026-11-09: accept route re-classified as an entitlement-gate exception (flag-gated read-only teamSeats check) — +1 file, +1 call site; plan-choice routing 2026-11-10: dashboard server wrapper + billing/plan-choice route classified user-session+owner-check (caller-scoped workspace read; caller-only app_metadata stamp) — +2 files, +2 call sites; Task F 2026-11-10: lib/billing/planChoiceServer classified user-session+owner-check (the post-auth resolver; caller-scoped reads only) — +1 file, +1 call site; workspace-mode connect default 2026-11-11: instagram/connect route gains one service-client call to resolve the single membership of the caller for the default-workspace binding (file already classified) — +1 call site; post-picker paste-link 2026-11-15: instagram/posts resolve route classified user-session+owner-check (caller-scoped account read, same guard as the list route; legacy + workspace branches) — +1 file, +2 call sites; six-feature batch 2026-11-17: leads route classified user-session+owner-check (caller-scoped automations boundary; legacy + workspace branches) — +1 file, +2 call sites; link-click redirect route classified code-as-credential (unguessable short code is the credential; redirect-only, exposes no data) — +1 file, +1 call site; link-click tracking in the DM engine adds one service-client call in deliverResponsesBestEffort (file already classified); contacts CSV export 2026-11-17: contacts/export route classified user-session+owner-check (caller-scoped account read, same guard as the list route; legacy + workspace branches) — +1 file, +2 call sites; Facebook Page automation 2026-11-19: seven FB API routes (connect/callback/accounts/disconnect/posts/resolve/resubscribe) + processFacebookWebhook + processFacebookJob classified — +9 files, +15 call sites; contacts.ts gains two FB-twin service-client calls (recordFacebookContactInteraction / stampFacebookContactWorkspace — file already classified) — +2 call sites; post thumbnails 2026-11-22: instagram/posts + facebook/posts thumbnails routes classified user-session+owner-check (caller-scoped account/Page read, same guard as the list routes; legacy + workspace branches) — +2 files, +2 call sites; duplicate automation 2026-11-22: automations/[id]/duplicate route classified user-session+owner-check (caller-scoped automation read + copy insert, same guard as the [id] route; legacy + workspace branches) — +1 file, +2 call sites; profile pictures (UI polish 2026-11-25): instagram/accounts + facebook/pages pictures routes classified user-session+owner-check (caller-scoped account/Page read, same guard as the thumbnails routes; legacy + workspace branches) — +2 files, +2 call sites; save-contacts toggle (2026-11-27): contacts/settings route classified user-session+owner-check (caller-scoped profiles read + upsert-by-id, GET + PATCH) — +1 file, +2 call sites)', () => {
     const importers = serviceImporters();
-    expect(importers.length).toBe(64);
+    expect(importers.length).toBe(65);
     let calls = 0;
     for (const f of importers) {
       for (const line of sourceOf(f).split('\n')) {
@@ -576,7 +583,7 @@ describe('P17/B source scan: service-role importer classification', () => {
     }
     // Excludes the definition in lib/supabase/service.ts (not an importer)
     // and comment mentions. Any new call site must update the audit table.
-    expect(calls).toBe(122);
+    expect(calls).toBe(124);
   });
 
   it('every classified file still carries its audited guard tokens', () => {
@@ -617,7 +624,9 @@ describe('P17/B source scan: service-role importer classification', () => {
     // automations/[id]/duplicate route.)
     // Profile pictures (UI polish 2026-11-25) added two more: the
     // instagram/accounts + facebook/pages pictures routes.)
-    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(39);
+    // Save-contacts toggle (2026-11-27) added one more: the
+    // contacts/settings route.)
+    expect(Object.keys(CLASSIFIED).length - REVIEWED_EXCEPTIONS.length).toBe(40);
   });
 
   it('FINDING B-F1 pin: no product file imports scopedDb helpers (guards are heterogeneous, not scopedDb)', () => {
