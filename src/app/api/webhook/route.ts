@@ -30,6 +30,39 @@ export const maxDuration = 60;
 
 const logger = createLogger('webhook-route');
 
+/**
+ * Max jobs drained inline by one webhook invocation.
+ *
+ * Cloudflare Workers free plan allows 50 subrequests (fetch calls) per
+ * invocation, and the webhook's after() callback runs in the SAME
+ * invocation as the admission + enqueue path. Per-job subrequest
+ * estimate for a full-featured IG comment job (public reply on, 1-step,
+ * no flow graph):
+ *   ~17 awaited Supabase calls (owner lookup, dedup x2, automation,
+ *   account, opt-out, rate-limit RPC, reservation RPC, markJobStatus,
+ *   public-reply select + reservation + confirm + dm_jobs update,
+ *   dm_sent_log insert, counter RPC, confirm-reservation RPC,
+ *   markJobDone RPC)
+ *   + 2 Meta Graph API calls (public reply + opening DM)
+ *   + ~8 fire-and-forget debug_events inserts
+ *   ≈ 27 subrequests per job.
+ * Admission + enqueue add ~8-10 more in the same invocation, so ONE job
+ * lands at ~35-37 (safely under 50) while TWO would land at ~62-64
+ * (over — an FB job already logged 'Too many subrequests' from a
+ * 5-job drain, 2026-11-27). The cap is therefore 1.
+ *
+ * Throughput impact is bounded: each comment arrival is itself a
+ * webhook event, and each event drains the oldest pending job, so the
+ * backlog clears at the arrival rate. Jobs with no webhook behind them
+ * (retries, follow-ups) still depend on the /api/cron/process-jobs
+ * safety net, which drains with its own limit.
+ *
+ * NOTE: intentionally NOT exported — Next.js route modules may only
+ * export route handlers/config, and the generated .next/types check
+ * rejects any other export. Tests assert the literal value instead.
+ */
+const WEBHOOK_INLINE_DRAIN_MAX_JOBS = 1;
+
 // ── GET /api/webhook - Meta verification challenge ──────────────────────────
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
@@ -196,8 +229,10 @@ export async function POST(request: Request): Promise<Response> {
           : await processWebhookPayload(admission.body)
         : 0;
       // Fast path: drain what we just enqueued (plus any other due jobs).
+      // Capped at WEBHOOK_INLINE_DRAIN_MAX_JOBS (see the constant above):
+      // one invocation must stay under the 50-subrequest free-plan limit.
       if (enqueued > 0) {
-        await processDueJobs(Math.max(enqueued, 5));
+        await processDueJobs(WEBHOOK_INLINE_DRAIN_MAX_JOBS);
       }
     } catch (err) {
       logger.error({ err }, 'Webhook background processing failed (200 already sent)');

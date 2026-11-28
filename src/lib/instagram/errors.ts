@@ -61,6 +61,25 @@ export class AmbiguousDeliveryError extends Error {
   }
 }
 
+/**
+ * A Meta Graph API call did not settle within META_API_TIMEOUT_MS.
+ * Deliberately NOT a MetaApiError: no response was received, so for a
+ * pre-send call this is a safe transient (the engine retries it with
+ * backoff); for a send already attempted, reservationDispositionForError
+ * classifies it 'ambiguous' (fail closed), exactly like any other
+ * transport failure whose outcome is unknown. Callers that fail open
+ * (getAudienceProfile) keep returning null on it.
+ */
+export class MetaApiTimeoutError extends Error {
+  constructor(
+    public readonly timeoutMs: number,
+    public readonly context: string
+  ) {
+    super(`Meta API call timed out after ${timeoutMs}ms (${context})`);
+    this.name = 'MetaApiTimeoutError';
+  }
+}
+
 export function classifyMetaError(message: string, code: number | undefined, subcode: number | undefined): MetaApiError {
   if (code !== undefined && (ACCOUNT_PAUSE_CODES as readonly number[]).includes(code)) {
     return new AccountPausedMetaError(message, code, subcode);

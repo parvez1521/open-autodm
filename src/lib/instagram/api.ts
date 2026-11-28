@@ -14,12 +14,57 @@
 
 import { createLogger } from '@/lib/logger';
 import { debugLog } from '@/lib/debugLog';
-import { classifyMetaError } from '@/lib/instagram/errors';
+import { classifyMetaError, MetaApiTimeoutError } from '@/lib/instagram/errors';
 
 const logger = createLogger('instagram');
 
 export const META_API_VERSION = 'v23.0';
 const META_GRAPH_BASE = `https://graph.instagram.com/${META_API_VERSION}`;
+
+/**
+ * Per-call timeout for Meta Graph API requests in this module.
+ *
+ * Meta's messaging endpoints normally answer in well under a second. A
+ * call that has not settled in 10s is wedged — observed live 2026-11-28:
+ * IG comment-DM jobs hung silently on the Cloudflare Worker after
+ * job_started (a plain fetch with no timeout never settles, so the
+ * invocation is eventually reaped with the job stranded in 'processing'
+ * and no error event anywhere). The timeout turns that silent hang into
+ * a catchable MetaApiTimeoutError: the engine retries it as transient
+ * before any send, fails it closed after one (see
+ * reservationDispositionForError), and getAudienceProfile keeps failing
+ * open to null. Follows the repo's existing pattern in
+ * src/lib/api/client.ts (AbortController + setTimeout, timeout aborts
+ * translated to a typed error) rather than AbortSignal.timeout, so the
+ * same code runs on Node, workerd and the Vitest harness.
+ */
+export const META_API_TIMEOUT_MS = 10_000;
+
+/**
+ * fetch() bounded by META_API_TIMEOUT_MS. A timeout aborts the request
+ * and rejects with MetaApiTimeoutError; any other failure keeps its
+ * original shape. The timeout bounds connection + headers (the observed
+ * hang is a fetch that never settles); bodies are small Meta JSON
+ * payloads read immediately after.
+ */
+async function metaFetch(input: string, init: RequestInit, context: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), META_API_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    // Only our own timeout abort becomes a timeout error: this helper
+    // creates the controller, so no caller-supplied signal can abort it.
+    // Name-based check (not instanceof Error): the abort rejection is a
+    // DOMException, which is not an Error instance in Node.
+    if ((err as { name?: unknown } | null)?.name === 'AbortError') {
+      throw new MetaApiTimeoutError(META_API_TIMEOUT_MS, context);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 interface MetaSendMessageResponse {
   recipient_id: string;
@@ -109,11 +154,11 @@ export async function sendInstagramDm(
     messageLength: messageText.length,
   });
 
-  const res = await fetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
+  const res = await metaFetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipient: recipientJson(recipient), message: messageBody }),
-  });
+  }, 'sendInstagramDm');
 
   const data = (await res.json()) as MetaSendMessageResponse & MetaErrorResponse;
 
@@ -203,11 +248,11 @@ export async function sendInstagramLinkButtonDm(
     buttonCount: metaButtons.length,
   });
 
-  const res = await fetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
+  const res = await metaFetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, 'sendInstagramLinkButtonDm');
 
   const data = (await res.json()) as MetaSendMessageResponse & MetaErrorResponse;
   if (!res.ok) {
@@ -233,11 +278,11 @@ export async function replyToComment(commentId: string, replyText: string, acces
     replyLength: replyText.length,
   });
 
-  const res = await fetch(`${META_GRAPH_BASE}/${commentId}/replies`, {
+  const res = await metaFetch(`${META_GRAPH_BASE}/${commentId}/replies`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: replyText, access_token: accessToken }),
-  });
+  }, 'replyToComment');
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as MetaErrorResponse;
@@ -295,11 +340,11 @@ export async function sendAskToFollowDm(
     },
   };
 
-  const res = await fetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
+  const res = await metaFetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, 'sendAskToFollowDm');
 
   const data = (await res.json()) as MetaSendMessageResponse & MetaErrorResponse;
   if (!res.ok) {
@@ -336,14 +381,14 @@ export async function sendInstagramCardDm(
     }));
   }
 
-  const res = await fetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
+  const res = await metaFetch(`${META_GRAPH_BASE}/${igAccountIgsid}/messages?access_token=${accessToken}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       recipient: { id: recipientIgsid },
       message: { attachment: { type: 'template', payload: { template_type: 'generic', elements: [element] } } },
     }),
-  });
+  }, 'sendInstagramCardDm');
 
   const data = (await res.json()) as MetaSendMessageResponse & MetaErrorResponse;
   if (!res.ok) {
@@ -376,8 +421,14 @@ export async function getAudienceProfile(
   accessToken: string
 ): Promise<AudienceProfile | null> {
   try {
-    const res = await fetch(
-      `${META_GRAPH_BASE}/${audienceIgsid}?fields=username,is_user_follow_business&access_token=${accessToken}`
+    // Bounded by META_API_TIMEOUT_MS via metaFetch: a wedged profile
+    // call must settle as a fail-open null (see the catch below), never
+    // strand the job in 'processing' the way the untimed fetch did
+    // live on 2026-11-28.
+    const res = await metaFetch(
+      `${META_GRAPH_BASE}/${audienceIgsid}?fields=username,is_user_follow_business&access_token=${accessToken}`,
+      {},
+      'getAudienceProfile'
     );
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as MetaErrorResponse;
