@@ -35,6 +35,29 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
+/**
+ * Max jobs drained by one cron invocation.
+ *
+ * Cloudflare Workers free plan allows 50 subrequests (fetch calls) per
+ * invocation. A full-featured IG comment job costs ~27 subrequests
+ * (~17 awaited Supabase + 2 Meta Graph API + ~8 fire-and-forget
+ * debug_events inserts), and the cron invocation itself adds overhead
+ * (token refresh, Traffic Guard, follow-up sweep, cleanup). ONE job
+ * lands at ~35-37 (safely under 50) while TWO would land at ~62-64
+ * (over — an FB job already logged 'Too many subrequests' from a
+ * 5-job drain, 2026-11-27). The cap is therefore 1, matching the
+ * webhook inline drain (WEBHOOK_INLINE_DRAIN_MAX_JOBS).
+ *
+ * Throughput impact is bounded: pg_cron calls this endpoint every
+ * minute, so the backlog clears steadily at 1 job/minute plus whatever
+ * the webhook inline drain picks up.
+ *
+ * NOTE: intentionally NOT exported — Next.js route modules may only
+ * export route handlers/config, and the generated .next/types check
+ * rejects any other export. Tests assert the literal value instead.
+ */
+const CRON_DRAIN_MAX_JOBS = 1;
+
 const logger = createLogger('cron');
 
 function isAuthorized(request: Request): boolean {
@@ -111,7 +134,7 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const drain = await processDueJobs(25);
+  const drain = await processDueJobs(CRON_DRAIN_MAX_JOBS);
   const tokensRefreshed = await refreshExpiringTokens();
 
   // Traffic Guard: re-evaluate open high-traffic incidents so recovery is
@@ -121,8 +144,14 @@ async function handle(request: Request): Promise<Response> {
   // Scheduled follow-ups: re-enqueue send jobs for due rows whose original
   // enqueue was lost (dedupe keys make this a no-op when the job exists),
   // then drain again so freshly requeued follow-ups are not left waiting.
+  // Guard: only drain a second job when the main drain claimed none —
+  // two 1-job drains in one invocation would land at ~50-57 subrequests
+  // (1 auto_dm ≈ 27 + 1 follow-up ≈ 15-20 + overhead ≈ 8-10), right at
+  // or over the 50 limit. At most 1 job per cron tick; the next tick
+  // picks up the rest.
   const followUpsRequeued = await sweepDueFollowUps(25);
-  const followUpDrain = followUpsRequeued > 0 ? await processDueJobs(25) : null;
+  const followUpDrain =
+    followUpsRequeued > 0 && drain.claimed === 0 ? await processDueJobs(CRON_DRAIN_MAX_JOBS) : null;
 
   const db = createServiceClient();
   const { error: cleanupError } = await db.rpc('cleanup_old_rows');
